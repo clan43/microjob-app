@@ -1,0 +1,236 @@
+import { CLOTHING_STYLES } from "./clothingStyles";
+
+/**
+ * Client-side, in-memory cache for the AI Editor "Recent generations" list.
+ * Works like the My Files cache: the navbar starts the request the moment the
+ * user points at / clicks "AI Editor", so by the time the page opens the images
+ * are already there. Memory only (never localStorage): private user data.
+ */
+export interface AiEditorGeneration {
+  id?: string | number;
+  url: string;
+  [key: string]: unknown;
+}
+
+export class AiEditorFetchError extends Error {
+  status: number;
+  serverMessage: string;
+  constructor(status: number, serverMessage: string) {
+    super(serverMessage || "Failed to load recent generations.");
+    this.status = status;
+    this.serverMessage = serverMessage;
+  }
+}
+
+interface CacheEntry {
+  identity: string;
+  list: AiEditorGeneration[];
+  fetchedAt: number;
+  epoch: number;
+}
+interface PendingEntry {
+  identity: string;
+  epoch: number;
+  promise: Promise<AiEditorGeneration[]>;
+}
+
+const PREFETCH_REFRESH_AFTER_MS = 8_000;
+// Only the photos visible in the first fold are warmed; the rest load lazily when scrolled to.
+const IMAGE_PRELOAD_LIMIT = 8;
+
+// Width of the Cloudinary thumbnail used everywhere a small preview is shown (strip, gallery,
+// print-studio picker, delete dialog). One shared size means one derived image per photo.
+const AI_EDITOR_THUMBNAIL_WIDTH = 320;
+
+let cacheEntry: CacheEntry | null = null;
+let pendingEntry: PendingEntry | null = null;
+let cacheEpoch = 0;
+
+function getToken(): string | null {
+  try {
+    return window.localStorage.getItem("token");
+  } catch {
+    return null;
+  }
+}
+
+function getAuthIdentity(): string {
+  if (typeof window === "undefined") return "server";
+  const token = getToken();
+  if (token) return `token:${token}`;
+  try {
+    const rawUser = window.localStorage.getItem("user");
+    if (rawUser) {
+      const user = JSON.parse(rawUser) as Record<string, unknown>;
+      const accountId = user.id ?? user._id ?? user.userId ?? user.email ?? user.phoneNumber;
+      if (typeof accountId === "string" && accountId.trim()) {
+        return `user:${accountId.trim().toLowerCase()}`;
+      }
+    }
+  } catch {
+    // fall through
+  }
+  return "cookie-session";
+}
+
+/** Drag-and-drop type used when a recent photo is dragged onto an empty upload box. */
+export const RECENT_PHOTO_DRAG_TYPE = "application/x-sebalagbe-recent-photo";
+
+/** Small Cloudinary rendition for small previews. Originals stay untouched for full preview/download. */
+export function getAiEditorThumbnailUrl(url: string): string {
+  if (!url) return url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname !== "res.cloudinary.com" || !parsed.pathname.includes("/image/upload/")) return url;
+    const marker = "/image/upload/";
+    const index = parsed.pathname.indexOf(marker);
+    const firstSegment = parsed.pathname.slice(index + marker.length).split("/")[0] ?? "";
+    const looksTransformed =
+      firstSegment.includes(",") || /^(?:w|h|c|q|f|g|e|ar|dpr|r|bo|b|fl)_/.test(firstSegment);
+    if (looksTransformed) return url;
+    parsed.pathname = parsed.pathname.replace(marker, `${marker}f_auto,q_auto,w_${AI_EDITOR_THUMBNAIL_WIDTH},c_limit/`);
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+function warmImages(list: AiEditorGeneration[]): void {
+  if (typeof window === "undefined") return;
+  for (const item of list.slice(0, IMAGE_PRELOAD_LIMIT)) {
+    if (!item?.url) continue;
+    const image = new window.Image();
+    image.decoding = "async";
+    image.src = getAiEditorThumbnailUrl(String(item.url));
+  }
+}
+
+export function getCachedAiEditorGenerations(): AiEditorGeneration[] | null {
+  if (typeof window === "undefined") return null;
+  const identity = getAuthIdentity();
+  if (!cacheEntry || cacheEntry.identity !== identity || cacheEntry.epoch !== cacheEpoch) return null;
+  return cacheEntry.list;
+}
+
+/** Keep the cache in step with what the page shows (after generate / delete / edit). */
+export function setCachedAiEditorGenerations(list: AiEditorGeneration[]): void {
+  if (typeof window === "undefined") return;
+  cacheEntry = { identity: getAuthIdentity(), list, fetchedAt: Date.now(), epoch: cacheEpoch };
+}
+
+export function clearAiEditorGenerationsCache(): void {
+  cacheEpoch += 1;
+  cacheEntry = null;
+  pendingEntry = null;
+}
+
+export async function refreshAiEditorGenerations(): Promise<AiEditorGeneration[]> {
+  if (typeof window === "undefined") throw new Error("Browser only.");
+  const identity = getAuthIdentity();
+  const epoch = cacheEpoch;
+  if (pendingEntry && pendingEntry.identity === identity && pendingEntry.epoch === epoch) {
+    return pendingEntry.promise;
+  }
+
+  const promise = (async () => {
+    const token = getToken();
+    const response = await fetch("/api/ai-generations?source=ai-editor", {
+      method: "GET",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
+      cache: "no-store",
+    });
+    const result = await response.json().catch(() => null);
+    if (!response.ok || !result?.success) {
+      if (response.status === 401 || response.status === 402 || response.status === 403) {
+        clearAiEditorGenerationsCache();
+      }
+      throw new AiEditorFetchError(response.status, String(result?.error || result?.message || ""));
+    }
+    const list: AiEditorGeneration[] = Array.isArray(result.data) ? result.data : [];
+    if (epoch === cacheEpoch && identity === getAuthIdentity()) {
+      cacheEntry = { identity, list, fetchedAt: Date.now(), epoch };
+      warmImages(list);
+    }
+    return list;
+  })();
+
+  const pending: PendingEntry = { identity, epoch, promise };
+  pendingEntry = pending;
+  try {
+    return await promise;
+  } finally {
+    if (pendingEntry === pending) pendingEntry = null;
+  }
+}
+
+/** Start loading before navigation (navbar hover / press / click). */
+export function prefetchAiEditorGenerations(force = false): void {
+  if (typeof window === "undefined") return;
+  const connection = (navigator as unknown as { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+  const slowNetwork =
+    connection?.saveData === true ||
+    connection?.effectiveType === "slow-2g" ||
+    connection?.effectiveType === "2g" ||
+    connection?.effectiveType === "3g";
+  if (!slowNetwork) void warmAiEditorStaticAssets();
+  const identity = getAuthIdentity();
+  const usable =
+    cacheEntry && cacheEntry.identity === identity && cacheEntry.epoch === cacheEpoch ? cacheEntry : null;
+  if (usable) warmImages(usable.list);
+  if (force || !usable || Date.now() - usable.fetchedAt >= PREFETCH_REFRESH_AFTER_MS) {
+    void refreshAiEditorGenerations().catch(() => undefined);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// First-paint readiness. The AI Editor page is only drawn once its above-the-fold pictures
+// (clothing icons + the first recent photos) are already in the browser cache, so the page
+// appears finished in one go instead of filling in piece by piece in front of the user.
+// Navbar hover/press warms them in advance, so on a normal click this is already done.
+// ---------------------------------------------------------------------------
+const CLOTHING_ICON_COUNT = CLOTHING_STYLES.length;
+const FIRST_FOLD_THUMBS = 8;
+let staticAssetsPromise: Promise<void> | null = null;
+let staticAssetsWarm = false;
+
+function preloadOne(src: string): Promise<void> {
+  return new Promise((resolve) => {
+    const image = new window.Image();
+    image.decoding = "async";
+    image.onload = () => resolve();
+    image.onerror = () => resolve();
+    image.src = src;
+  });
+}
+
+/** Clothing icons (static files): loaded once per tab, cached by the browser afterwards. */
+export function warmAiEditorStaticAssets(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (!staticAssetsPromise) {
+    const jobs: Promise<void>[] = [];
+    for (let i = 1; i <= CLOTHING_ICON_COUNT; i += 1) jobs.push(preloadOne(`/icons/clothing-${i}.svg`));
+    staticAssetsPromise = Promise.all(jobs).then(() => {
+      staticAssetsWarm = true;
+    });
+  }
+  return staticAssetsPromise;
+}
+
+export function isAiEditorStaticWarm(): boolean {
+  return staticAssetsWarm;
+}
+
+/**
+ * Resolves when the small static clothing icons are loaded, or after `maxMs` at the latest.
+ * The recent photos are NOT awaited: they load in the background and fade in by themselves.
+ */
+export function waitForAiEditorFirstFold(list: AiEditorGeneration[], maxMs = 900): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  // Start the first photos loading now (not awaited), so they are ready as soon as possible.
+  for (const item of list.slice(0, FIRST_FOLD_THUMBS)) {
+    if (item?.url) void preloadOne(getAiEditorThumbnailUrl(String(item.url)));
+  }
+  const cap = new Promise<void>((resolve) => window.setTimeout(resolve, maxMs));
+  return Promise.race([warmAiEditorStaticAssets(), cap]);
+}

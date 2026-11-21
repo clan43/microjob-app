@@ -1,0 +1,197 @@
+name: Bot direct test
+
+# Manual test only: Actions tab -> "Bot direct test" -> Run workflow.
+# Starts N bots at the same time (each on its OWN GitHub runner, same Duck.ai settings as "Bot Pool")
+# and sends "pictures per bot" pictures straight into each bot (http://127.0.0.1:4000/edit-image).
+# No website, no login, no tunnel. Uses playwright-service/test-photo.jpg and prompt.txt.
+#
+#   bots = 18, pictures per bot = 3  ->  54 pictures at the same moment (like the full pool).
+#   bots = 1,  pictures per bot = 3  ->  small first test.
+#
+# IMPORTANT: GitHub's free plan runs only 20 jobs at the same moment. For a big test, first run
+# "Stop all bots" (the pool uses 18 of the 20). Start the pool again with "Bot Pool Launcher" afterwards.
+run-name: "Bot direct test (${{ inputs.bots }} bots x ${{ inputs.per_bot }} pictures)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      bots:
+        description: "How many bots (runners) at the same time. 1 = small test, 18 = full test (stop the pool first!)"
+        required: true
+        default: "1"
+        type: string
+      per_bot:
+        description: "Pictures sent to EACH bot at the same moment (one bot does 3 at once)"
+        required: true
+        default: "3"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      list: ${{ steps.make.outputs.list }}
+    steps:
+      - id: make
+        shell: bash
+        run: |
+          B="${{ inputs.bots }}"; P="${{ inputs.per_bot }}"
+          case "$B" in ''|*[!0-9]*) echo "::error::bots must be a number."; exit 1 ;; esac
+          case "$P" in ''|*[!0-9]*) echo "::error::pictures per bot must be a number."; exit 1 ;; esac
+          if [ "$B" -lt 1 ]; then B=1; fi
+          if [ "$B" -gt 19 ]; then echo "::warning::More than 19 bots cannot run together on the free plan, using 19."; B=19; fi
+          echo "list=$(seq 1 "$B" | jq -sc .)" >> "$GITHUB_OUTPUT"
+          echo "Bots: $B, pictures per bot: $P, total at the same moment: $((B * P))"
+
+  test:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        bot: ${{ fromJSON(needs.prepare.outputs.list) }}
+    env:
+      BOT_PORT: "4000"
+      SKIP_DESKTOP: "1"
+      AI_PROVIDER: "duckai"
+      DUCKAI_TEST: "1"
+      DUCKAI_FALLBACK: "0"
+      DUCKAI_MAX_CHARS: "4300"
+      DUCKAI_WAIT_MS: "150000"
+      DUCKAI_WARM_MAX: "3"
+      DUCKAI_WARM_TTL_MS: "300000"
+      MAX_CONCURRENT_GENERATIONS: "3"
+      MAX_JOB_RETRIES: "2"
+      PREWARM: "0"
+      WARM_DEMAND: "0"
+      BROWSER_LOCALE: "en-US"
+    defaults:
+      run:
+        working-directory: playwright-service
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install bot dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Install Chromium for Playwright
+        run: node ./node_modules/playwright/cli.js install --with-deps chromium
+
+      - name: Use the test photo from the secret (if the secret exists)
+        env:
+          TEST_PHOTO_B64: ${{ secrets.TEST_PHOTO_B64 }}
+        run: |
+          if [ -n "$TEST_PHOTO_B64" ]; then
+            printf '%s' "$TEST_PHOTO_B64" | base64 -d > test-photo.jpg
+            echo "Photo restored from secret."
+          fi
+
+      - name: Check the files exist
+        run: ls -la test-photo.jpg prompt.txt ../load-test.mjs
+
+      # Bot N uses playwright-service/test-photos/N.jpg if that file exists, otherwise test-photo.jpg.
+      - name: Pick this bot's photo
+        run: |
+          IMG="test-photo.jpg"
+          if [ -f "test-photos/${{ matrix.bot }}.jpg" ]; then IMG="test-photos/${{ matrix.bot }}.jpg"; fi
+          echo "IMG=$IMG" >> "$GITHUB_ENV"
+          echo "Bot ${{ matrix.bot }} uses photo: $IMG"
+          ls -la "$IMG"
+
+      - name: Start the bot
+        run: |
+          nohup xvfb-run -a npm start > bot.log 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS "http://127.0.0.1:${BOT_PORT}/health" > /dev/null; then echo "Bot is up."; exit 0; fi
+            sleep 2
+          done
+          cat bot.log
+          exit 1
+
+      # All bots finish their set-up at slightly different times. This waits until the clock reaches a
+      # common start moment (about 7 minutes after the first job started), so the pictures really go
+      # at the same moment on every bot. If the clock is already past it, it starts at once.
+      - name: Wait for the common start moment
+        run: |
+          START="${{ github.run_started_at }}"
+          START_EPOCH=$(date -d "$START" +%s)
+          GO=$((START_EPOCH + 420))
+          NOW=$(date +%s)
+          if [ "$NOW" -lt "$GO" ]; then echo "Waiting $((GO - NOW))s for the common start ..."; sleep $((GO - NOW)); fi
+          date -u +"Starting at %T UTC"
+
+      - name: Send the pictures
+        run: |
+          case "${{ inputs.per_bot }}" in ''|*[!0-9]*) echo "::error::pictures per bot must be a number."; exit 1 ;; esac
+          PROMPT="$(cat prompt.txt)"
+          echo "Prompt length: ${#PROMPT} characters (more than 4300 = the PDF way is tested)."
+          node ../load-test.mjs \
+            --url "http://127.0.0.1:${BOT_PORT}/edit-image" \
+            --image "$IMG" \
+            --prompt "$PROMPT" \
+            --count "${{ inputs.per_bot }}" \
+            --save results | tee report.txt
+          { echo "## Bot ${{ matrix.bot }}"; echo "Photo used: $IMG"; echo '```'; sed -n '/==== REPORT/,$p' report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep a copy of the input photo next to the results
+        if: always()
+        run: |
+          mkdir -p results
+          if [ -n "$IMG" ] && [ -f "$IMG" ]; then cp "$IMG" results/INPUT-photo.jpg; fi
+
+      - name: Show the bot log
+        if: always()
+        run: |
+          echo "----- [duckai] lines -----"
+          grep -a "\[duckai\]" bot.log | tail -n 150 || true
+          echo "----- last 80 lines of bot.log -----"
+          tail -n 80 bot.log || true
+
+      - name: Upload this bot's results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bot-report-${{ matrix.bot }}
+          path: |
+            playwright-service/report.txt
+            playwright-service/bot.log
+            playwright-service/results/
+          if-no-files-found: ignore
+
+  total:
+    needs: test
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bot-report-*
+          path: reports
+        continue-on-error: true
+
+      - name: Add everything up
+        shell: bash
+        run: |
+          OK=$(cat reports/*/report.txt 2>/dev/null | awk '/^Success:/ {s+=$2} END {print s+0}')
+          FAIL=$(cat reports/*/report.txt 2>/dev/null | awk '/^Failed:/ {s+=$2} END {print s+0}')
+          echo "Success: $OK   Failed: $FAIL   Total: $((OK + FAIL))"
+          {
+            echo "## TOTAL (all bots)"
+            echo "- Success: **$OK**"
+            echo "- Failed: **$FAIL**"
+            echo "- Total pictures: **$((OK + FAIL))**"
+            echo
+            echo "Why they failed:"
+            echo '```'
+            cat reports/*/report.txt 2>/dev/null | awk '/^Why they failed:/ {f=1; next} f && /^  [0-9]+ x / {print}' | sort | uniq -c | sort -rn
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

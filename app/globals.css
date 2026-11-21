@@ -1,0 +1,314 @@
+@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@font-face { font-family: "CustomFont1"; src: url("/fonts/font1.woff2") format("woff2"); font-weight: normal; font-style: normal; font-display: swap; }
+@font-face { font-family: "CustomFont2"; src: url("/fonts/font2.woff2") format("woff2"); font-weight: normal; font-style: normal; font-display: swap; }
+@font-face { font-family: "CustomFont3"; src: url("/fonts/font3.woff2") format("woff2"); font-weight: normal; font-style: normal; font-display: swap; }
+
+:root { --foreground: #171717; --font-bangla: "Noto Sans Bengali"; }
+
+@theme inline {
+  --color-foreground: var(--foreground);
+  --font-sans: "CustomFont1", sans-serif;
+  --font-custom2: "CustomFont2", sans-serif;
+  --font-custom3: "CustomFont3", sans-serif;
+}
+
+html, body { min-height: 100%; }
+body {
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  top: 0 !important;
+  position: static !important;
+}
+
+html[data-locale="bn"] body,
+html[lang="bn"] body {
+  font-family: var(--font-bangla), "Noto Sans Bengali", "Hind Siliguri", "Nirmala UI", "SolaimanLipi", var(--font-sans), sans-serif;
+  line-height: 1.65;
+}
+
+/* Premium, predictable Bengali typography for the subscription and checkout flow. */
+.font-bengali-ui {
+  font-family: var(--font-bangla), "Noto Sans Bengali", "Hind Siliguri", "Nirmala UI", "SolaimanLipi", sans-serif;
+  letter-spacing: 0;
+  text-rendering: optimizeLegibility;
+}
+.font-bengali-ui :where(h1, h2, h3, p, label, li, dd, dt, button, a) {
+  font-kerning: normal;
+}
+
+html[data-locale="bn"] button,
+html[data-locale="bn"] input,
+html[data-locale="bn"] textarea,
+html[data-locale="bn"] select,
+html[data-locale="bn"] option,
+html[data-locale="bn"] label,
+html[data-locale="bn"] [role="button"],
+html[data-locale="bn"] [role="tab"],
+html[data-locale="bn"] [role="option"] { font-family: inherit; }
+
+html[data-locale="bn"] input::placeholder,
+html[data-locale="bn"] textarea::placeholder { font-family: inherit; }
+
+/* Translation is owned by the React i18n layer; the browser must not mutate React-managed text. */
+
+/* ------------------------------------------------------------------ */
+/* Reload-without-flicker support                                      */
+/* A tiny script in <head> (app/_components/PrePaintScript.tsx) runs    */
+/* before the first paint and sets the html[data-*] attributes and      */
+/* --vars below, so the server HTML already has its FINAL layout.       */
+/* ------------------------------------------------------------------ */
+
+/* `fit:` = mouse/desktop devices (pointer: fine). Same as the old JS `fit` flag, but known to CSS
+   before hydration, so server HTML == final layout. */
+/* Selector (not :where) form on purpose: its higher specificity makes `fit:` always beat plain and
+   breakpoint utilities, independent of CSS ordering. */
+@custom-variant fit (html[data-fit="1"] &);
+
+/* Dashboard home: banner + tools scaled to fit one screen. Values come from --hv-* variables. */
+html[data-fit="1"] .home-fit-section {
+  min-height: calc(100svh - var(--hv-top, 64px));
+}
+html[data-fit="1"] .home-fit-outer {
+  position: relative;
+  flex-shrink: 0;
+  width: calc(var(--hv-w, 1232px) * var(--hv-s, 1));
+  height: calc(var(--hv-h, 600px) * var(--hv-s, 1));
+}
+html[data-fit="1"] .home-fit-inner {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--hv-w, 1232px);
+  transform: scale(var(--hv-s, 1));
+  transform-origin: top left;
+}
+html[data-fit="1"] [data-tile-box] {
+  width: var(--tile-box-fit, 65%) !important;
+}
+
+/* Greeting ("Good morning" ...) is chosen from the visitor's clock by the head script. */
+.greet-variant { display: none; }
+html[data-greet="morning"] .greet-morning,
+html[data-greet="afternoon"] .greet-afternoon,
+html[data-greet="evening"] .greet-evening,
+html[data-greet="night"] .greet-night { display: inline; }
+html:not([data-greet]) .greet-morning { display: inline; }
+
+/* Page body zoom for wide screens (same factor as the navbar). Used by my-files / sohoj-tools. */
+html[data-nav-scaled] .page-zoom { zoom: var(--nav-s, 1); }
+html[data-nav-scaled] .page-zoom-fill {
+  flex: none;
+  height: calc((100vh - 64px * var(--nav-s, 1)) / var(--nav-s, 1));
+}
+
+/* Navbar zoom scale for wide screens (scaleWithZoom pages). */
+html[data-nav-scaled] .nav-zoom-wrap { height: calc(64px * var(--nav-s, 1)); }
+html[data-nav-scaled] .nav-zoom-header {
+  width: calc(100% / var(--nav-s, 1));
+  transform: scale(var(--nav-s, 1));
+  transform-origin: top left;
+}
+
+/* User-specific bits (avatar initials / photo / name) painted from cached values until React
+   has hydrated and renders the real thing in the same place. */
+.user-pre[data-k="0"]::before { content: var(--user-initials, ""); }
+.user-pre[data-k="1"]::before { content: none; }
+.user-avatar-bg { background-image: var(--user-photo, none); background-size: cover; background-position: center; }
+.user-name-pre[data-k="0"]::before { content: var(--user-name, "User Account"); }
+.user-sub-pre[data-k="0"]::before { content: var(--user-sub, "User"); }
+.user-name-pre[data-k="1"]::before,
+.user-sub-pre[data-k="1"]::before { content: none; }
+.first-name-pre[data-k="0"]::before { content: var(--user-first, ""); }
+.first-name-pre[data-k="1"]::before { content: none; }
+
+
+/* Consistent pointer affordance for native interactive controls. Utility classes can still override this. */
+:where(button:not(:disabled), a[href], [role="button"], [role="tab"], [role="option"], summary, label[for], select:not(:disabled), input[type="file"]:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="radio"]:not(:disabled)) {
+  cursor: pointer;
+}
+:where(button:disabled, [aria-disabled="true"]) {
+  cursor: not-allowed;
+}
+
+@keyframes sub-feed-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Navbar look is owned by the navbar itself (not by the page around    */
+/* it): font + scrollbar are fixed here, so every page shows the same   */
+/* navbar no matter which page wrapper / page-font class it sits in.    */
+/* ------------------------------------------------------------------ */
+.navbar-font.navbar-font.navbar-font, .navbar-font.navbar-font.navbar-font *:not(.font-mono):not(svg):not(svg *) {
+  font-family: "Plus Jakarta Sans", "Hind Siliguri", "Noto Sans Bengali", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-optical-sizing: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+.navbar-font h1, .navbar-font h2, .navbar-font h3, .navbar-font h4 { letter-spacing: -0.01em; }
+.navbar-font .scroll { scrollbar-width: thin; scrollbar-color: #F87171 transparent; }
+.navbar-font .scroll::-webkit-scrollbar { width: 12px; }
+.navbar-font .scroll::-webkit-scrollbar-track { background: rgba(148,163,184,0.18); border-radius: 999px; margin: 10px 0; }
+.navbar-font .scroll::-webkit-scrollbar-thumb { background: linear-gradient(180deg,#F87171,#DC2626); border-radius: 999px; border: 3px solid #F2E8D2; min-height: 48px; }
+.navbar-font .scroll::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg,#EF4444,#B91C1C); }
+
+
+/* AI Editor - recent generations loading animation */
+@keyframes rg-sweep {
+  0% { transform: translateX(-120%) skewX(-18deg); }
+  100% { transform: translateX(260%) skewX(-18deg); }
+}
+@keyframes rg-float {
+  0%, 100% { transform: translateY(0) scale(1); opacity: 0.55; }
+  50% { transform: translateY(-4px) scale(1.08); opacity: 1; }
+}
+@keyframes rg-rise {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes rg-line {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rg-anim, .rg-anim * { animation: none !important; }
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Premium scrollbar (whole site)                                       */
+/*  - slim pill thumb: warm "brushed sand" with a glassy top highlight,  */
+/*    a soft inner rim and three tiny grip lines in the middle,          */
+/*  - hover: brand red with a gentle glow, press: deeper red,            */
+/*  - the track is a soft recessed groove on the page, invisible inside  */
+/*    small boxes until the pointer is over it.                          */
+/* Chrome / Edge / Safari: ::-webkit-scrollbar. Firefox: standard        */
+/* properties inside @supports (so Chrome keeps the custom look).        */
+/* Components that define their own scrollbar rules still win.           */
+/* ------------------------------------------------------------------ */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+*::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+}
+*::-webkit-scrollbar-track:hover { background: rgba(120, 98, 58, 0.08); }
+
+/* Thumb (vertical): gloss + grip lines + sand gradient */
+*::-webkit-scrollbar-thumb {
+  background-color: #C4AE7C;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(rgba(96, 72, 30, 0.34), rgba(96, 72, 30, 0.34)),
+    linear-gradient(rgba(96, 72, 30, 0.34), rgba(96, 72, 30, 0.34)),
+    linear-gradient(rgba(96, 72, 30, 0.34), rgba(96, 72, 30, 0.34)),
+    linear-gradient(180deg, #DCCBA3 0%, #C4AE7C 52%, #A98F5A 100%);
+  background-size: 100% 100%, 4px 1px, 4px 1px, 4px 1px, 100% 100%;
+  background-position: 0 0, center calc(50% - 4px), center 50%, center calc(50% + 4px), 0 0;
+  background-repeat: no-repeat;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+  min-height: 48px;
+  min-width: 48px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1px 0 rgba(90, 66, 24, 0.28);
+}
+/* Thumb (horizontal): same look, turned */
+*::-webkit-scrollbar-thumb:horizontal {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(rgba(96, 72, 30, 0.34), rgba(96, 72, 30, 0.34)),
+    linear-gradient(rgba(96, 72, 30, 0.34), rgba(96, 72, 30, 0.34)),
+    linear-gradient(rgba(96, 72, 30, 0.34), rgba(96, 72, 30, 0.34)),
+    linear-gradient(90deg, #DCCBA3 0%, #C4AE7C 52%, #A98F5A 100%);
+  background-size: 100% 100%, 1px 4px, 1px 4px, 1px 4px, 100% 100%;
+  background-position: 0 0, calc(50% - 4px) center, 50% center, calc(50% + 4px) center, 0 0;
+}
+/* Hover: brand red + soft glow */
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #E24B4B;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)),
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)),
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)),
+    linear-gradient(180deg, #F87171 0%, #E23D3D 50%, #C81E1E 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(120, 10, 10, 0.35),
+    0 0 6px rgba(220, 38, 38, 0.45);
+}
+*::-webkit-scrollbar-thumb:horizontal:hover {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)),
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)),
+    linear-gradient(rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.7)),
+    linear-gradient(90deg, #F87171 0%, #E23D3D 50%, #C81E1E 100%);
+}
+/* Pressed / dragging: deeper red */
+*::-webkit-scrollbar-thumb:active {
+  background-color: #B91C1C;
+  background-image:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)),
+    linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)),
+    linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)),
+    linear-gradient(180deg, #E23D3D 0%, #C81E1E 50%, #9F1515 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(90, 8, 8, 0.45),
+    0 0 8px rgba(185, 28, 28, 0.5);
+}
+*::-webkit-scrollbar-thumb:horizontal:active {
+  background-image:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)),
+    linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)),
+    linear-gradient(rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.6)),
+    linear-gradient(90deg, #E23D3D 0%, #C81E1E 50%, #9F1515 100%);
+}
+
+/* The page's own scrollbar: wider, with a recessed cream groove. */
+html::-webkit-scrollbar { width: 15px; height: 15px; }
+html::-webkit-scrollbar-track {
+  background: linear-gradient(90deg, #EBDFC3 0%, #F4ECD6 45%, #F1E8D0 100%);
+  border-radius: 0;
+  box-shadow: inset 1px 0 0 rgba(120, 98, 58, 0.22), inset 3px 0 5px rgba(120, 98, 58, 0.1);
+}
+html::-webkit-scrollbar-track:hover { background: linear-gradient(90deg, #EBDFC3 0%, #F4ECD6 45%, #F1E8D0 100%); }
+html::-webkit-scrollbar-thumb { border-width: 3px; }
+
+@supports (-moz-appearance: none) {
+  * { scrollbar-width: thin; scrollbar-color: #C4AE7C transparent; }
+  html { scrollbar-color: #C4AE7C #F1E8D0; }
+}
+
+
+/* --- Static pages: language + login-success handling before React hydrates ------------------- */
+/* Bangla visitors: keep the (English) static HTML invisible until I18nProvider has translated it.
+   PrePaintScript sets the attribute and always removes it again after a short failsafe delay. */
+html[data-i18n-hold="1"] body { visibility: hidden; }
+
+/* Right after login: dim backdrop from the very first paint, so the dashboard never "pops" behind
+   the Login Successful card. LoginSuccessOverlay removes the attribute once the card is on screen. */
+html[data-login-pending="1"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1999;
+  background: rgba(42, 33, 24, 0.6);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}

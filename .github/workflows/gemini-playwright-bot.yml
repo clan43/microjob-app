@@ -1,0 +1,772 @@
+name: Gemini Playwright Bot
+
+# This one workflow runs BOTH the Gemini bot and the website (Next.js) on the same runner.
+# The website talks to the bot through http://127.0.0.1:4000 (same machine), so no bot URL has to be
+# published anywhere for the website running here. The old Vercel publish step is still kept so the
+# Vercel site (if still live) keeps working. Remove that step after the move.
+#   - No CF_TUNNEL_TOKEN secret -> PREVIEW MODE: random https://xxxx.trycloudflare.com link for the website.
+#   - CF_TUNNEL_TOKEN secret set -> LIVE MODE: your own domain through a permanent Cloudflare named tunnel.
+# Needed secret for the website: SITE_ENV_FILE (the whole production .env, as before).
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep_minutes:
+        description: "Keep the bot online for up to 6 hours (360 = run forever, auto-restarting)"
+        required: false
+        default: "360"
+        type: string
+  # Safety net: if the bot is ever not running, start it again (checked every 30 minutes).
+  schedule:
+    - cron: "*/30 * * * *"
+
+permissions:
+  contents: read
+  actions: write # lets the job start its own replacement run
+
+jobs:
+  # Skips scheduled runs when a bot run is already active, so only one bot runs at a time.
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+    steps:
+      - name: Check for an active bot run
+        id: check
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          OTHERS="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow gemini-playwright-bot.yml --limit 50 --json databaseId,status \
+            | jq --argjson me "$GITHUB_RUN_ID" '[.[] | select(.databaseId != $me and (.status == "in_progress" or .status == "queued" or .status == "waiting" or .status == "pending"))] | length')"
+          echo "Other active bot runs: $OTHERS"
+          if [ "$OTHERS" -gt 0 ]; then
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  bot:
+    needs: guard
+    if: needs.guard.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+
+    env:
+      BOT_PORT: "4000"
+      SITE_PORT: "3000"
+      NEXT_TELEMETRY_DISABLED: "1"
+      SITE_ENV_FILE: ${{ secrets.SITE_ENV_FILE }}
+      CF_TUNNEL_TOKEN: ${{ secrets.CF_TUNNEL_TOKEN }}
+      SKIP_DESKTOP: "1"
+      # ---- DUCK.AI TEST: /edit-image (AI Editor, Bulk Photo Edit) uses Duck.ai instead of Gemini. ----
+      # To go back to Gemini: delete the next 3 lines (and set PREWARM / WARM_DEMAND back to "1").
+      # The bot is started with xvfb-run below, so Chrome has a (virtual) screen: do NOT set DUCKAI_HEADLESS
+      # (headless failed on GitHub, headed worked).
+      DUCKAI_TEST: "1"
+      DUCKAI_MAX_CHARS: "4300"
+      DUCKAI_WAIT_MS: "150000"
+      # A Duck.ai window is opened in advance when a visitor has chosen a photo in the AI editor
+      # (the website's "strong" hint). 0 = off.
+      DUCKAI_WARM_MAX: "3"
+      DUCKAI_WARM_TTL_MS: "300000"
+      # Machine limit: about 20 headless Chromium pages fit on the 4 vCPU / 16 GB
+      # public runner. The jobs per Google account are worked out by the bot from
+      # the number of session files (4 sessions = 5 each, 10 sessions = 2 each).
+      MAX_CONCURRENT_GENERATIONS: "3"
+      MAX_JOB_RETRIES: "2"
+      # Warm pages: at the start of every run the bot opens Gemini pages for all sessions,
+      # one session after the other, and keeps them open. Set PREWARM to "0" to go back
+      # to the old way (a fresh page for every image).
+      PREWARM: "0" # was "1" (Gemini warm pages are not needed while Duck.ai is tested)
+      # "1" = session 1 works (and keeps its ready pages) until its job limit; only then session 2, 3, 4.
+      # Accounts that are not needed are never opened. WARM_PER_SESSION_MAX is not used in this mode.
+      STICKY_SESSIONS: "1"
+      WARM_PAGES_PER_SESSION: "3"
+      # Demand mode: no page is opened at start. Pages open one by one when visitors
+      # arrive on the AI editor page (the website calls POST /warm-hint).
+      # To go back to the old "fresh page for every image" way, set PREWARM to "0".
+      WARM_DEMAND: "0" # was "1"
+      WARM_MAX_PAGES: "8"
+      WARM_PER_SESSION_MAX: "2"
+      WARM_OPEN_STAGGER_MS: "5000"
+      # One steady browser identity for every session.
+      BROWSER_LOCALE: "en-US"
+      FRESH_SESSION_DIR: "fresh-sessions"
+      ASK_KEY: ${{ secrets.ASK_KEY }}
+      GEMINI_SESSION_JSON_1: ${{ secrets.GEMINI_SESSION_JSON_1 }}
+      GEMINI_SESSION_JSON_2: ${{ secrets.GEMINI_SESSION_JSON_2 }}
+      GEMINI_SESSION_JSON_3: ${{ secrets.GEMINI_SESSION_JSON_3 }}
+      GEMINI_SESSION_JSON_4: ${{ secrets.GEMINI_SESSION_JSON_4 }}
+      GEMINI_SESSION_JSON_5: ${{ secrets.GEMINI_SESSION_JSON_5 }}
+      GEMINI_SESSION_JSON_6: ${{ secrets.GEMINI_SESSION_JSON_6 }}
+      GEMINI_SESSION_JSON_7: ${{ secrets.GEMINI_SESSION_JSON_7 }}
+      GEMINI_SESSION_JSON_8: ${{ secrets.GEMINI_SESSION_JSON_8 }}
+      GEMINI_SESSION_JSON_9: ${{ secrets.GEMINI_SESSION_JSON_9 }}
+      GEMINI_SESSION_JSON_10: ${{ secrets.GEMINI_SESSION_JSON_10 }}
+      VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
+      EDGE_CONFIG_ID: ${{ secrets.EDGE_CONFIG_ID }}
+      # Email alerts are OFF (ALERT_WEBHOOK_URL is not set on purpose). The admin panel (Bot Status)
+      # reads everything from the bot on demand. BOT_ALERT_KEY is still needed for that detailed report.
+      BOT_ALERT_KEY: ${{ secrets.BOT_ALERT_KEY }}
+
+    defaults:
+      run:
+        working-directory: playwright-service
+
+    steps:
+      - name: Record job start time
+        shell: bash
+        working-directory: .
+        run: |
+          echo "JOB_START_EPOCH=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install bot dependencies
+        shell: bash
+        run: |
+          # Downloads can fail for a moment (network or registry hiccup): try up to 4 times.
+          for attempt in 1 2 3 4; do
+            if npm install; then
+              exit 0
+            fi
+            echo "npm install failed (attempt $attempt/4), trying again in 20 seconds..."
+            sleep 20
+          done
+          echo "::error::npm install failed 4 times."
+          exit 1
+
+      - name: Install Chromium for Playwright
+        shell: bash
+        run: |
+          for attempt in 1 2 3 4; do
+            if node ./node_modules/playwright/cli.js install --with-deps chromium; then
+              exit 0
+            fi
+            echo "Chromium install failed (attempt $attempt/4), trying again in 20 seconds..."
+            sleep 20
+          done
+          echo "::error::Chromium install failed 4 times."
+          exit 1
+
+      - name: Restore Gemini sessions
+        shell: bash
+        run: |
+          # Secrets GEMINI_SESSION_JSON_1 ... GEMINI_SESSION_JSON_10.
+          # At least one slot is required; the others are used only if their secret exists.
+          for N in 1 2 3 4 5 6 7 8 9 10; do
+            VAR="GEMINI_SESSION_JSON_${N}"
+            VALUE="${!VAR}"
+            if [ -n "$VALUE" ]; then
+              printf '%s' "$VALUE" > "gemini-session-${N}.json"
+              chmod 600 "gemini-session-${N}.json"
+            fi
+          done
+          ls gemini-session-*.json >/dev/null 2>&1 || {
+            echo "No GEMINI_SESSION_JSON_N secret found (need at least one)."
+            exit 1
+          }
+          ls gemini-session-*.json
+
+      - name: Create notify token
+        shell: bash
+        run: |
+          NOTIFY_TOKEN="$(openssl rand -hex 16)"
+          echo "::add-mask::$NOTIFY_TOKEN"
+          echo "NOTIFY_TOKEN=$NOTIFY_TOKEN" >> "$GITHUB_ENV"
+
+      - name: Start bot server
+        shell: bash
+        run: |
+          nohup xvfb-run -a npm start > bot.log 2>&1 &
+          echo $! > bot.pid
+
+      - name: Wait for bot health
+        shell: bash
+        run: |
+          for i in {1..30}; do
+            if curl -fsS "http://127.0.0.1:${BOT_PORT}/health" > /tmp/health.json; then
+              cat /tmp/health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          cat bot.log || true
+          exit 1
+
+      - name: Download cloudflared
+        shell: bash
+        run: |
+          # github.com sometimes answers 502/503/504 for a moment: try again, up to 8 times.
+          URL="https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64"
+          for attempt in 1 2 3 4 5 6 7 8; do
+            rm -f cloudflared
+            if curl -L --fail --silent --show-error \
+              --connect-timeout 20 --max-time 180 \
+              --retry 3 --retry-all-errors --retry-delay 5 \
+              -o cloudflared "$URL"; then
+              chmod +x cloudflared
+              if ./cloudflared --version > /dev/null 2>&1; then
+                echo "cloudflared downloaded (attempt $attempt)."
+                exit 0
+              fi
+              echo "The downloaded file does not run."
+            fi
+            echo "cloudflared download failed (attempt $attempt/8), trying again in 20 seconds..."
+            sleep 20
+          done
+          echo "::error::Could not download cloudflared after 8 attempts."
+          exit 1
+
+      - name: Start temporary public tunnel
+        shell: bash
+        run: |
+          nohup ./cloudflared tunnel --no-autoupdate \
+            --url "http://127.0.0.1:${BOT_PORT}" \
+            > cloudflared.log 2>&1 &
+          echo $! > cloudflared.pid
+
+      - name: Wait for public URL
+        shell: bash
+        run: |
+          for i in {1..30}; do
+            PUBLIC_URL="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' cloudflared.log | head -n 1 || true)"
+            if [ -n "$PUBLIC_URL" ]; then
+              # This repo is public: hide the URL in every log line from now on.
+              echo "::add-mask::$PUBLIC_URL"
+              printf '%s\n' "$PUBLIC_URL" > public-url.txt
+              {
+                echo "## Gemini Bot is online"
+                echo
+                echo "Backend URL is hidden (public repo) and is published to Vercel automatically."
+              } >> "$GITHUB_STEP_SUMMARY"
+              echo "Public URL found (hidden)."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::No public URL appeared in cloudflared.log."
+          sed -E 's#https://[-a-z0-9]+\.trycloudflare\.com#https://[hidden].trycloudflare.com#g' cloudflared.log | tail -n 40 || true
+          exit 1
+
+      # A fresh trycloudflare.com address can take a few seconds before it answers.
+      - name: Wait until public URL responds
+        shell: bash
+        run: |
+          PUBLIC_URL="$(cat public-url.txt)"
+          for i in {1..45}; do
+            if curl -fsS -m 10 "${PUBLIC_URL}/health" > /dev/null; then
+              echo "Public URL is reachable."
+              exit 0
+            fi
+            sleep 4
+          done
+          echo "::error::Public URL did not become reachable."
+          exit 1
+
+      # Writes the new URL into the Vercel Global Config store (key: botUrl).
+      # The website reads it on every request, so no redeploy is needed.
+      - name: Publish public URL to Vercel Global Config
+        continue-on-error: true # the website on this runner does not need it
+        shell: bash
+        env:
+          # Optional. Only needed if the Vercel project lives under a Team.
+          # Set it in GitHub: Settings > Secrets and variables > Actions > Variables.
+          VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
+        run: |
+          if [ -z "$VERCEL_API_TOKEN" ] || [ -z "$EDGE_CONFIG_ID" ]; then
+            echo "::error::VERCEL_API_TOKEN or EDGE_CONFIG_ID secret is missing."
+            exit 1
+          fi
+          PUBLIC_URL="$(cat public-url.txt)"
+          # Tries the plain account URL first (works for personal/Hobby accounts), then,
+          # only if VERCEL_TEAM_SLUG is set, the same URL with the team slug.
+          # For each, "upsert" is tried, then "update" (item exists) and "create" (item missing).
+          SUFFIXES=("")
+          if [ -n "$VERCEL_TEAM_SLUG" ]; then
+            SUFFIXES+=("?slug=${VERCEL_TEAM_SLUG}")
+          fi
+          for i in 1 2 3; do
+            for SUFFIX in "${SUFFIXES[@]}"; do
+              for OP in upsert update create; do
+                BODY="$(jq -n --arg op "$OP" --arg v "$PUBLIC_URL" '{items:[{operation:$op,key:"botUrl",value:$v}]}')"
+                CODE="$(curl -sS -o vercel-response.json -w '%{http_code}' -X PATCH \
+                  "https://api.vercel.com/v1/global-config/${EDGE_CONFIG_ID}/items${SUFFIX}" \
+                  -H "Authorization: Bearer ${VERCEL_API_TOKEN}" \
+                  -H "Content-Type: application/json" \
+                  -d "$BODY" || true)"
+                echo "Vercel API round $i [${SUFFIX:-no slug}] ($OP): HTTP $CODE"
+                if [ "$CODE" -ge 200 ] 2>/dev/null && [ "$CODE" -lt 300 ]; then
+                  echo "Published botUrl = $PUBLIC_URL"
+                  echo "- Published to Vercel Global Config: \`botUrl\`" >> "$GITHUB_STEP_SUMMARY"
+                  exit 0
+                fi
+                cat vercel-response.json || true
+                echo
+              done
+            done
+            sleep 5
+          done
+          echo "::error::Could not publish the public URL to Vercel."
+          exit 1
+
+      # ===================== WEBSITE ON THE SAME RUNNER =====================
+      # continue-on-error: if the website fails, the bot stays online as before.
+      - name: Cache website downloads and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm
+            .next/cache
+          key: site-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            site-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+            site-${{ runner.os }}-
+
+      - name: Build and start the website
+        continue-on-error: true
+        shell: bash
+        working-directory: .
+        run: |
+          if [ -z "${SITE_ENV_FILE:-}" ]; then
+            echo "::warning::Secret SITE_ENV_FILE is missing, the website is not started (the bot keeps running)."
+            exit 0
+          fi
+          # Remove Windows line endings, then force the bot address to this same machine.
+          # The last line of the same name wins, so this beats anything inside SITE_ENV_FILE.
+          printf '%s\n' "$SITE_ENV_FILE" | tr -d '\r' > .env.production
+          printf '\nGEMINI_RENDER_URL=http://127.0.0.1:%s\n' "$BOT_PORT" >> .env.production
+          chmod 600 .env.production
+          echo "Environment file written. GEMINI_RENDER_URL points to the bot on this runner."
+
+          for attempt in 1 2 3; do
+            if npm ci --no-audit --no-fund; then break; fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "npm ci failed 3 times, trying npm install."
+              npm install --no-audit --no-fund || { echo "::error::Website dependencies failed."; exit 1; }
+            else
+              echo "npm ci failed (attempt $attempt/3), trying again in 15 seconds..."
+              sleep 15
+            fi
+          done
+
+          NODE_OPTIONS=--max-old-space-size=6144 npm run build || { echo "::error::Website build failed."; exit 1; }
+
+          nohup npm start -- -p "${SITE_PORT}" > "$GITHUB_WORKSPACE/site.log" 2>&1 &
+          echo $! > "$GITHUB_WORKSPACE/site.pid"
+
+          for i in {1..60}; do
+            CODE="$(curl -sS -o /dev/null -m 10 -w '%{http_code}' "http://127.0.0.1:${SITE_PORT}/" || true)"
+            if [ "$CODE" -ge 200 ] 2>/dev/null && [ "$CODE" -lt 400 ] 2>/dev/null; then
+              echo "Website answers (HTTP $CODE)."
+              echo "SITE_READY=1" >> "$GITHUB_ENV"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "::error::The website did not answer."
+          tail -n 80 "$GITHUB_WORKSPACE/site.log" || true
+          exit 1
+
+      - name: Start website tunnel
+        if: env.SITE_READY == '1'
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [ -n "${CF_TUNNEL_TOKEN:-}" ]; then
+            echo "::add-mask::$CF_TUNNEL_TOKEN"
+            nohup ./cloudflared tunnel --no-autoupdate run --token "$CF_TUNNEL_TOKEN" > site-cloudflared.log 2>&1 &
+            echo $! > site-cloudflared.pid
+            echo "SITE_TUNNEL_MODE=named" >> "$GITHUB_ENV"
+            for i in {1..30}; do
+              if grep -q "Registered tunnel connection" site-cloudflared.log; then
+                echo "Website tunnel connected (live mode)."
+                echo "## Website is online through the Cloudflare tunnel" >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "::error::The website tunnel did not connect."
+            tail -n 40 site-cloudflared.log || true
+            exit 1
+          fi
+
+          # Preview mode: temporary random link, no domain needed.
+          echo "SITE_TUNNEL_MODE=quick" >> "$GITHUB_ENV"
+          nohup ./cloudflared tunnel --no-autoupdate --url "http://127.0.0.1:${SITE_PORT}" > site-cloudflared.log 2>&1 &
+          echo $! > site-cloudflared.pid
+          for i in {1..30}; do
+            PREVIEW_URL="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' site-cloudflared.log | head -n 1 || true)"
+            if [ -n "$PREVIEW_URL" ]; then
+              for j in {1..45}; do
+                CODE="$(curl -sS -o /dev/null -m 10 -w '%{http_code}' "${PREVIEW_URL}/" 2>/dev/null || true)"
+                if [ "$CODE" -ge 200 ] 2>/dev/null && [ "$CODE" -lt 400 ] 2>/dev/null; then break; fi
+                sleep 4
+              done
+              echo "=============================================="
+              echo "WEBSITE PREVIEW LINK: ${PREVIEW_URL}"
+              echo "=============================================="
+              {
+                echo "## Website preview link (works while this run is active)"
+                echo
+                echo "${PREVIEW_URL}"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::No website preview link appeared."
+          tail -n 40 site-cloudflared.log || true
+          exit 1
+
+      - name: Keep bot online (watchdog)
+        shell: bash
+        env:
+          KEEP_MINUTES: ${{ inputs.keep_minutes }}
+          GH_TOKEN: ${{ github.token }}
+          VERCEL_TEAM_SLUG: ${{ vars.VERCEL_TEAM_SLUG }}
+          # Optional. A fine-grained token with "Secrets: Read and write" on this repo.
+          # Without it the renewed cookies are simply not saved back (nothing else changes).
+          SESSION_WRITE_TOKEN: ${{ secrets.SESSION_WRITE_TOKEN }}
+        run: |
+          MINUTES="${KEEP_MINUTES:-360}"
+          case "$MINUTES" in
+            ''|*[!0-9]*) echo "keep_minutes must be a whole number."; exit 1 ;;
+          esac
+          if [ "$MINUTES" -lt 1 ] || [ "$MINUTES" -gt 360 ]; then
+            echo "keep_minutes must be between 1 and 360."
+            exit 1
+          fi
+
+          # Reserve 5 minutes inside the 6-hour job limit for logs and cleanup.
+          JOB_START="${JOB_START_EPOCH:-$(date +%s)}"
+          JOB_DEADLINE=$((JOB_START + 355 * 60))
+          NOW=$(date +%s)
+          AVAILABLE_SECONDS=$((JOB_DEADLINE - NOW))
+          REQUESTED_SECONDS=$((MINUTES * 60))
+
+          if [ "$AVAILABLE_SECONDS" -lt 1 ]; then
+            echo "Not enough job time remains to keep the bot online safely."
+            exit 1
+          fi
+
+          if [ "$REQUESTED_SECONDS" -gt "$AVAILABLE_SECONDS" ]; then
+            RUN_SECONDS="$AVAILABLE_SECONDS"
+          else
+            RUN_SECONDS="$REQUESTED_SECONDS"
+          fi
+
+          END_AT=$(($(date +%s) + RUN_SECONDS))
+          echo "Requested bot uptime: ${MINUTES} minutes."
+          echo "Watchdog will run for approximately $((RUN_SECONDS / 60)) minutes."
+
+          {
+            echo "## Bot runtime"
+            echo
+            echo "- Requested uptime: ${MINUTES} minutes"
+            echo "- Actual keep-alive window: approximately $((RUN_SECONDS / 60)) minutes"
+            echo "- Watchdog checks the bot every 30 seconds and restarts it if it dies"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Full-length run: start the replacement run 35 minutes before this one ends,
+          # so the new bot is already online (and has published its URL) before this one stops.
+          HANDOFF_AT=0
+          if [ "$MINUTES" -eq 360 ]; then
+            CANDIDATE=$((JOB_START + 320 * 60))
+            if [ "$CANDIDATE" -lt "$END_AT" ]; then
+              HANDOFF_AT="$CANDIDATE"
+            fi
+          fi
+          HANDOFF_DONE=0
+
+          node_up() {
+            curl -fsS -m 10 "http://127.0.0.1:${BOT_PORT}/health" > /dev/null 2>&1
+          }
+
+          # Short status line by email (through the bot; silently ignored if off).
+          notify() {
+            [ -n "$NOTIFY_TOKEN" ] || return 0
+            curl -fsS -m 10 -X POST "http://127.0.0.1:${BOT_PORT}/notify" \
+              -H "x-notify-token: ${NOTIFY_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n --arg t "$1" '{text:$t}')" > /dev/null 2>&1 || true
+          }
+
+          publish_url() {
+            local URL="$1"
+            if [ -z "$VERCEL_API_TOKEN" ] || [ -z "$EDGE_CONFIG_ID" ]; then
+              echo "::warning::VERCEL_API_TOKEN or EDGE_CONFIG_ID is missing."
+              return 1
+            fi
+            local SUFFIXES=("")
+            if [ -n "$VERCEL_TEAM_SLUG" ]; then
+              SUFFIXES+=("?slug=${VERCEL_TEAM_SLUG}")
+            fi
+            local i SUFFIX OP BODY CODE
+            for i in 1 2 3; do
+              for SUFFIX in "${SUFFIXES[@]}"; do
+                for OP in upsert update create; do
+                  BODY="$(jq -n --arg op "$OP" --arg v "$URL" '{items:[{operation:$op,key:"botUrl",value:$v}]}')"
+                  CODE="$(curl -sS -o vercel-response.json -w '%{http_code}' -X PATCH \
+                    "https://api.vercel.com/v1/global-config/${EDGE_CONFIG_ID}/items${SUFFIX}" \
+                    -H "Authorization: Bearer ${VERCEL_API_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    -d "$BODY" || true)"
+                  if [ "$CODE" -ge 200 ] 2>/dev/null && [ "$CODE" -lt 300 ] 2>/dev/null; then
+                    echo "Published new botUrl to Vercel (URL hidden)."
+                    return 0
+                  fi
+                done
+              done
+              sleep 5
+            done
+            echo "::warning::Could not publish the new public URL to Vercel."
+            return 1
+          }
+
+          restart_node() {
+            echo "[watchdog] $(date -u +%T) bot server is down, restarting it."
+            pkill -f "node server.js" 2>/dev/null || true
+            sleep 2
+            pkill -9 -f "node server.js" 2>/dev/null || true
+            nohup xvfb-run -a npm start >> bot.log 2>&1 &
+            echo $! > bot.pid
+            local i
+            for i in {1..30}; do
+              if node_up; then
+                echo "[watchdog] bot server is back."
+                notify "🔁 বট সার্ভার বন্ধ হয়ে গিয়েছিল, নিজে থেকে আবার চালু হয়েছে।"
+                return 0
+              fi
+              sleep 2
+            done
+            echo "[watchdog] bot server did not come back yet."
+            return 1
+          }
+
+          restart_tunnel() {
+            echo "[watchdog] $(date -u +%T) public tunnel is down, starting a new one."
+            # Only the bot's own tunnel (the website has its own cloudflared process).
+            if [ -f cloudflared.pid ]; then kill "$(cat cloudflared.pid)" 2>/dev/null || true; fi
+            sleep 2
+            : > cloudflared.log
+            nohup ./cloudflared tunnel --no-autoupdate \
+              --url "http://127.0.0.1:${BOT_PORT}" \
+              > cloudflared.log 2>&1 &
+            echo $! > cloudflared.pid
+            local NEW_URL="" i
+            for i in {1..30}; do
+              NEW_URL="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' cloudflared.log | head -n 1 || true)"
+              if [ -n "$NEW_URL" ]; then break; fi
+              sleep 2
+            done
+            if [ -z "$NEW_URL" ]; then
+              echo "[watchdog] no new tunnel URL yet."
+              return 1
+            fi
+            echo "::add-mask::$NEW_URL"
+            local ok=0
+            for i in {1..45}; do
+              if curl -fsS -m 10 "${NEW_URL}/health" > /dev/null 2>&1; then ok=1; break; fi
+              sleep 4
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "[watchdog] new tunnel does not answer yet."
+              return 1
+            fi
+            printf '%s\n' "$NEW_URL" > public-url.txt
+            publish_url "$NEW_URL" || return 1
+            echo "[watchdog] tunnel replaced and published."
+            notify "🔁 ট্যানেল বন্ধ হয়ে গিয়েছিল, নতুন ঠিকানা তৈরি করে ওয়েবসাইটে দেওয়া হয়েছে।"
+            return 0
+          }
+
+          # Copies the renewed Google cookies (written by the bot after good jobs)
+          # back into the GEMINI_SESSION_JSON_N secrets. Only files that really contain
+          # a logged-in state are copied, and only when they changed.
+          push_cookies() {
+            [ -n "$SESSION_WRITE_TOKEN" ] || return 0
+            [ -d fresh-sessions ] || return 0
+            local f N
+            for f in fresh-sessions/gemini-session-*.json; do
+              [ -f "$f" ] || continue
+              N="${f##*-}"; N="${N%.json}"
+              jq -e '.cookies | map(.name) | (index("SID") != null) and (index("__Secure-1PSID") != null)' "$f" > /dev/null 2>&1 || continue
+              if [ -f "pushed-${N}.json" ] && cmp -s "$f" "pushed-${N}.json"; then continue; fi
+              if GH_TOKEN="$SESSION_WRITE_TOKEN" gh secret set "GEMINI_SESSION_JSON_${N}" --repo "$GITHUB_REPOSITORY" < "$f" > /dev/null 2>&1; then
+                cp "$f" "pushed-${N}.json"
+                echo "Renewed Google cookies saved for session ${N}."
+                # Tell the bot (admin panel shows this time). Best effort.
+                if [ -n "$NOTIFY_TOKEN" ]; then
+                  curl -fsS -m 10 -X POST "http://127.0.0.1:${BOT_PORT}/cookie-pushed" \
+                    -H "x-notify-token: ${NOTIFY_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"slot\":${N}}" > /dev/null 2>&1 || true
+                fi
+              else
+                echo "::warning::Could not save renewed cookies for session ${N}."
+              fi
+            done
+          }
+          LAST_PUSH=$(date +%s)
+
+          # ---------- website (same runner) ----------
+          site_up() {
+            local CODE
+            CODE="$(curl -sS -o /dev/null -m 10 -w '%{http_code}' "http://127.0.0.1:${SITE_PORT}/" 2>/dev/null || true)"
+            [ "$CODE" -ge 200 ] 2>/dev/null && [ "$CODE" -lt 400 ] 2>/dev/null
+          }
+
+          restart_site() {
+            echo "[watchdog] $(date -u +%T) website is down, restarting it."
+            if [ -f "$GITHUB_WORKSPACE/site.pid" ]; then kill "$(cat "$GITHUB_WORKSPACE/site.pid")" 2>/dev/null || true; fi
+            pkill -f "next-server" 2>/dev/null || true
+            pkill -f "next start" 2>/dev/null || true
+            sleep 3
+            ( cd "$GITHUB_WORKSPACE" && nohup npm start -- -p "${SITE_PORT}" >> site.log 2>&1 & echo $! > site.pid )
+            local i
+            for i in {1..40}; do
+              if site_up; then echo "[watchdog] website is back."; return 0; fi
+              sleep 3
+            done
+            echo "[watchdog] website did not come back yet."
+            return 1
+          }
+
+          site_tunnel_up() {
+            [ -f site-cloudflared.pid ] && kill -0 "$(cat site-cloudflared.pid)" 2>/dev/null
+          }
+
+          restart_site_tunnel() {
+            echo "[watchdog] $(date -u +%T) website tunnel is down, starting it again."
+            if [ -f site-cloudflared.pid ]; then kill "$(cat site-cloudflared.pid)" 2>/dev/null || true; fi
+            sleep 2
+            : > site-cloudflared.log
+            if [ "$SITE_TUNNEL_MODE" = "named" ]; then
+              nohup ./cloudflared tunnel --no-autoupdate run --token "$CF_TUNNEL_TOKEN" > site-cloudflared.log 2>&1 &
+            else
+              nohup ./cloudflared tunnel --no-autoupdate --url "http://127.0.0.1:${SITE_PORT}" > site-cloudflared.log 2>&1 &
+            fi
+            echo $! > site-cloudflared.pid
+            local i NEW_URL
+            for i in {1..30}; do
+              if [ "$SITE_TUNNEL_MODE" = "named" ]; then
+                if grep -q "Registered tunnel connection" site-cloudflared.log; then echo "[watchdog] website tunnel is back."; return 0; fi
+              else
+                NEW_URL="$(grep -Eo 'https://[-a-z0-9]+\.trycloudflare\.com' site-cloudflared.log | head -n 1 || true)"
+                if [ -n "$NEW_URL" ]; then echo "[watchdog] NEW WEBSITE PREVIEW LINK: ${NEW_URL}"; return 0; fi
+              fi
+              sleep 2
+            done
+            echo "[watchdog] website tunnel did not connect yet."
+            return 1
+          }
+
+          SITE_FAILS=0
+
+          LOCAL_FAILS=0
+          PUBLIC_FAILS=0
+
+          while [ "$(date +%s)" -lt "$END_AT" ]; do
+            REMAINING=$((END_AT - $(date +%s)))
+            if [ "$REMAINING" -gt 30 ]; then sleep 30; else sleep "$REMAINING"; fi
+            [ "$(date +%s)" -ge "$END_AT" ] && break
+
+            if [ "$HANDOFF_AT" -gt 0 ] && [ "$HANDOFF_DONE" -eq 0 ] && [ "$(date +%s)" -ge "$HANDOFF_AT" ]; then
+              HANDOFF_DONE=1
+              echo "Starting the replacement run now."
+              gh workflow run gemini-playwright-bot.yml --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" \
+                || echo "::warning::Could not start the replacement run; the 30-minute schedule will start it."
+            fi
+
+            # Every hour: save renewed cookies back into the secrets.
+            if [ $(( $(date +%s) - LAST_PUSH )) -ge 3600 ]; then
+              LAST_PUSH=$(date +%s)
+              push_cookies || true
+            fi
+
+            # 1) local bot server (3 failed checks in a row = about 90 seconds)
+            if node_up; then
+              LOCAL_FAILS=0
+            else
+              LOCAL_FAILS=$((LOCAL_FAILS + 1))
+              echo "[watchdog] local health check failed (${LOCAL_FAILS}/3)"
+              if [ "$LOCAL_FAILS" -ge 3 ]; then
+                restart_node || true
+                LOCAL_FAILS=0
+                PUBLIC_FAILS=0
+              fi
+              continue
+            fi
+
+            # 2) public tunnel (2 failed checks in a row = about 60 seconds)
+            PUBLIC_URL="$(cat public-url.txt 2>/dev/null || true)"
+            if [ -n "$PUBLIC_URL" ] && curl -fsS -m 10 "${PUBLIC_URL}/health" > /dev/null 2>&1; then
+              PUBLIC_FAILS=0
+            else
+              PUBLIC_FAILS=$((PUBLIC_FAILS + 1))
+              echo "[watchdog] public health check failed (${PUBLIC_FAILS}/2)"
+              if [ "$PUBLIC_FAILS" -ge 2 ]; then
+                restart_tunnel || true
+                PUBLIC_FAILS=0
+              fi
+            fi
+
+            # 3) website (only if it was started) and its tunnel
+            if [ "${SITE_READY:-0}" = "1" ]; then
+              if site_up; then
+                SITE_FAILS=0
+              else
+                SITE_FAILS=$((SITE_FAILS + 1))
+                echo "[watchdog] website check failed (${SITE_FAILS}/3)"
+                if [ "$SITE_FAILS" -ge 3 ]; then
+                  restart_site || true
+                  SITE_FAILS=0
+                fi
+              fi
+              if ! site_tunnel_up; then
+                restart_site_tunnel || true
+              fi
+            fi
+          done
+
+          push_cookies || true
+          echo "Watchdog finished."
+
+      - name: Show logs
+        if: always()
+        shell: bash
+        run: |
+          echo "----- bot.log -----"
+          cat bot.log || true
+          echo "----- cloudflared.log (URL hidden) -----"
+          sed -E 's#https://[-a-z0-9]+\.trycloudflare\.com#https://[hidden].trycloudflare.com#g' cloudflared.log || true
+          echo "----- site.log (last 200 lines) -----"
+          tail -n 200 "$GITHUB_WORKSPACE/site.log" || true
+          echo "----- site-cloudflared.log (last 60 lines) -----"
+          tail -n 60 site-cloudflared.log || true
+
+      - name: Cleanup
+        if: always()
+        shell: bash
+        run: |
+          if [ -f cloudflared.pid ]; then kill "$(cat cloudflared.pid)" 2>/dev/null || true; fi
+          if [ -f bot.pid ]; then kill "$(cat bot.pid)" 2>/dev/null || true; fi
+          if [ -f site-cloudflared.pid ]; then kill "$(cat site-cloudflared.pid)" 2>/dev/null || true; fi
+          if [ -f "$GITHUB_WORKSPACE/site.pid" ]; then kill "$(cat "$GITHUB_WORKSPACE/site.pid")" 2>/dev/null || true; fi
+          pkill -f "node server.js" 2>/dev/null || true
+          pkill -f "cloudflared tunnel" 2>/dev/null || true
+          pkill -f "next-server" 2>/dev/null || true
+          pkill -f "next start" 2>/dev/null || true
+          rm -f "$GITHUB_WORKSPACE/.env.production"

@@ -1,0 +1,69 @@
+name: Load test
+
+# Manual test only: Actions tab -> "Load test" -> Run workflow.
+# It sends N image requests AT THE SAME TIME to the website route you type in, using the test photo
+# and prompt that are already in the repository (playwright-service/test-photo.jpg and prompt.txt),
+# then prints how many worked, how many failed and why.
+# It changes nothing on the website or the bots.
+run-name: "Load test (${{ inputs.count }} requests)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Full website route the AI editor calls (copy from browser F12 -> Network -> Request URL)"
+        required: true
+        type: string
+      count:
+        description: "How many requests at the same moment (start with 3, then 18, then 54)"
+        required: true
+        default: "3"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Check the files exist
+        run: |
+          ls -la load-test.mjs playwright-service/test-photo.jpg playwright-service/prompt.txt
+
+      - name: Run the load test
+        env:
+          TEST_URL: ${{ inputs.url }}
+          TEST_COUNT: ${{ inputs.count }}
+          # Optional: add a repository secret LOADTEST_HEADER (for example "x-api-key: abc") if the route needs one.
+          LOADTEST_HEADER: ${{ secrets.LOADTEST_HEADER }}
+        run: |
+          case "$TEST_COUNT" in ''|*[!0-9]*) echo "::error::count must be a number."; exit 1 ;; esac
+          PROMPT="$(cat playwright-service/prompt.txt)"
+          HDR=()
+          if [ -n "$LOADTEST_HEADER" ]; then HDR=(--header "$LOADTEST_HEADER"); fi
+          node load-test.mjs \
+            --url "$TEST_URL" \
+            --image playwright-service/test-photo.jpg \
+            --prompt "$PROMPT" \
+            --count "$TEST_COUNT" \
+            --save results \
+            "${HDR[@]}" | tee report.txt
+          { echo '## Load test report'; echo '```'; sed -n '/==== REPORT/,$p' report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload result pictures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: load-test-results
+          path: |
+            results/
+            report.txt
+          if-no-files-found: ignore

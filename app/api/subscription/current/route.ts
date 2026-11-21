@@ -1,0 +1,249 @@
+import { getJwtSecret } from "@/lib/jwtSecurity";
+import { NextResponse } from "next/server";
+import jwt from "jsonwebtoken";
+import { connectDB } from "@/lib/db";
+import Subscription from "@/models/Subscription";
+import User from "@/models/User";
+import {
+  clearSubscriptionAccessCookie,
+  setSubscriptionAccessCookie,
+} from "@/app/api/_lib/requireActiveSubscription";
+
+export const dynamic = "force-dynamic";
+
+const JWT_SECRET = getJwtSecret();
+
+function getTokenFromRequest(request: Request) {
+  const authHeader = request.headers.get("authorization");
+
+  if (authHeader?.startsWith("Bearer ")) {
+    const bearerToken = authHeader.slice("Bearer ".length).trim();
+    if (bearerToken) return bearerToken;
+  }
+
+  const cookieHeader = request.headers.get("cookie");
+
+  if (!cookieHeader) return null;
+
+  const pair = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith("token="));
+
+  return pair
+    ? decodeURIComponent(pair.slice("token=".length))
+    : null;
+}
+
+export async function GET(request: Request) {
+  try {
+    await connectDB();
+
+    const token = getTokenFromRequest(request);
+
+    if (!token) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Please log in to view your subscription.",
+        },
+        { status: 401 },
+      );
+    }
+
+    let decoded: { userId?: string };
+
+    try {
+      decoded = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] }) as { userId?: string };
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Your login session has expired.",
+        },
+        { status: 401 },
+      );
+    }
+
+    if (!decoded?.userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid login token.",
+        },
+        { status: 401 },
+      );
+    }
+
+    const now = new Date();
+
+    const [subscription, user, pendingPayment] = await Promise.all([
+      Subscription.findOne({
+        userId: decoded.userId,
+        paymentStatus: "COMPLETED",
+        accessStatus: "ACTIVE",
+        expiresAt: { $gt: now },
+      })
+        .sort({ expiresAt: -1, startedAt: -1 })
+        .lean(),
+      User.findById(decoded.userId)
+        .select("manualAccessEnabled manualAccessExpiresAt manualAccessGrantedAt manualAccessStartedAt manualAccessMonths manualAccessTotalMonths")
+        .lean(),
+      Subscription.findOne({
+        userId: decoded.userId,
+        paymentStatus: "PENDING",
+        accessStatus: "PENDING",
+        paymentMethod: { $in: ["Nagad", "bKash"] },
+        transactionId: { $ne: "" },
+      })
+        .sort({ createdAt: -1 })
+        .select("planName amount paymentMethod transactionId submittedAt reviewStatus createdAt")
+        .lean(),
+    ]);
+
+    const pendingSubscription = pendingPayment ? {
+      id: String(pendingPayment._id),
+      planName: pendingPayment.planName || "1 Month",
+      amount: Number(pendingPayment.amount || 0),
+      paymentMethod: pendingPayment.paymentMethod || "",
+      transactionId: pendingPayment.transactionId || "",
+      submittedAt: pendingPayment.submittedAt || pendingPayment.createdAt || null,
+      reviewStatus: pendingPayment.reviewStatus || "PENDING",
+    } : null;
+
+    const manualExpiresAtMs = user?.manualAccessExpiresAt
+      ? new Date(user.manualAccessExpiresAt).getTime()
+      : 0;
+    const hasManualAccess =
+      user?.manualAccessEnabled === true && manualExpiresAtMs > now.getTime();
+    const subscriptionExpiresAtMs = subscription?.expiresAt
+      ? new Date(subscription.expiresAt).getTime()
+      : 0;
+    const effectiveAccessExpiresAtMs = Math.max(
+      subscriptionExpiresAtMs,
+      hasManualAccess ? manualExpiresAtMs : 0,
+    );
+    const hasAccess = effectiveAccessExpiresAtMs > now.getTime();
+
+    if (!hasAccess) {
+      const response = NextResponse.json({
+        success: true,
+        subscription: null,
+        pendingSubscription,
+        access: { granted: false, source: "none", expiresAt: null },
+      });
+      clearSubscriptionAccessCookie(response);
+      return response;
+    }
+
+    const startedAt = subscription?.startedAt
+      ? new Date(subscription.startedAt).toISOString()
+      : null;
+    const expiresAt = subscription?.expiresAt
+      ? new Date(subscription.expiresAt).toISOString()
+      : null;
+
+    // Admin-granted access has no Subscription record, so build a display-only
+    // subscription from the user's manual access fields. It is shown when it is
+    // the only access, or when it lasts longer than the paid subscription.
+    let adminSubscription: {
+      id: string;
+      planId: string;
+      planName: string;
+      amount: number;
+      months: number;
+      paymentStatus: string;
+      accessStatus: string;
+      startedAt: string | null;
+      expiresAt: string | null;
+      source: "admin";
+    } | null = null;
+
+    if (hasManualAccess && manualExpiresAtMs > subscriptionExpiresAtMs) {
+      const grantStartRaw = user?.manualAccessStartedAt || user?.manualAccessGrantedAt || null;
+      const grantStartMs = grantStartRaw ? new Date(grantStartRaw).getTime() : 0;
+      let grantMonths = Math.round(Number(user?.manualAccessTotalMonths || user?.manualAccessMonths || 0));
+      if (grantMonths <= 0 && grantStartMs > 0) {
+        // Older grants did not store a duration; estimate it from the dates.
+        grantMonths = Math.max(
+          1,
+          Math.round((manualExpiresAtMs - grantStartMs) / (30 * 24 * 60 * 60 * 1000)),
+        );
+      }
+      const planName =
+        grantMonths === 12
+          ? "1 Year"
+          : grantMonths > 0 && grantMonths % 12 === 0
+            ? `${grantMonths / 12} Years`
+            : grantMonths === 1
+              ? "1 Month"
+              : grantMonths > 1
+                ? `${grantMonths} Months`
+                : "Admin Access";
+      adminSubscription = {
+        id: `admin-${String(decoded.userId)}`,
+        planId: grantMonths === 12 ? "1-year" : `${grantMonths}-month`,
+        planName,
+        amount: 0,
+        months: grantMonths,
+        paymentStatus: "COMPLETED",
+        accessStatus: "ACTIVE",
+        startedAt: grantStartMs ? new Date(grantStartMs).toISOString() : null,
+        expiresAt: new Date(manualExpiresAtMs).toISOString(),
+        source: "admin",
+      };
+    }
+
+    const response = NextResponse.json({
+      success: true,
+      pendingSubscription,
+      subscription: adminSubscription
+        ? adminSubscription
+        : subscription
+        ? {
+            id: String(subscription._id),
+            planId: subscription.planId,
+            planName: subscription.planName,
+            amount: Number(subscription.amount),
+            months: Number(subscription.months || 0),
+            paymentStatus: subscription.paymentStatus,
+            accessStatus: subscription.accessStatus,
+            startedAt,
+            expiresAt,
+          }
+        : null,
+      // Keep access authorization separate from payment/subscription records.
+      access: {
+        granted: true,
+        source:
+          subscription && hasManualAccess
+            ? "subscription+admin"
+            : hasManualAccess
+              ? "admin"
+              : "subscription",
+        expiresAt: new Date(effectiveAccessExpiresAtMs).toISOString(),
+      },
+    });
+
+    setSubscriptionAccessCookie(
+      response,
+      String(decoded.userId),
+      effectiveAccessExpiresAtMs,
+    );
+
+    return response;
+  } catch (error) {
+    console.error("Current subscription lookup error:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Could not load subscription status.",
+      },
+      { status: 500 },
+    );
+  }
+}

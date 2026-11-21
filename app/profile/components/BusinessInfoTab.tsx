@@ -1,0 +1,79 @@
+import { T, useProfileText } from "./profileI18n";
+import type { Dispatch, FormEvent, SetStateAction } from "react";
+import { Loader2, Save, Store } from "lucide-react";
+import { InputField } from "./FormFields";
+export type BusinessFormData = {
+    businessName: string;
+    businessType: string;
+    tradeLicense: string;
+    businessPhone: string;
+    businessAddress: string;
+    website: string;
+};
+type BusinessInfo = {
+    businessName?: string;
+    businessType?: string;
+    tradeLicense?: string;
+    businessPhone?: string;
+    businessAddress?: string;
+    website?: string;
+};
+export default function BusinessInfoTab({ business, businessForm, setBusinessForm, savingBusiness, onSubmit, }: {
+    business: BusinessInfo;
+    businessForm: BusinessFormData;
+    setBusinessForm: Dispatch<SetStateAction<BusinessFormData>>;
+    savingBusiness: boolean;
+    onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}) {
+    const { t } = useProfileText();
+    return (<form onSubmit={onSubmit} className="bg-[#FBF6E8] border border-[#E3D6B8] rounded-2xl p-5 shadow-xs space-y-4">
+      <div className="flex items-center justify-between border-b border-[#E3D6B8] pb-3">
+        <div className="flex items-center gap-2 text-base font-bold text-[#3B2F1E]">
+          <Store size={17} className="text-[#DC2626]"/><T>{"Shop / Business Information\n        "}</T></div>
+
+        <button type="submit" disabled={savingBusiness} className="bg-[#DC2626] hover:bg-[#DC2626] disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+          {savingBusiness ? (<Loader2 size={12} className="animate-spin"/>) : (<Save size={12}/>)}
+
+          {savingBusiness ? <T>{"Saving..."}</T> : <T>{"Save Changes"}</T>}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <InputField label="Business Name" value={businessForm.businessName} onChange={(value) => setBusinessForm((previous) => ({
+            ...previous,
+            businessName: value,
+        }))} placeholder="Enter business name"/>
+
+        <InputField label="Business Type" value={businessForm.businessType} onChange={(value) => setBusinessForm((previous) => ({
+            ...previous,
+            businessType: value,
+        }))} placeholder="e.g. Retail, Agency, Shop"/>
+
+        <InputField label="Trade License" value={businessForm.tradeLicense} onChange={(value) => setBusinessForm((previous) => ({
+            ...previous,
+            tradeLicense: value,
+        }))} placeholder="Enter trade license number"/>
+
+        <InputField label="Business Phone" value={businessForm.businessPhone} onChange={(value) => setBusinessForm((previous) => ({
+            ...previous,
+            businessPhone: value,
+        }))} placeholder="Enter business phone" type="tel"/>
+
+        <InputField label="Website" value={businessForm.website} onChange={(value) => setBusinessForm((previous) => ({
+            ...previous,
+            website: value,
+        }))} placeholder="https://example.com" type="url"/>
+
+        <div className="md:col-span-2">
+          <label className="block text-sm font-bold text-[#5A4A32] mb-1.5"><T>{"Business Address\n          "}</T></label>
+
+          <textarea rows={4} value={businessForm.businessAddress} onChange={(event) => setBusinessForm((previous) => ({
+            ...previous,
+            businessAddress: event.target.value,
+        }))} placeholder={t("Enter complete business address")} className="w-full resize-y rounded-xl border border-[#E3D6B8] bg-[#F6EEDB] px-3 py-2.5 text-sm outline-none focus:border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/20"/>
+        </div>
+      </div>
+
+      {!business.businessName && (<p className="text-[13px] text-[#7A6A50]"><T>{"Business information is empty right now. Add your shop/business\n          details above.\n        "}</T></p>)}
+    </form>);
+}
