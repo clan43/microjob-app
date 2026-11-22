@@ -93,6 +93,9 @@ export default function PhotoEditorPage() {
     // Prevent duplicate generation submissions before React has time to re-render.
     // This lock is local to this user's page and never shared between users.
     const generationInFlightRef = useRef(false);
+    // Cropped photos show on screen at once; the cloud copy uploads in the background and is tracked here.
+    const pendingCropUploadsRef = useRef<Promise<void>[]>([]);
+    const uploadedUrlMapRef = useRef<Map<string, string>>(new Map());
     const [customInstructionClearToken, setCustomInstructionClearToken] = useState(0);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isFetching, setIsFetching] = useState(true);
@@ -345,6 +348,9 @@ export default function PhotoEditorPage() {
     const MIN_EXPORT_DPI = 300;
     const MAX_EXPORT_LONG_SIDE_PX = 3600;
     const JPEG_QUALITY = 0.98;
+    const UPLOAD_JPEG_QUALITY = 0.92;
+    // Cropped photos are shrunk to this longest side before upload so saving is fast; still sharp for every print size.
+    const MAX_UPLOAD_SIDE_PX = 2400;
     type PhysicalSize = {
         width: number;
         height: number;
@@ -826,6 +832,54 @@ export default function PhotoEditorPage() {
             return null;
         }
     };
+    // Shrinks a big canvas (never enlarges) and returns a compact JPEG so the upload is quick.
+    const canvasToUploadJpeg = (canvas: HTMLCanvasElement): string => {
+        const longest = Math.max(canvas.width, canvas.height);
+        if (longest <= MAX_UPLOAD_SIDE_PX) {
+            return canvas.toDataURL("image/jpeg", UPLOAD_JPEG_QUALITY);
+        }
+        const ratio = MAX_UPLOAD_SIDE_PX / longest;
+        const small = document.createElement("canvas");
+        small.width = Math.max(1, Math.round(canvas.width * ratio));
+        small.height = Math.max(1, Math.round(canvas.height * ratio));
+        const smallCtx = small.getContext("2d");
+        if (!smallCtx)
+            return canvas.toDataURL("image/jpeg", UPLOAD_JPEG_QUALITY);
+        smallCtx.imageSmoothingEnabled = true;
+        smallCtx.imageSmoothingQuality = "high";
+        smallCtx.drawImage(canvas, 0, 0, small.width, small.height);
+        return small.toDataURL("image/jpeg", UPLOAD_JPEG_QUALITY);
+    };
+    // Uploads the cropped photo quietly. When it finishes, the on-screen copy is swapped to the cloud link.
+    const startBackgroundCropUpload = (localUrl: string) => {
+        const job: Promise<void> = (async () => {
+            const remoteUrl = await uploadToCloudinary(localUrl);
+            if (!remoteUrl || remoteUrl === localUrl)
+                return;
+            uploadedUrlMapRef.current.set(localUrl, remoteUrl);
+            const swap = (prev: string | null) => (prev === localUrl ? remoteUrl : prev);
+            setUploadedImage(swap);
+            setOriginalImageForDual(swap);
+            setLeftImage(swap);
+            setOriginalLeftImage(swap);
+            setRightImage(swap);
+            setOriginalRightImage(swap);
+        })()
+            .catch((error) => {
+            console.error("Background upload of the cropped photo failed:", error);
+        })
+            .finally(() => {
+            pendingCropUploadsRef.current = pendingCropUploadsRef.current.filter((item) => item !== job);
+        });
+        pendingCropUploadsRef.current.push(job);
+    };
+    // Before generating, wait for any photo still uploading, so the saved original is always a cloud link.
+    const waitForPendingCropUploads = async () => {
+        if (pendingCropUploadsRef.current.length > 0) {
+            await Promise.all(pendingCropUploadsRef.current);
+        }
+    };
+    const resolveUploadedUrl = (url: string) => uploadedUrlMapRef.current.get(url) || url;
     const handleConfirmCrop = async (imageEl: HTMLImageElement | null) => {
         if (!tempImageForCrop) {
             setShowCropModal(false);
@@ -863,14 +917,18 @@ export default function PhotoEditorPage() {
                     rotatedCtx.translate(rotatedCanvas.width / 2, rotatedCanvas.height / 2);
                     rotatedCtx.rotate((rotate * Math.PI) / 180);
                     rotatedCtx.drawImage(sourceCanvas, -sourceCanvas.width / 2, -sourceCanvas.height / 2);
-                    croppedImageUrl = rotatedCanvas.toDataURL("image/jpeg", JPEG_QUALITY);
+                    croppedImageUrl = canvasToUploadJpeg(rotatedCanvas);
                 }
                 else {
-                    croppedImageUrl = sourceCanvas.toDataURL("image/jpeg", JPEG_QUALITY);
+                    croppedImageUrl = canvasToUploadJpeg(sourceCanvas);
                 }
             }
-            const uploadedOriginalUrl = await uploadToCloudinary(croppedImageUrl);
+            // A freshly cropped photo is shown instantly and uploaded in the background.
+            const isInstantCrop = croppedImageUrl.startsWith("data:");
+            const uploadedOriginalUrl = isInstantCrop ? null : await uploadToCloudinary(croppedImageUrl);
             let finalImageUrl = uploadedOriginalUrl || croppedImageUrl;
+            if (isInstantCrop)
+                startBackgroundCropUpload(croppedImageUrl);
             if (!uploadedOriginalUrl && finalImageUrl.startsWith("blob:")) {
                 const blobResponse = await fetch(finalImageUrl);
                 if (!blobResponse.ok) {
@@ -1637,8 +1695,9 @@ export default function PhotoEditorPage() {
                 dpi: generationExport?.dpi ?? EXPORT_DPI,
             };
             if (isDualMode) {
-                const leftSource = originalLeftImage || leftImage!;
-                const rightSource = originalRightImage || rightImage!;
+                await waitForPendingCropUploads();
+                const leftSource = resolveUploadedUrl(originalLeftImage || leftImage!);
+                const rightSource = resolveUploadedUrl(originalRightImage || rightImage!);
                 const dualExport = getExactExportDimensions("90×55 mm");
                 // Both photos go to the AI as two separate images in ONE request
                 // (image = left person, image2 = right person). The AI returns ONE
@@ -1728,7 +1787,8 @@ export default function PhotoEditorPage() {
                 generationSucceeded = true;
                 return;
             }
-            const rawImage = originalImageForDual || uploadedImage!;
+            await waitForPendingCropUploads();
+            const rawImage = resolveUploadedUrl(originalImageForDual || uploadedImage!);
             const generatedUrl = await callGenerateApi({
                 ...basePayload,
                 image: rawImage,
