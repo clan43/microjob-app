@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { BulkT, useBulkPhotoText } from "./bulkPhotoI18n";
-import { AlertCircle, CheckCircle2, Download, Eye, ImagePlus, MousePointerClick, RotateCcw, Upload, } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, FileText, ImagePlus, LoaderCircle, MousePointerClick, Printer, RotateCcw, Ruler, Upload, } from "lucide-react";
+import BeforeAfterSlider from "./BeforeAfterSlider";
 import type { PhotoItem } from "./types";
 import { GateOverlay } from "../../_components/GateOverlay";
 import { blockImageMenu } from "@/app/_lib/imageProtect";
@@ -10,6 +11,12 @@ interface BulkPhotoStageProps {
     onAddPhotos: (files: File[]) => void;
     onDownloadResult: (photo: PhotoItem) => void;
     onDownloadAll: () => void;
+    onDownloadPdf: () => void;
+    onPrintSheet: () => void;
+    /** True while a ZIP / PDF / print sheet is being prepared. */
+    isExporting: boolean;
+    /** Chosen output size, e.g. "Passport · 45×55 mm". Empty when the AI result is kept as it is. */
+    sizeSummary: string;
     onRetryPhoto: (photoId: string) => void;
     isProcessing: boolean;
     processedCount: number;
@@ -35,10 +42,9 @@ const HOW_IT_WORKS = [
     { icon: Download, title: "Download results", text: "Each photo is edited separately and saved to My Files." },
 ];
 
-export default function BulkPhotoStage({ photos, onAddPhotos, onDownloadResult, onDownloadAll, onRetryPhoto, isProcessing, processedCount, }: BulkPhotoStageProps) {
+export default function BulkPhotoStage({ photos, onAddPhotos, onDownloadResult, onDownloadAll, onDownloadPdf, onPrintSheet, isExporting, sizeSummary, onRetryPhoto, isProcessing, processedCount, }: BulkPhotoStageProps) {
     const { t } = useBulkPhotoText();
     const [dragging, setDragging] = useState(false);
-    const [showOriginal, setShowOriginal] = useState<Record<string, boolean>>({});
 
     if (photos.length === 0) {
         return (<div className="scroll flex min-h-[420px] flex-1 flex-col items-center justify-center gap-5 overflow-auto p-4 sm:p-8">
@@ -56,7 +62,7 @@ export default function BulkPhotoStage({ photos, onAddPhotos, onDownloadResult, 
           <span className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#D42020] px-5 py-2.5 text-[15px] font-bold text-white shadow-sm transition hover:bg-[#AE1717]">
             <ImagePlus size={17}/><BulkT>{"Add photos"}</BulkT>
           </span>
-          <span className="mt-3 rounded-lg border border-[#E3D6B8] bg-[#F6EEDB] px-2.5 py-1 font-mono text-[13px] font-semibold text-[#6B5A40]">Ctrl+U</span>
+          <span className="mt-3 hidden rounded-lg border border-[#E3D6B8] bg-[#F6EEDB] px-2.5 py-1 font-mono lg:inline-block text-[13px] font-semibold text-[#6B5A40]">Ctrl+U</span>
         </label>
 
         <div className="grid w-full max-w-2xl grid-cols-1 gap-3 sm:grid-cols-3">
@@ -87,7 +93,7 @@ export default function BulkPhotoStage({ photos, onAddPhotos, onDownloadResult, 
             <span aria-hidden="true" className="h-8 w-1 rounded-full bg-[#DC2626]"/>
             <div>
               <h3 className="text-[17px] font-bold leading-tight text-[#3B2F1E]"><BulkT>{"Bulk AI results"}</BulkT></h3>
-              <p className="text-[12.5px] text-[#6B5A40]"><BulkT>{`${completedCount}/${photos.length} done`}</BulkT></p>
+              <p className="flex flex-wrap items-center gap-x-2 text-[12.5px] text-[#6B5A40]"><span><BulkT>{`${completedCount}/${photos.length} done`}</BulkT></span>{sizeSummary && (<span className="inline-flex items-center gap-1 rounded-full bg-[#FEE9E9] px-2 py-0.5 text-[11.5px] font-bold text-[#B91C1C]"><Ruler size={11}/>{sizeSummary}</span>)}</p>
             </div>
           </div>
 
@@ -104,8 +110,16 @@ export default function BulkPhotoStage({ photos, onAddPhotos, onDownloadResult, 
               <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" disabled={isProcessing} onChange={(event) => handleInputChange(event, onAddPhotos)}/>
               <Upload size={14}/><BulkT>{"Add more"}</BulkT></label>
 
-            <button type="button" onClick={onDownloadAll} disabled={completedCount === 0 || isProcessing} className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-[#D42020] px-3.5 py-1.5 text-[14px] font-bold text-white shadow-sm transition duration-200 ease-out hover:bg-[#AE1717] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F2E8D2]">
-              <Download size={14}/><BulkT>{"Download all"}</BulkT>
+            <button type="button" onClick={onDownloadAll} disabled={completedCount === 0 || isProcessing || isExporting} className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl bg-[#D42020] px-3.5 py-1.5 text-[14px] font-bold text-white shadow-sm transition duration-200 ease-out hover:bg-[#AE1717] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F2E8D2]">
+              {isExporting ? <LoaderCircle size={14} className="animate-spin"/> : <Download size={14}/>}<BulkT>{"Download all (ZIP)"}</BulkT>
+            </button>
+
+            <button type="button" onClick={onDownloadPdf} disabled={completedCount === 0 || isProcessing || isExporting} className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#E3D6B8] bg-[#FBF6E8] px-3 py-1.5 text-[14px] font-semibold text-[#5A4A32] transition duration-200 ease-out hover:border-[#DC2626]/40 hover:bg-[#EFE3C8] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]/40">
+              <FileText size={14}/><BulkT>{"PDF"}</BulkT>
+            </button>
+
+            <button type="button" onClick={onPrintSheet} disabled={completedCount === 0 || isProcessing || isExporting} className="inline-flex cursor-pointer items-center gap-1.5 rounded-xl border border-[#DC2626]/40 bg-[#FEF1E0] px-3 py-1.5 text-[14px] font-bold text-[#B91C1C] transition duration-200 ease-out hover:bg-[#FEE9E9] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]/40">
+              <Printer size={14}/><BulkT>{"Print sheet"}</BulkT>
             </button>
           </div>
         </div>
@@ -121,24 +135,20 @@ export default function BulkPhotoStage({ photos, onAddPhotos, onDownloadResult, 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
           {photos.map((photo, index) => {
             const isResult = photo.status === "success" && Boolean(photo.resultUrl);
-            const viewingOriginal = Boolean(showOriginal[photo.id]);
-            const displayUrl = isResult && !viewingOriginal ? (photo.resultUrl as string) : photo.preview;
+            const displayUrl = isResult ? (photo.resultUrl as string) : photo.preview;
             return (<article key={photo.id} className="overflow-hidden rounded-2xl border border-[#E3D6B8] bg-[#FBF6E8] shadow-sm transition duration-200 hover:shadow-md">
                 <div className="relative aspect-[4/4.4] overflow-hidden bg-[#E3D6B8]">
-                  <img {...blockImageMenu} src={displayUrl} alt={t(isResult ? `AI edited photo ${index + 1}` : `Bulk preview ${index + 1}`)} className="h-full w-full object-cover"/>
+                  {isResult
+                    ? <BeforeAfterSlider beforeSrc={photo.preview} afterSrc={displayUrl} alt={t(`AI edited photo ${index + 1}`)}/>
+                    : <img {...blockImageMenu} src={displayUrl} alt={t(`Bulk preview ${index + 1}`)} className="h-full w-full object-cover"/>}
 
-                  <div className="absolute inset-x-2 top-2 flex items-center justify-between gap-2">
+                  <div className="pointer-events-none absolute inset-x-2 top-2 flex items-center justify-between gap-2">
                     <span className="rounded-full bg-[#3B2F1E]/80 px-2.5 py-1 text-[12px] font-bold text-white"><BulkT>{`Photo ${index + 1}`}</BulkT>
                     </span>
 
-                    {isResult && (<span className={`rounded-full px-2.5 py-1 text-[12px] font-bold text-white ${viewingOriginal ? "bg-[#6B5A40]/90" : "bg-emerald-500/95"}`}><BulkT>{viewingOriginal ? "Original" : "AI Result"}</BulkT></span>)}
-
                     {photo.status === "pending" && (<span className="rounded-full bg-[#3B2F1E]/70 px-2.5 py-1 text-[12px] font-bold text-white"><BulkT>{"Waiting"}</BulkT></span>)}
                   </div>
-
-                  {isResult && (<button type="button" onClick={() => setShowOriginal((current) => ({ ...current, [photo.id]: !current[photo.id] }))} className="absolute bottom-2 right-2 inline-flex cursor-pointer items-center gap-1.5 rounded-full bg-[#FBF6E8]/95 px-2.5 py-1.5 text-[12.5px] font-bold text-[#3B2F1E] shadow-sm backdrop-blur transition hover:bg-white active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]/40">
-                      <Eye size={13}/><BulkT>{viewingOriginal ? "Show AI result" : "Show original"}</BulkT>
-                    </button>)}
+                  {isResult && (<span className="pointer-events-none absolute inset-x-0 top-10 flex justify-center"><span className="rounded-full bg-[#FBF6E8]/90 px-2.5 py-0.5 text-[11.5px] font-semibold text-[#5A4A32] shadow-sm"><BulkT>{"Drag to compare"}</BulkT></span></span>)}
 
                   {/* Same generating animation as the AI Editor (doors close, photo is processed, doors open). */}
                   <GateOverlay active={photo.status === "processing"} image={displayUrl} background="#F3E9D2" t={t} stages={BULK_GATE_STAGES}/>

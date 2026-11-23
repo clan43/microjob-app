@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BulkT, useBulkPhotoText } from "./bulkPhotoI18n";
 import { AlertCircle, CheckCircle2, ChevronDown, ChevronUp, ImagePlus, LoaderCircle, QrCode, Trash2, X } from "lucide-react";
 import QrCodeSidebar from "@/app/ai-editor/_components/QrCodeSidebar";
+import RecentPhotosPicker from "./RecentPhotosPicker";
 import type { PhotoItem } from "./types";
 
 interface PhotoUploaderProps {
@@ -57,7 +58,7 @@ export default function PhotoUploader({ photos, onAddPhotos, onRemovePhoto, onCl
         onDragOver={(event) => { event.preventDefault(); if (!disabled) setDragging(true); }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        className={`group flex h-32 w-full shrink-0 flex-col items-center justify-center rounded-2xl border-2 border-dashed p-4 text-center transition duration-200 ease-out focus-within:ring-2 focus-within:ring-[#DC2626]/30 ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"} ${dragging ? "border-[#DC2626] bg-[#FEE9E9]" : "border-[#B0A080] bg-[#FBF6E8] hover:border-[#DC2626]/60 hover:bg-[#FFF8EA]"}`}>
+        className={`group ${photos.length === 0 ? "xl:hidden" : ""} flex ${photos.length > 0 ? "h-24" : "h-32"} w-full shrink-0 flex-col items-center justify-center rounded-2xl border-2 border-dashed p-4 text-center transition duration-200 ease-out focus-within:ring-2 focus-within:ring-[#DC2626]/30 ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"} ${dragging ? "border-[#DC2626] bg-[#FEE9E9]" : "border-[#B0A080] bg-[#FBF6E8] hover:border-[#DC2626]/60 hover:bg-[#FFF8EA]"}`}>
         <input type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={handleInputChange} disabled={disabled}/>
         <span className="mb-1.5 flex h-10 w-10 items-center justify-center rounded-full bg-[#FEE9E9] text-[#DC2626] transition duration-200 group-hover:bg-[#DC2626] group-hover:text-white">
           <ImagePlus size={20}/>
@@ -83,6 +84,8 @@ export default function PhotoUploader({ photos, onAddPhotos, onRemovePhoto, onCl
           </div>
         )}
       </div>
+
+      <RecentPhotosPicker onAddPhotos={onAddPhotos} slotsLeft={Math.max(0, maxPhotos - photos.length)} disabled={disabled}/>
 
       <div className="mt-3 flex shrink-0 items-center justify-between">
         <p className="text-[12.5px] font-bold uppercase tracking-wide text-[#6B5A40]"><BulkT>{"Photo queue"}</BulkT></p>

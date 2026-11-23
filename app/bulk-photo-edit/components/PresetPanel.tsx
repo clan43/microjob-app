@@ -1,7 +1,11 @@
-import { BulkT } from "./bulkPhotoI18n";
-import { Check, ChevronLeft, ChevronRight, Circle, Copy, Sparkles, X } from "lucide-react";
+import { useState } from "react";
+import { BulkT, useBulkPhotoText } from "./bulkPhotoI18n";
+import { Check, ChevronLeft, ChevronRight, Circle, Copy, Search, Sparkles, X } from "lucide-react";
+import OutputSizePicker from "./OutputSizePicker";
+import { BackgroundColorOptions, OutfitOptions } from "./ToolExtras";
+import type { BulkOutputFormat } from "./bulkOutput";
 import { TOOL_PRESETS } from "./toolCatalog";
-import type { ApplyMode, PhotoItem, SelectedTools } from "./types";
+import type { ApplyMode, BulkExtras, PhotoItem, SelectedTools } from "./types";
 import PresetCard from "./PresetCard";
 import ToolDropdown from "./ToolDropdown";
 
@@ -28,9 +32,26 @@ interface PresetPanelProps {
     onGoToPhoto: (offset: number) => void;
     onCopyToAll: () => void;
     onOpenGuide: () => void;
+    extras: BulkExtras;
+    onExtrasChange: (next: BulkExtras) => void;
+    sizeId: string;
+    onSizeChange: (id: string) => void;
+    outputFormat: BulkOutputFormat;
+    onOutputFormatChange: (format: BulkOutputFormat) => void;
 }
 
-export default function PresetPanel({ selectedTools, expandedPreset, onTogglePreset, onToggleTool, onClearPreset, onCloseDropdown, photosCount, onEnhance, isProcessing, processedCount, applyMode, onApplyModeChange, photos, activePhotoId, activeIndex, photoToolCounts, photosWithTools, toolsReady, onSelectPhoto, onGoToPhoto, onCopyToAll, onOpenGuide, }: PresetPanelProps) {
+export default function PresetPanel({ selectedTools, expandedPreset, onTogglePreset, onToggleTool, onClearPreset, onCloseDropdown, photosCount, onEnhance, isProcessing, processedCount, applyMode, onApplyModeChange, photos, activePhotoId, activeIndex, photoToolCounts, photosWithTools, toolsReady, onSelectPhoto, onGoToPhoto, onCopyToAll, onOpenGuide, extras, onExtrasChange, sizeId, onSizeChange, outputFormat, onOutputFormatChange, }: PresetPanelProps) {
+    const { t } = useBulkPhotoText();
+    const [query, setQuery] = useState<string>("");
+    const q = query.trim().toLowerCase();
+    // While searching, only matching tools are shown and their groups open by themselves.
+    const visiblePresets = TOOL_PRESETS.map((preset) => {
+        if (!q)
+            return { preset, tools: preset.tools, forceOpen: false };
+        const groupMatch = `${preset.name} ${t(preset.name)}`.toLowerCase().includes(q);
+        const tools = preset.tools.filter((tool) => `${tool.name} ${t(tool.name)} ${tool.description} ${t(tool.description)}`.toLowerCase().includes(q));
+        return { preset, tools: groupMatch ? preset.tools : tools, forceOpen: true };
+    }).filter((item) => item.tools.length > 0);
     const selectedGroups = TOOL_PRESETS.map((preset) => ({
         preset,
         tools: preset.tools.filter((tool) => (selectedTools[preset.name] ?? []).includes(tool.name)),
@@ -111,14 +132,32 @@ export default function PresetPanel({ selectedTools, expandedPreset, onTogglePre
           </div>)}
       </div>
 
-      <div className="scroll max-h-[520px] min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 xl:max-h-none">
-        {TOOL_PRESETS.map((preset) => {
-            const selected = selectedTools[preset.name] || [];
-            const expanded = expandedPreset === preset.id;
-            return (<div key={preset.id} className={`overflow-hidden rounded-2xl border bg-[#FBF6E8] shadow-sm transition duration-200 ${expanded || selected.length > 0 ? "border-[#DC2626]/60" : "border-[#E3D6B8]"}`}>
-              <PresetCard preset={preset} selectedTools={selected} expanded={expanded} onClick={() => onTogglePreset(preset.id)}/>
+      <div className="relative mb-2 shrink-0">
+        <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#6B5A40]"/>
+        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("Search AI tools...")} aria-label={t("Search AI tools")} className="w-full rounded-xl border border-[#E3D6B8] bg-[#FBF6E8] py-2 pl-9 pr-8 text-[14px] font-medium text-[#3B2F1E] placeholder:text-[#9A8A6C] focus:border-[#DC2626]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]/30"/>
+        {query && (<button type="button" onClick={() => setQuery("")} aria-label={t("Clear search")} className="absolute right-1.5 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full text-[#6B5A40] transition hover:bg-[#DC2626] hover:text-white"><X size={12}/></button>)}
+      </div>
 
-              <ToolDropdown preset={preset} open={expanded} selectedTools={selected} onToggleTool={(toolName) => onToggleTool(preset.name, toolName)} onSelectAll={() => selectAllInPreset(preset.name)} onClear={() => onClearPreset(preset.name)} onDone={onCloseDropdown}/>
+      <div className="scroll max-h-[520px] min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 xl:max-h-none">
+        {q && visiblePresets.length === 0 && (<p className="rounded-xl border border-[#E3D6B8] bg-[#FBF6E8] px-3 py-4 text-center text-[13.5px] font-medium text-[#6B5A40]"><BulkT>{"No matching tools. Try another word."}</BulkT></p>)}
+        {visiblePresets.map(({ preset, tools, forceOpen }) => {
+            const selected = selectedTools[preset.name] || [];
+            const expanded = forceOpen || expandedPreset === preset.id;
+            const shownPreset = tools.length === preset.tools.length ? preset : { ...preset, tools };
+            const shownSelected = selected.filter((name) => tools.some((tool) => tool.name === name));
+            return (<div key={preset.id} className={`overflow-hidden rounded-2xl border bg-[#FBF6E8] shadow-sm transition duration-200 ${expanded || selected.length > 0 ? "border-[#DC2626]/60" : "border-[#E3D6B8]"}`}>
+              <PresetCard preset={preset} selectedTools={selected} expanded={expanded} onClick={() => { if (!forceOpen)
+                onTogglePreset(preset.id); }}/>
+
+              <ToolDropdown preset={shownPreset} open={expanded} selectedTools={shownSelected} onToggleTool={(toolName) => onToggleTool(preset.name, toolName)} onSelectAll={() => tools.forEach((tool) => { if (!selected.includes(tool.name))
+                onToggleTool(preset.name, tool.name); })} onClear={() => { if (tools.length === preset.tools.length)
+                onClearPreset(preset.name);
+            else
+                tools.forEach((tool) => { if (selected.includes(tool.name))
+                    onToggleTool(preset.name, tool.name); }); }} onDone={() => { setQuery(""); onCloseDropdown(); }}/>
+
+              {expanded && preset.id === "photo-background" && selected.includes("Background Replace") && (<BackgroundColorOptions extras={extras} onChange={onExtrasChange} disabled={isProcessing}/>)}
+              {expanded && preset.id === "dress-style" && selected.includes("Outfit Color Change") && (<OutfitOptions extras={extras} onChange={onExtrasChange} disabled={isProcessing}/>)}
             </div>);
         })}
       </div>
@@ -144,6 +183,8 @@ export default function PresetPanel({ selectedTools, expandedPreset, onTogglePre
             </div>
           </div>)}
 
+        <OutputSizePicker sizeId={sizeId} onSizeChange={onSizeChange} format={outputFormat} onFormatChange={onOutputFormatChange} disabled={isProcessing}/>
+
         <ul className="mb-2.5 space-y-1 text-[13px] font-medium">
           <li className={`flex items-center gap-2 ${hasEnoughPhotos ? "text-emerald-700" : "text-[#6B5A40]"}`}>
             {hasEnoughPhotos ? <Check size={14} strokeWidth={3}/> : <Circle size={14}/>}
@@ -157,11 +198,14 @@ export default function PresetPanel({ selectedTools, expandedPreset, onTogglePre
 
         {isProcessing && (<div className="mb-2.5 rounded-xl border border-[#FBB6B6] bg-[#FEE9E9] px-3 py-2 text-[13px] font-medium leading-[1.55] text-[#B91C1C]"><BulkT>{`Processing photo ${Math.min(processedCount + 1, Math.max(photosCount, 1))} of ${photosCount}. Keep this tab open until the batch finishes.`}</BulkT></div>)}
 
+        <div className="sticky bottom-2 z-10 rounded-xl bg-[#F2E8D2]/95 xl:static">
+        {!canEnhance && !isProcessing && (<p className="mb-1.5 text-center text-[12.5px] font-semibold text-[#B91C1C]"><BulkT>{!hasEnoughPhotos ? `Add ${Math.max(2 - photosCount, 1)} more photo${photosCount === 1 ? "" : "s"} to start.` : eachMode ? "Choose at least one AI tool for every photo to start." : "Choose at least one AI tool to start."}</BulkT></p>)}
         <button type="button" onClick={onEnhance} disabled={!canEnhance} className="flex h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-[#E53935] to-[#C81D1D] px-4 text-[16px] font-bold text-white shadow-md transition duration-200 ease-out hover:from-[#D42020] hover:to-[#AE1717] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F2E8D2]">
           <Sparkles size={18}/>
           {isProcessing
         ? <BulkT>{`Processing ${processedCount}/${photosCount}`}</BulkT> : <BulkT>{`Enhance ${photosCount} photos`}</BulkT>}
         </button>
+        </div>
       </div>
     </aside>);
 }

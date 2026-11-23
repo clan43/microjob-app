@@ -23,12 +23,10 @@ import {
   Type,
   Video,
   GraduationCap,
-  PanelRightClose,
   Eye,
   Pencil,
   Trash2,
   Loader2,
-  PanelRightOpen,
   type LucideIcon,
 } from "lucide-react";
 import DashboardNavbar from "../dashboard/_components/DashboardNavbar";
@@ -380,10 +378,6 @@ const primaryBtn =
   "inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-xl bg-[#DC2626] px-4 text-base font-semibold text-white transition-all duration-150 hover:bg-[#B91C1C] active:bg-[#991B1B] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]/40";
 const secondaryBtn =
   "inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-xl border border-[#FBB6B6] bg-[#FBF6E8] px-4 text-base font-semibold text-[#B91C1C] transition-all duration-150 hover:bg-[#FEE9E9] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]/40";
-// Dedicated muted premium-blue style for the Seba Lagbe Tools Files toggle button.
-// Kept separate so the other secondary buttons preserve their existing red theme.
-const sidebarToggleBtn =
-  "inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-xl border border-[#B8CBE0] bg-[#F5F8FC] px-4 text-base font-semibold text-[#315B85] transition-all duration-150 hover:border-[#91B2D4] hover:bg-[#EAF1F9] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F7FAF]/40";
 function SearchBox({
   value,
   onChange,
@@ -730,9 +724,8 @@ export default function MyFilesPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [sort, setSort] = useState<SortOrder>("newest");
   const [switchNotice, setSwitchNotice] = useState<CategoryId | "">("");
-  // ডান সাইডবার: Seba Lagbe Tools
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true); // ডেস্কটপে ডান পাশের প্যানেল
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false); // মোবাইলে ড্রয়ার
+  // Seba Lagbe Tools ফাইল: এখন আলাদা সাইডবার নয়, ট্যাবের সারির শেষে একটা ট্যাব
+  const [toolsTab, setToolsTab] = useState<boolean>(false);
   const [toolGroup, setToolGroup] = useState<ToolGroupId>("all");
   const [toolSearch, setToolSearch] = useState<string>("");
   const [toolSort, setToolSort] = useState<SortOrder>("newest");
@@ -803,16 +796,19 @@ export default function MyFilesPage() {
   useEffect(() => {
     try {
       const tab = new URLSearchParams(window.location.search).get("tab");
+      if (tab === "tool-files") {
+        setToolsTab(true);
+        return;
+      }
       const target = CATEGORY_TABS.find((t) => t.id === tab);
       if (target) setActiveTab(target.id);
     } catch {
       // ignore: the default tab is fine
     }
   }, []);
-  // মোবাইল ড্রয়ার/মডাল খোলা থাকলে পেছনের পেজ স্ক্রল বন্ধ + Escape চাপলে বন্ধ হবে
+  // মডাল খোলা থাকলে পেছনের পেজ স্ক্রল বন্ধ + Escape চাপলে বন্ধ হবে
   useEffect(() => {
-    const drawerLocks = mobileSidebarOpen && window.innerWidth < 1024;
-    if (!(drawerLocks || previewFile || previewToolFile || deleteTarget)) return;
+    if (!(previewFile || previewToolFile || deleteTarget)) return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
@@ -824,14 +820,13 @@ export default function MyFilesPage() {
         }
       } else if (previewToolFile) setPreviewToolFile(null);
       else if (previewFile) setPreviewFile(null);
-      else setMobileSidebarOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKey);
     };
-  }, [mobileSidebarOpen, previewFile, previewToolFile, deleteTarget, deletingFileId]);
+  }, [previewFile, previewToolFile, deleteTarget, deletingFileId]);
   // সার্চ করলে: বর্তমান ট্যাবে না পেলে, যে ট্যাবে ফাইলটা আছে সেখানে অটো চলে যাবে
   useEffect(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -943,6 +938,7 @@ export default function MyFilesPage() {
     }
   };
   const handleCategoryChange = (id: CategoryId) => {
+    setToolsTab(false);
     setActiveTab(id);
     resetSearch();
   };
@@ -1001,14 +997,6 @@ export default function MyFilesPage() {
       toolEmptyText = `Files you save from ${currentGroup.label} tools will appear here.`;
     }
   }
-  const toggleSidebar = () => {
-    if (window.innerWidth >= 1024) setSidebarOpen((v) => !v);
-    else setMobileSidebarOpen((v) => !v);
-  };
-  const closeSidebar = () => {
-    setMobileSidebarOpen(false);
-    if (window.innerWidth >= 1024) setSidebarOpen(false);
-  };
   if (!isAuthenticated) {
     return (
       <div className="page-font flex min-h-screen items-center justify-center bg-gradient-to-b from-[#E9DDC3] to-[#EFE5CE] text-[#3B2F1E]">
@@ -1048,35 +1036,11 @@ export default function MyFilesPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            aria-expanded={sidebarOpen || mobileSidebarOpen}
-            aria-controls="sebatools-sidebar"
-            className={`${sidebarToggleBtn} w-full justify-center sm:w-auto ${sidebarOpen ? "lg:bg-[#EAF1F9]" : ""} ${mobileSidebarOpen ? "bg-[#EAF1F9]" : ""}`}
-          >
-            <Wrench size={15} className="text-[#426D98]" />
-            <T>{"Seba Lagbe Tools Files\n            "}</T>
-            {sidebarOpen ? (
-              <PanelRightClose
-                size={15}
-                className="hidden text-[#426D98] lg:block"
-              />
-            ) : (
-              <PanelRightOpen
-                size={15}
-                className="hidden text-[#426D98] lg:block"
-              />
-            )}
-            <PanelRightOpen size={15} className="text-[#426D98] lg:hidden" />
-          </button>
         </header>
 
         <RetentionNotice className="mb-4 shrink-0" />
 
-        <div
-          className={`grid items-start gap-4 sm:gap-6 lg:min-h-0 lg:flex-1 lg:grid-rows-[minmax(0,1fr)] lg:items-stretch ${sidebarOpen ? "lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_380px]" : "grid-cols-1"}`}
-        >
+        <div className="grid grid-cols-1 items-start gap-4 sm:gap-6 lg:min-h-0 lg:flex-1 lg:grid-rows-[minmax(0,1fr)] lg:items-stretch">
           {/* ======================= My Files ======================= */}
           <section
             aria-label={translatePageText("My files", locale)}
@@ -1089,7 +1053,7 @@ export default function MyFilesPage() {
               className="flex shrink-0 gap-5 overflow-x-auto border-b border-[#E3D6B8] px-4 [scrollbar-width:none] sm:gap-6 sm:px-5 [&::-webkit-scrollbar]:hidden"
             >
               {CATEGORY_TABS.map((tab) => {
-                const active = tab.id === activeTab;
+                const active = !toolsTab && tab.id === activeTab;
                 const count = tabCounts[tab.id];
                 return (
                   <button
@@ -1120,8 +1084,216 @@ export default function MyFilesPage() {
                   </button>
                 );
               })}
+              <button
+                type="button"
+                role="tab"
+                aria-selected={toolsTab}
+                onClick={(e) => {
+                  setToolsTab(true);
+                  e.currentTarget.scrollIntoView({
+                    inline: "center",
+                    block: "nearest",
+                    behavior: "smooth",
+                  });
+                }}
+                className={`-mb-px shrink-0 cursor-pointer whitespace-nowrap border-b-2 py-3 text-base font-medium outline-none transition-colors focus-visible:text-[#B91C1C] ${
+                  toolsTab
+                    ? "border-[#DC2626] text-[#DC2626]"
+                    : "border-transparent text-[#5A4A32] hover:border-[#D8C9A6] hover:text-[#3B2F1E]"
+                }`}
+              >
+                <T>{"Seba Lagbe Tools Files"}</T>
+                {toolFiles.length > 0 && (
+                  <span className="ml-1.5 rounded-lg bg-[#F3E9D2] px-1.5 py-0.5 text-sm text-[#5A4A32]">
+                    {toolFiles.length}
+                  </span>
+                )}
+              </button>
             </div>
 
+            {toolsTab ? (
+              <>
+                {/* Tools: search + type filter + sort */}
+                <div className="flex shrink-0 flex-col gap-2 px-4 py-3 min-[480px]:flex-row sm:gap-3 sm:px-5 sm:py-4">
+                  <SearchBox
+                    value={toolSearch}
+                    onChange={setToolSearch}
+                    onClear={() => setToolSearch("")}
+                    placeholder={translatePageText(
+                      "Search by file or tool name",
+                      locale,
+                    )}
+                    label={translatePageText("Search tool files", locale)}
+                  />
+                  <select
+                    aria-label={translatePageText("Filter by file type", locale)}
+                    value={toolGroup}
+                    onChange={(e) => setToolGroup(e.target.value as ToolGroupId)}
+                    className={`${fieldBase} w-full shrink-0 cursor-pointer px-2.5 min-[480px]:w-auto`}
+                  >
+                    {TOOL_GROUPS.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {translatePageText(g.label, locale)}
+                      </option>
+                    ))}
+                  </select>
+                  <SortSelect
+                    value={toolSort}
+                    onChange={setToolSort}
+                    className="w-full shrink-0 min-[480px]:w-auto"
+                  />
+                </div>
+
+                {/* Tools: results */}
+                <div className="scroll flex flex-1 flex-col px-4 pb-4 sm:px-5 sm:pb-5 lg:min-h-0 lg:overflow-y-auto">
+                  {filesLoading ? null : visibleToolFiles.length > 0 ? (
+                    <div
+                      aria-live="polite"
+                      className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))] sm:gap-4 xl:grid-cols-[repeat(auto-fill,minmax(210px,1fr))]"
+                    >
+                      {visibleToolFiles.map((file, index) => {
+                        const GroupIcon = (
+                          TOOL_GROUPS.find((g) => g.id === file.group) ??
+                          TOOL_GROUPS[0]
+                        ).icon;
+                        const isImg =
+                          Boolean(file.url) &&
+                          getToolFilePreviewKind(file) === "image";
+                        return (
+                          <article
+                            key={file.id}
+                            className="overflow-hidden rounded-2xl border border-[#E3D6B8] bg-[#FBF6E8] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B0A080] hover:bg-[#EFE3C8]"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => handleToolPreview(file)}
+                              disabled={!file.url}
+                              aria-label={
+                                file.url
+                                  ? translatePageText(`View ${file.name}`, locale)
+                                  : undefined
+                              }
+                              title={
+                                file.url
+                                  ? translatePageText("View", locale)
+                                  : undefined
+                              }
+                              className={`group relative flex aspect-[4/3] w-full items-center justify-center bg-[#F3E9D2] ${
+                                file.url
+                                  ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#DC2626]"
+                                  : "cursor-default"
+                              }`}
+                            >
+                              {isImg ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  {...blockImageMenu}
+                                  src={file.url}
+                                  alt={file.name}
+                                  className="h-full w-full object-contain transition-transform duration-200 group-hover:scale-[1.02]"
+                                  loading={index < 8 ? "eager" : "lazy"}
+                                />
+                              ) : (
+                                <GroupIcon
+                                  size={30}
+                                  strokeWidth={1.5}
+                                  className="text-[#7A6A50]"
+                                />
+                              )}
+                              {file.url && (
+                                <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-[#3B2F1E]/0 transition-colors duration-200 group-hover:bg-[#3B2F1E]/20">
+                                  <span className="flex h-10 w-10 scale-95 items-center justify-center rounded-full bg-[#FBF6E8]/95 text-[#5A4A32] opacity-0 shadow-md transition-all duration-200 group-hover:scale-100 group-hover:opacity-100">
+                                    <Eye size={18} />
+                                  </span>
+                                </span>
+                              )}
+                            </button>
+                            <div className="flex items-center gap-1.5 px-2.5 py-2 sm:px-3 sm:py-2.5">
+                              <button
+                                type="button"
+                                onClick={() => handleToolPreview(file)}
+                                disabled={!file.url}
+                                className={`min-w-0 flex-1 text-left outline-none ${
+                                  file.url ? "cursor-pointer" : "cursor-default"
+                                }`}
+                              >
+                                <p
+                                  className="truncate text-[15px] font-medium text-[#3B2F1E] sm:text-base"
+                                  title={file.name}
+                                >
+                                  {file.name}
+                                </p>
+                                <p className="truncate text-sm text-[#7A6A50]">
+                                  <T>{file.toolName}</T>
+                                  <T>{"\u00B7 "}</T>
+                                  {formatDate(file.createdAt, locale)}
+                                </p>
+                              </button>
+                              {file.url && (
+                                <a
+                                  href={file.url}
+                                  download={file.name}
+                                  aria-label={translatePageText(
+                                    `Download ${file.name}`,
+                                    locale,
+                                  )}
+                                  title={translatePageText("Download", locale)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    void downloadFile(file.url, file.name);
+                                  }}
+                                  className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[#7A6A50] hover:bg-[#EFE3C8] hover:text-[#DC2626] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]/40 sm:h-8 sm:w-8"
+                                >
+                                  <Download size={16} />
+                                </a>
+                              )}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div
+                      aria-live="polite"
+                      className="flex flex-1 items-center justify-center py-6"
+                    >
+                      <div className="w-full max-w-md rounded-lg border border-dashed border-[#B0A080] px-6 py-12 text-center">
+                        <ToolEmptyIcon
+                          size={28}
+                          strokeWidth={1.5}
+                          className="mx-auto text-[#7A6A50]"
+                        />
+                        <h3 className="mt-3 text-base font-semibold text-[#3B2F1E]">
+                          <T>{toolEmptyTitle}</T>
+                        </h3>
+                        <p className="mx-auto mt-1 max-w-xs text-base text-[#7A6A50]">
+                          <T>{toolEmptyText}</T>
+                        </p>
+                        {hasToolSearch ? (
+                          <button
+                            type="button"
+                            onClick={() => setToolSearch("")}
+                            className={`${secondaryBtn} mt-5`}
+                          >
+                            <T>{"Clear search"}</T>
+                          </button>
+                        ) : (
+                          <Link
+                            href="/seba-lagbe-tools"
+                            className={`${primaryBtn} mt-5`}
+                          >
+                            <T>{"Browse Seba Lagbe Tools"}</T>
+                            <ArrowRight size={14} />
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
             {/* Search + sort */}
             <div className="flex shrink-0 flex-col gap-2 px-4 py-3 min-[480px]:flex-row sm:gap-3 sm:px-5 sm:py-4">
               <SearchBox
@@ -1338,207 +1510,9 @@ export default function MyFilesPage() {
                 </div>
               )}
             </div>
+              </>
+            )}
           </section>
-
-          {/* ===================== Seba Lagbe Tools sidebar ===================== */}
-          {mobileSidebarOpen && (
-            <div
-              aria-hidden="true"
-              onClick={() => setMobileSidebarOpen(false)}
-              className="fixed inset-0 z-[55] bg-[#3B2F1E]/40 lg:hidden"
-            />
-          )}
-
-          {(sidebarOpen || mobileSidebarOpen) && (
-            <aside
-              id="sebatools-sidebar"
-              aria-label={translatePageText("Seba Lagbe Tools files", locale)}
-              className={`flex-col border border-[#E3D6B8] bg-[#F2E8D2] lg:min-h-0 lg:overflow-hidden lg:rounded-2xl ${
-                mobileSidebarOpen
-                  ? "fixed inset-y-0 right-0 z-[60] flex h-dvh w-[92vw] max-w-sm overflow-hidden rounded-l-2xl pb-[env(safe-area-inset-bottom)] shadow-xl"
-                  : "hidden"
-              } ${
-                sidebarOpen
-                  ? "lg:static lg:z-auto lg:flex lg:w-auto lg:max-w-none lg:shadow-none"
-                  : "lg:hidden"
-              }`}
-            >
-              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-[#E3D6B8] px-4 py-3">
-                <div className="min-w-0">
-                  <h2 className="text-base font-semibold text-[#3B2F1E]">
-                    <T>{"Seba Lagbe Tools Files\n                  "}</T>
-                  </h2>
-                  <p className="text-sm text-[#7A6A50]">
-                    {filesLoading ? (
-                      <T>{"Loading…"}</T>
-                    ) : (
-                      <T>{`${toolFiles.length} ${toolFiles.length === 1 ? "file" : "files"}`}</T>
-                    )}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={closeSidebar}
-                  aria-label={translatePageText(
-                    "Close Seba Lagbe Tools sidebar",
-                    locale,
-                  )}
-                  className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl sm:h-8 sm:w-8 text-[#7A6A50] hover:bg-[#EFE3C8] hover:text-[#3B2F1E]"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              <div className="shrink-0 space-y-2.5 px-4 pt-3">
-                <p className="text-sm leading-6 text-[#7A6A50]">
-                  <T>
-                    {
-                      "Files saved from Seba Lagbe Tools \u2014 such as scanned documents, compressed PDFs,\n                  and resized photos \u2014 appear here.\n                "
-                    }
-                  </T>
-                </p>
-                <SearchBox
-                  value={toolSearch}
-                  onChange={setToolSearch}
-                  onClear={() => setToolSearch("")}
-                  placeholder={translatePageText(
-                    "Search by file or tool name",
-                    locale,
-                  )}
-                  label={translatePageText("Search tool files", locale)}
-                />
-                <div className="flex gap-2">
-                  <select
-                    aria-label={translatePageText(
-                      "Filter by file type",
-                      locale,
-                    )}
-                    value={toolGroup}
-                    onChange={(e) =>
-                      setToolGroup(e.target.value as ToolGroupId)
-                    }
-                    className={`${fieldBase} min-w-0 flex-1 cursor-pointer px-2.5`}
-                  >
-                    {TOOL_GROUPS.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        <T>{g.label}</T>
-                      </option>
-                    ))}
-                  </select>
-                  <SortSelect value={toolSort} onChange={setToolSort} />
-                </div>
-              </div>
-
-              <div className="scroll mt-3 min-h-0 flex-1 overflow-y-auto border-t border-[#E3D6B8]">
-                {filesLoading ? (
-                  null
-                ) : visibleToolFiles.length > 0 ? (
-                  <ul className="divide-y divide-[#E3D6B8]" aria-live="polite">
-                    {visibleToolFiles.map((file) => {
-                      const GroupIcon = (
-                        TOOL_GROUPS.find((g) => g.id === file.group) ??
-                        TOOL_GROUPS[0]
-                      ).icon;
-                      return (
-                        <li
-                          key={file.id}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-[#EFE3C8]"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleToolPreview(file)}
-                            disabled={!file.url}
-                            aria-label={
-                              file.url
-                                ? translatePageText(`View ${file.name}`, locale)
-                                : undefined
-                            }
-                            title={
-                              file.url
-                                ? translatePageText("View", locale)
-                                : undefined
-                            }
-                            className={`flex min-w-0 flex-1 items-center gap-3 text-left outline-none ${
-                              file.url
-                                ? "cursor-pointer focus-visible:rounded-xl focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#DC2626]"
-                                : "cursor-default"
-                            }`}
-                          >
-                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F3E9D2] text-[#7A6A50]">
-                              <GroupIcon size={16} />
-                            </span>
-                            <div className="min-w-0 flex-1">
-                              <p
-                                className="truncate text-base font-medium text-[#3B2F1E]"
-                                title={file.name}
-                              >
-                                {file.name}
-                              </p>
-                              <p className="truncate text-sm text-[#7A6A50]">
-                                <T>{file.toolName}</T>
-                                <T>{"\u00B7 "}</T>
-                                {formatDate(file.createdAt, locale)}
-                              </p>
-                            </div>
-                          </button>
-                          {file.url && (
-                            <a
-                              href={file.url}
-                              download={file.name}
-                              aria-label={translatePageText(
-                                `Download ${file.name}`,
-                                locale,
-                              )}
-                              title={translatePageText("Download", locale)}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                void downloadFile(file.url, file.name);
-                              }}
-                              className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl sm:h-8 sm:w-8 text-[#7A6A50] hover:bg-[#EFE3C8] hover:text-[#DC2626]"
-                            >
-                              <Download size={16} />
-                            </a>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <div aria-live="polite" className="px-6 py-10 text-center">
-                    <ToolEmptyIcon
-                      size={26}
-                      strokeWidth={1.5}
-                      className="mx-auto text-[#7A6A50]"
-                    />
-                    <h3 className="mt-3 text-base font-semibold text-[#3B2F1E]">
-                      <T>{toolEmptyTitle}</T>
-                    </h3>
-                    <p className="mx-auto mt-1 max-w-[280px] text-base text-[#7A6A50]">
-                      <T>{toolEmptyText}</T>
-                    </p>
-                    {hasToolSearch ? (
-                      <button
-                        type="button"
-                        onClick={() => setToolSearch("")}
-                        className={`${secondaryBtn} mt-4`}
-                      >
-                        <T>{"Clear search\n                      "}</T>
-                      </button>
-                    ) : (
-                      <Link
-                        href="/seba-lagbe-tools"
-                        className={`${primaryBtn} mt-4`}
-                      >
-                        <T>{"Browse Seba Lagbe Tools\n                        "}</T>
-                        <ArrowRight size={14} />
-                      </Link>
-                    )}
-                  </div>
-                )}
-              </div>
-            </aside>
-          )}
         </div>
       </main>
 

@@ -4,6 +4,7 @@ import { buildImageUploadRequest } from "@/lib/clientUpload";
 import { notifyMyFilesSaved } from "@/app/_lib/myFilesNotice";
 import useWarmPing from "@/app/ai-editor/_components/useWarmPing";
 import { PhotoCropWorkspace } from "../_components/PhotoCropWorkspace";
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Crown, Info, Layers, X } from "lucide-react";
 import DashboardNavbar from "../dashboard/_components/DashboardNavbar";
@@ -17,7 +18,12 @@ import BulkSetupWizard, { type BulkWizardResult } from "./components/BulkSetupWi
 import { TOOL_PRESETS } from "./components/toolCatalog";
 import RetentionNotice from "@/app/_components/RetentionNotice";
 import GenerationQuotaNotice from "@/app/_components/GenerationQuotaNotice";
-import type { ApplyMode, PhotoItem, PhotoProcessingStatus, PhotoToolsMap, SelectedTools, } from "./components/types";
+import { CLOTHING_STYLES } from "@/app/ai-editor/_components/clothingStyles";
+import { buildBulkPrintSources, downloadPdf, downloadSizedPhoto, downloadZip, findSizeOption, type BulkOutputFormat, type BulkPrintSource, } from "./components/bulkOutput";
+import { EMPTY_EXTRAS, type ApplyMode, type BulkExtras, type PhotoItem, type PhotoProcessingStatus, type PhotoToolsMap, type SelectedTools, } from "./components/types";
+
+// The same Print Studio the AI Editor uses. Loaded only when the person opens it.
+const AiPrintStudioModal = dynamic(() => import("@/app/ai-editor/_components/AiPrintStudioModal"), { ssr: false, loading: () => null });
 
 // Never show raw server/bot text (it can mention Gemini, Playwright, page URLs...).
 // Same wording as the AI Editor page.
@@ -52,14 +58,28 @@ const MAX_PHOTOS = 20;
 const WIZARD_DISABLED_KEY = "bulk-photo-edit-wizard-disabled";
 const makeEmptyTools = (): SelectedTools => Object.fromEntries(TOOL_PRESETS.map((preset) => [preset.name, []]));
 const countTools = (tools: SelectedTools | undefined) => Object.values(tools ?? {}).reduce((sum, names) => sum + names.length, 0);
-const buildBulkPrompt = (selectedTools: SelectedTools) => {
+// Turns the extra choices (background colour, outfit) into a precise instruction for one tool.
+const describeTool = (name: string, description: string, extras: BulkExtras): string => {
+    if (name === "Background Replace" && extras.bgHex) {
+        return `Replace the background with a clean, plain, solid ${extras.bgHex} studio background (exact colour ${extras.bgHex}), with a natural clean edge around the subject.`;
+    }
+    if (name === "Outfit Color Change" && (extras.outfitStyle || extras.outfitColor)) {
+        const style = CLOTHING_STYLES.find((item) => item.name === extras.outfitStyle);
+        const colour = extras.outfitColor ? ` in ${extras.outfitColor.toLowerCase()}` : "";
+        return style
+            ? `Change the clothing to ${style.prompt}${colour}, fitted naturally to the person's body and pose.`
+            : `Change the clothing colour${colour}, keeping the same garment shape.`;
+    }
+    return description;
+};
+const buildBulkPrompt = (selectedTools: SelectedTools, extras: BulkExtras = EMPTY_EXTRAS) => {
     const groups = TOOL_PRESETS.map((preset) => {
         const names = selectedTools[preset.name] ?? [];
         if (names.length === 0)
             return null;
         const tools = preset.tools
             .filter((tool) => names.includes(tool.name))
-            .map((tool) => `- ${tool.name}: ${tool.description}`);
+            .map((tool) => `- ${tool.name}: ${describeTool(tool.name, tool.description, extras)}`);
         if (tools.length === 0)
             return null;
         return `${preset.name}:\n${tools.join("\n")}`;
@@ -162,6 +182,15 @@ export default function BulkPhotoEditPage() {
         }
     }, []);
     const [message, setMessage] = useState<string>("");
+    // Output size, extra tool choices and ZIP / PDF / print-sheet state.
+    const [extras, setExtras] = useState<BulkExtras>(EMPTY_EXTRAS);
+    const [sizeId, setSizeId] = useState<string>("original");
+    const [outputFormat, setOutputFormat] = useState<BulkOutputFormat>("jpg");
+    const [isExporting, setIsExporting] = useState<boolean>(false);
+    const [printSources, setPrintSources] = useState<BulkPrintSource[]>([]);
+    const sizeOption = findSizeOption(sizeId);
+    const sizeValue = sizeOption.value;
+    const sizeSummary = sizeValue ? `${t(sizeOption.label)} · ${sizeOption.hint}` : "";
     const [isProcessing, setIsProcessing] = useState<boolean>(false);
     const [processedCount, setProcessedCount] = useState<number>(0);
     const [cropSession, setCropSession] = useState<{ file: File; preview: string } | null>(null);
@@ -482,7 +511,7 @@ export default function BulkPhotoEditPage() {
         let subscriptionBlocked = false;
         for (let index = 0; index < photos.length; index += 1) {
             const photo = photos[index];
-            const prompt = buildBulkPrompt(getToolsFor(photo.id));
+            const prompt = buildBulkPrompt(getToolsFor(photo.id), extras);
             updatePhoto(photo.id, {
                 status: "processing",
                 resultUrl: null,
@@ -563,6 +592,7 @@ export default function BulkPhotoEditPage() {
         applyMode,
         getToolsFor,
         updatePhoto,
+        extras,
     ]);
     const handleEnhanceRef = useRef<() => void | Promise<void>>(() => undefined);
     useEffect(() => {
@@ -596,9 +626,19 @@ export default function BulkPhotoEditPage() {
         if (options.start)
             setStartToken((current) => current + 1);
     }, []);
-    const downloadResult = useCallback((photo: PhotoItem) => {
+    const downloadResult = useCallback(async (photo: PhotoItem) => {
         if (!photo.resultUrl)
             return;
+        // A size was chosen: crop to it and export exact pixels (same code as the AI Editor).
+        if (sizeValue) {
+            try {
+                await downloadSizedPhoto(photo.resultUrl, sizeValue, outputFormat, getBaseName(photo.file.name));
+            }
+            catch (error) {
+                setMessage(error instanceof Error ? error.message : "The photo could not be downloaded. Please try again.");
+            }
+            return;
+        }
         const extension = getDataUrlExtension(photo.resultUrl);
         const anchor = document.createElement("a");
         anchor.href = photo.resultUrl;
@@ -606,13 +646,59 @@ export default function BulkPhotoEditPage() {
         document.body.appendChild(anchor);
         anchor.click();
         anchor.remove();
-    }, []);
-    const downloadAllResults = useCallback(() => {
-        const ready = photosRef.current.filter((photo) => photo.status === "success" && photo.resultUrl);
-        ready.forEach((photo, index) => {
-            window.setTimeout(() => downloadResult(photo), index * 350);
-        });
-    }, [downloadResult]);
+    }, [sizeValue, outputFormat]);
+    const getReadyResults = useCallback(() => photosRef.current.filter((photo) => photo.status === "success" && photo.resultUrl), []);
+    // One ZIP instead of many separate downloads (browsers often block those).
+    const downloadAllResults = useCallback(async () => {
+        const ready = getReadyResults();
+        if (ready.length === 0 || isExporting)
+            return;
+        setIsExporting(true);
+        setMessage("");
+        try {
+            await downloadZip(ready.map((photo) => photo.resultUrl as string), sizeValue, outputFormat);
+        }
+        catch (error) {
+            setMessage(error instanceof Error ? error.message : "The ZIP could not be created. Please try again.");
+        }
+        finally {
+            setIsExporting(false);
+        }
+    }, [getReadyResults, isExporting, sizeValue, outputFormat]);
+    const downloadPdfResults = useCallback(async () => {
+        const ready = getReadyResults();
+        if (ready.length === 0 || isExporting)
+            return;
+        setIsExporting(true);
+        setMessage("");
+        try {
+            await downloadPdf(ready.map((photo) => photo.resultUrl as string), sizeValue);
+        }
+        catch (error) {
+            setMessage(error instanceof Error ? error.message : "The PDF could not be created. Please try again.");
+        }
+        finally {
+            setIsExporting(false);
+        }
+    }, [getReadyResults, isExporting, sizeValue]);
+    // Opens the AI Editor's Print Studio with every finished photo placed on the sheets.
+    const openPrintSheet = useCallback(async () => {
+        const ready = getReadyResults();
+        if (ready.length === 0 || isExporting)
+            return;
+        setIsExporting(true);
+        setMessage("");
+        try {
+            const sources = await buildBulkPrintSources(ready.map((photo) => ({ key: photo.id, url: photo.resultUrl as string })), sizeValue);
+            setPrintSources(sources);
+        }
+        catch (error) {
+            setMessage(error instanceof Error ? error.message : "The print sheet could not be prepared. Please try again.");
+        }
+        finally {
+            setIsExporting(false);
+        }
+    }, [getReadyResults, isExporting, sizeValue]);
     const retryFailedPhoto = useCallback(async (photoId: string) => {
         if (isProcessing)
             return;
@@ -624,7 +710,7 @@ export default function BulkPhotoEditPage() {
             setMessage("Choose at least one AI tool before enhancing.");
             return;
         }
-        const prompt = buildBulkPrompt(photoSelection);
+        const prompt = buildBulkPrompt(photoSelection, extras);
         setIsProcessing(true);
         setMessage(`Retrying ${photo.file.name} with the same selected AI tools...`);
         updatePhoto(photo.id, { status: "processing", error: null });
@@ -676,7 +762,7 @@ export default function BulkPhotoEditPage() {
         finally {
             setIsProcessing(false);
         }
-    }, [isProcessing, photos, getToolsFor, updatePhoto]);
+    }, [isProcessing, photos, getToolsFor, updatePhoto, extras]);
     const completedCount = photos.filter((photo) => photo.status === "success").length;
     const processingCount = photos.filter((photo) => photo.status === "processing").length;
     const failedCount = photos.filter((photo) => photo.status === "error").length;
@@ -757,7 +843,7 @@ export default function BulkPhotoEditPage() {
           <PhotoUploader photos={photos} onAddPhotos={addPhotos} onRemovePhoto={removePhoto} onClearPhotos={clearPhotos} disabled={isProcessing} maxPhotos={MAX_PHOTOS} selectable={applyMode === "each"} activePhotoId={activePhoto?.id ?? null} onSelectPhoto={selectPhoto} toolCounts={photoToolCounts}/>
 
           <main ref={resultsRef} className="relative order-3 flex min-h-[420px] min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-[#F2E8D2] shadow-sm lg:w-full lg:flex-none xl:order-2 xl:w-auto xl:min-h-0 xl:flex-1 scroll-mt-16">
-            <BulkPhotoStage photos={photos} onAddPhotos={addPhotos} onDownloadResult={downloadResult} onDownloadAll={downloadAllResults} onRetryPhoto={retryFailedPhoto} isProcessing={isProcessing} processedCount={processedCount}/>
+            <BulkPhotoStage photos={photos} onAddPhotos={addPhotos} onDownloadResult={downloadResult} onDownloadAll={downloadAllResults} onDownloadPdf={downloadPdfResults} onPrintSheet={openPrintSheet} isExporting={isExporting} sizeSummary={sizeSummary} onRetryPhoto={retryFailedPhoto} isProcessing={isProcessing} processedCount={processedCount}/>
 
             {message && (<div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 flex justify-center">
                 <div role="status" className="pointer-events-auto flex w-full max-w-3xl items-start gap-2.5 rounded-xl border border-[#FBB6B6] bg-[#FEF1F1] px-4 py-2.5 text-[13.5px] font-medium leading-[1.55] text-[#B91C1C] shadow-lg">
@@ -770,9 +856,10 @@ export default function BulkPhotoEditPage() {
               </div>)}
           </main>
 
-          <PresetPanel selectedTools={panelTools} applyMode={applyMode} onApplyModeChange={changeApplyMode} photos={photos} activePhotoId={activePhoto?.id ?? null} activeIndex={activeIndex} photoToolCounts={photoToolCounts} photosWithTools={photosWithTools} toolsReady={toolsReady} onSelectPhoto={selectPhoto} onGoToPhoto={goToPhoto} onCopyToAll={copyToolsToAll} onOpenGuide={() => setShowWizard(true)} expandedPreset={expandedPreset} onTogglePreset={togglePreset} onToggleTool={toggleTool} onClearPreset={clearPreset} onCloseDropdown={() => setExpandedPreset(null)} photosCount={photos.length} onEnhance={handleEnhance} isProcessing={isProcessing} processedCount={processedCount}/>
+          <PresetPanel selectedTools={panelTools} applyMode={applyMode} onApplyModeChange={changeApplyMode} photos={photos} activePhotoId={activePhoto?.id ?? null} activeIndex={activeIndex} photoToolCounts={photoToolCounts} photosWithTools={photosWithTools} toolsReady={toolsReady} onSelectPhoto={selectPhoto} onGoToPhoto={goToPhoto} onCopyToAll={copyToolsToAll} onOpenGuide={() => setShowWizard(true)} expandedPreset={expandedPreset} onTogglePreset={togglePreset} onToggleTool={toggleTool} onClearPreset={clearPreset} onCloseDropdown={() => setExpandedPreset(null)} photosCount={photos.length} onEnhance={handleEnhance} isProcessing={isProcessing} processedCount={processedCount} extras={extras} onExtrasChange={setExtras} sizeId={sizeId} onSizeChange={setSizeId} outputFormat={outputFormat} onOutputFormatChange={setOutputFormat}/>
         </div>
       </div>
+      {printSources.length > 0 && (<AiPrintStudioModal open image={printSources[0]?.image ?? null} preset={printSources[0]?.preset ?? null} images={printSources} onClose={() => setPrintSources([])}/>)}
       <BulkSetupWizard open={showWizard && !cropSession} photos={photos.map((photo) => ({ id: photo.id, preview: photo.preview, name: photo.file.name }))} initial={{ mode: applyMode, common: selectedTools, perPhoto: photoTools }} onApply={applyWizard} onClose={closeWizard}/>
       {cropSession && (
         <PhotoCropWorkspace

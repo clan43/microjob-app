@@ -285,6 +285,57 @@ const BULK_PHOTO_BN: Record<string, string> = {
   "Applying selected AI tools": "নির্বাচিত এআই টুল প্রয়োগ করা হচ্ছে",
   "Matching the template style": "টেমপ্লেটের স্টাইল মেলানো হচ্ছে",
   "Keeping your own identity": "আপনার চেহারা অক্ষুণ্ণ রাখা হচ্ছে",
+  "photo size (optional)": "ছবির সাইজ (ঐচ্ছিক)",
+  "original size": "আসল সাইজ",
+  "keep the ai result as it is": "এআই রেজাল্ট যেমন আছে তেমনই থাকবে",
+  "passport": "পাসপোর্ট",
+  "e-pass": "ই-পাসপোর্ট",
+  "visa": "ভিসা",
+  "birth certificate": "জন্ম নিবন্ধন",
+  "university / job portal size": "বিশ্ববিদ্যালয় / চাকরির পোর্টালের সাইজ",
+  "university / job portal size…": "বিশ্ববিদ্যালয় / চাকরির পোর্টালের সাইজ…",
+  "download format": "ডাউনলোডের ফরম্যাট",
+  "every result is cropped to this size when you download or print.": "ডাউনলোড বা প্রিন্টের সময় প্রতিটি ছবি এই সাইজে কেটে দেওয়া হবে।",
+  "pick a size to get passport, visa or admission-ready photos in one go.": "একটি সাইজ বেছে নিন, একবারেই পাসপোর্ট, ভিসা বা ভর্তির উপযোগী ছবি পাবেন।",
+  "background colour": "ব্যাকগ্রাউন্ডের রঙ",
+  "pick a solid colour, or leave it empty and let the ai choose.": "একটি রঙ বেছে নিন, অথবা ফাঁকা রাখুন, এআই নিজেই ঠিক করবে।",
+  "custom": "কাস্টম",
+  "white": "সাদা",
+  "light blue": "হালকা নীল",
+  "blue": "নীল",
+  "grey": "ধূসর",
+  "teal": "টিল",
+  "cream": "ক্রিম",
+  "black": "কালো",
+  "navy": "নেভি",
+  "maroon": "মেরুন",
+  "green": "সবুজ",
+  "sky blue": "আকাশি",
+  "beige": "বেইজ",
+  "outfit": "পোশাক",
+  "choose a clothing style and its colour, or leave them empty to keep the outfit.": "পোশাকের স্টাইল ও রঙ বেছে নিন, অথবা ফাঁকা রাখলে আগের পোশাকই থাকবে।",
+  "clothing style": "পোশাকের স্টাইল",
+  "keep the current outfit style": "বর্তমান পোশাকের স্টাইল রাখুন",
+  "drag to compare": "টেনে আগে-পরে দেখুন",
+  "download all (zip)": "সব ডাউনলোড (ZIP)",
+  "pdf": "PDF",
+  "print sheet": "প্রিন্ট শিট",
+  "use recent photos": "সাম্প্রতিক ছবি ব্যবহার করুন",
+  "loading your recent photos...": "আপনার সাম্প্রতিক ছবি লোড হচ্ছে...",
+  "recent photos could not be loaded. please try again.": "সাম্প্রতিক ছবি লোড করা যায়নি। আবার চেষ্টা করুন।",
+  "no recent photos yet. photos you make in the ai editor will show up here.": "এখনও কোনো সাম্প্রতিক ছবি নেই। এআই এডিটরে বানানো ছবি এখানে দেখা যাবে।",
+  "recent photo": "সাম্প্রতিক ছবি",
+  "select photos to add": "যোগ করার জন্য ছবি বাছুন",
+  "search ai tools...": "এআই টুল খুঁজুন...",
+  "search ai tools": "এআই টুল খুঁজুন",
+  "clear search": "সার্চ মুছুন",
+  "no matching tools. try another word.": "কোনো টুল মেলেনি। অন্য শব্দ দিয়ে চেষ্টা করুন।",
+  "choose at least one ai tool for every photo to start.": "শুরু করতে প্রতিটি ছবির জন্য কমপক্ষে একটি এআই টুল বাছুন।",
+  "choose at least one ai tool to start.": "শুরু করতে কমপক্ষে একটি এআই টুল বাছুন।",
+  "the photo could not be downloaded. please try again.": "ছবিটি ডাউনলোড করা যায়নি। আবার চেষ্টা করুন।",
+  "the zip could not be created. please try again.": "ZIP তৈরি করা যায়নি। আবার চেষ্টা করুন।",
+  "the pdf could not be created. please try again.": "PDF তৈরি করা যায়নি। আবার চেষ্টা করুন।",
+  "the print sheet could not be prepared. please try again.": "প্রিন্ট শিট প্রস্তুত করা যায়নি। আবার চেষ্টা করুন।",
 };
 
 function normalizeBulkText(value: string) {
@@ -311,6 +362,12 @@ function translateBulkPhotoText(value: string, locale: string | undefined): stri
 
   let match = key.match(/^(\d+)\s+selected$/i);
   if (match) return `${match[1]}টি নির্বাচিত`;
+
+  match = key.match(/^add (\d+) selected$/i);
+  if (match) return `${match[1]}টি নির্বাচিত ছবি যোগ করুন`;
+
+  match = key.match(/^add (\d+) more photos? to start\.$/i);
+  if (match) return `শুরু করতে আরও ${match[1]}টি ছবি যোগ করুন।`;
 
   match = key.match(/^(\d+)\/(\d+)\s+photos ready$/i);
   if (match) return `${match[1]}/${match[2]}টি ছবি প্রস্তুত`;
