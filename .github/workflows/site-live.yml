@@ -234,6 +234,25 @@ jobs:
             return 1
           }
 
+          # Scheduled jobs (replaces Vercel Cron). They call the website on this same machine with CRON_SECRET
+          # (read from the env file written above). Results are shown in site.log / the step log.
+          CRON_SECRET_VALUE="$(grep -E '^CRON_SECRET=' .env.production | tail -n1 | cut -d= -f2- | tr -d '"\047 \r')"
+          call_cron() {
+            local NAME="$1" LIMIT="$2"
+            if [ -z "$CRON_SECRET_VALUE" ]; then
+              echo "[cron] CRON_SECRET is not set, skipping $NAME."
+              return 0
+            fi
+            local CODE
+            CODE="$(curl -sS -o /tmp/cron-$NAME.out -m "$LIMIT" -w '%{http_code}' \
+              -H "Authorization: Bearer ${CRON_SECRET_VALUE}" \
+              "http://127.0.0.1:${SITE_PORT}/api/cron/${NAME}" 2>/dev/null || true)"
+            echo "[cron] $(date -u +%T) $NAME -> HTTP ${CODE:-none} $(head -c 300 /tmp/cron-$NAME.out 2>/dev/null)"
+          }
+          # Mark finished subscriptions as Expired: every 15 minutes. Delete 30-day-old user files: every 6 hours.
+          NEXT_EXPIRE_AT=$(( $(date +%s) + 120 ))
+          NEXT_CLEAN_AT=$(( $(date +%s) + 600 ))
+
           SITE_FAILS=0
           while [ "$(date +%s)" -lt "$END_AT" ]; do
             REMAINING=$((END_AT - $(date +%s)))
@@ -259,6 +278,16 @@ jobs:
             fi
             if ! tunnel_up; then
               restart_tunnel || true
+            fi
+
+            NOW_TS=$(date +%s)
+            if [ "$NOW_TS" -ge "$NEXT_EXPIRE_AT" ]; then
+              NEXT_EXPIRE_AT=$((NOW_TS + 15 * 60))
+              call_cron expire-subscriptions 25 &
+            fi
+            if [ "$NOW_TS" -ge "$NEXT_CLEAN_AT" ]; then
+              NEXT_CLEAN_AT=$((NOW_TS + 6 * 3600))
+              call_cron cleanup-files 70 &
             fi
           done
           echo "Watchdog finished."

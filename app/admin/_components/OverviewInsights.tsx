@@ -49,11 +49,13 @@ type Stats = {
   revenueThisMonth: number;
   pendingPayments: number;
   expiringSoon: number;
+  expiringLastDay?: number;
+  expiringThreeDays?: number;
   newToday: number;
   newThisMonth: number;
 };
 
-export type OverviewTarget = "pending" | "failed" | "expiring" | "chats" | "generations";
+export type OverviewTarget = "pending" | "failed" | "expiring" | "expiring-1" | "expiring-3" | "chats" | "generations";
 
 const CARD =
   "rounded-2xl border border-[#E3D6B8] bg-[#FBF6E8] shadow-[0_10px_28px_-20px_rgba(59,47,30,0.45)]";
@@ -276,6 +278,21 @@ export default function OverviewInsights({
         <p className="mt-3 px-1 text-xs text-[#7A6A50]">
           Only AI Editor, Bulk Photo Edit and AI Template are tracked so far. Free-tool usage and a free-vs-paid split need the same tracking added to those tools.
         </p>
+      </Section>
+
+      <Section title="Subscription expiry">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          {([
+            { key: "expiring-1" as const, title: "Last day", value: stats?.expiringLastDay || 0, detail: "Access ends within 24 hours", tint: "bg-[#FEE9E9] text-[#B91C1C]" },
+            { key: "expiring-3" as const, title: "Within 3 days", value: stats?.expiringThreeDays || 0, detail: "Includes the last-day group", tint: "bg-[#FDF1D0] text-[#8A5A00]" },
+            { key: "expiring" as const, title: "Within 7 days", value: stats?.expiringSoon || 0, detail: "Includes the groups above", tint: "bg-[#F2E8D2] text-[#5A4A32]" },
+          ]).map((item) => (
+            <button key={item.key} onClick={() => onNavigate(item.key)} className="text-left transition hover:-translate-y-0.5">
+              <Card title={item.title} value={n(item.value)} detail={`${item.detail} · tap to see who`} icon={CalendarClock} tint={item.tint} />
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 px-1 text-xs text-[#7A6A50]">When the time runs out, paid access closes automatically and the plan is marked Expired.</p>
       </Section>
 
       <Section title="Growth & revenue">

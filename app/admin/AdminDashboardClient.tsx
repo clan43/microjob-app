@@ -175,6 +175,8 @@ type Overview = {
     paidConversionPercent: number;
     revenueThisMonth: number;
     expiringSoon: number;
+    expiringLastDay?: number;
+    expiringThreeDays?: number;
     topDistrict: { name: string; users: number } | null;
   };
   weeklyRegistrations: { date: string; label: string; count: number }[];
@@ -2133,7 +2135,8 @@ export default function AdminDashboardClient() {
                 loading={overviewLoading}
                 onNavigate={(target) => {
                   if (target === "pending") { setSubscriptionStatus("pending"); selectTab("subscriptions"); }
-                  else if (target === "failed" || target === "expiring") { setSubscriptionStatus("all"); selectTab("subscriptions"); }
+                  else if (target === "expiring" || target === "expiring-1" || target === "expiring-3") { setSubscriptionStatus(target); selectTab("subscriptions"); }
+                  else if (target === "failed") { setSubscriptionStatus("all"); selectTab("subscriptions"); }
                   else if (target === "chats") selectTab("chats");
                   else selectTab("generations");
                 }}
@@ -2347,6 +2350,9 @@ export default function AdminDashboardClient() {
                 options: [
                   ["all", "All statuses"],
                   ["active", "Active"],
+                  ["expiring-1", "Last day"],
+                  ["expiring-3", "Within 3 days"],
+                  ["expiring", "Within 7 days"],
                   ["expired", "Expired"],
                   ["pending", "Pending payment"],
                   ["cancelled", "Cancelled"],

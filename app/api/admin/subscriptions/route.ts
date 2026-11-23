@@ -22,6 +22,14 @@ export async function GET(request: Request) {
 
     if (status === "active") {
       Object.assign(filter, { paymentStatus: "COMPLETED", accessStatus: "ACTIVE", expiresAt: { $gt: now } });
+    } else if (/^expiring(-\d+)?$/.test(status)) {
+      // "expiring" = next 7 days, "expiring-1" = last day (24h), "expiring-3" = next 3 days.
+      const days = status === "expiring" ? 7 : Math.min(30, Math.max(1, Number(status.split("-")[1]) || 7));
+      Object.assign(filter, {
+        paymentStatus: "COMPLETED",
+        accessStatus: "ACTIVE",
+        expiresAt: { $gt: now, $lte: new Date(now.getTime() + days * 86_400_000) },
+      });
     } else if (status === "expired") {
       filter.$or = [{ accessStatus: "EXPIRED" }, { expiresAt: { $lte: now } }];
     } else if (status === "pending") {
@@ -51,7 +59,7 @@ export async function GET(request: Request) {
     const [total, itemsRaw] = await Promise.all([
       Subscription.countDocuments(filter),
       Subscription.find(filter)
-        .sort({ createdAt: -1 })
+        .sort(status.startsWith("expiring") ? { expiresAt: 1 } : { createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .populate({ path: "userId", select: "fullName email phoneNumber" })

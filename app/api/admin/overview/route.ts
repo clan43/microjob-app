@@ -79,6 +79,8 @@ export async function GET(request: Request) {
       districtRows,
       revenueThisMonthRows,
       expiringSoon,
+      expiringLastDay,
+      expiringThreeDays,
     ] = await Promise.all([
       User.countDocuments(databaseUserFilter),
       User.countDocuments({ ...databaseUserFilter, lastSeenAt: { $gte: activeCutoff } }),
@@ -131,6 +133,16 @@ export async function GET(request: Request) {
         paymentStatus: "COMPLETED",
         accessStatus: "ACTIVE",
         expiresAt: { $gt: now, $lte: nextSevenDays },
+      }),
+      Subscription.countDocuments({
+        paymentStatus: "COMPLETED",
+        accessStatus: "ACTIVE",
+        expiresAt: { $gt: now, $lte: new Date(now.getTime() + 24 * 60 * 60 * 1000) },
+      }),
+      Subscription.countDocuments({
+        paymentStatus: "COMPLETED",
+        accessStatus: "ACTIVE",
+        expiresAt: { $gt: now, $lte: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) },
       }),
     ]);
 
@@ -200,6 +212,8 @@ export async function GET(request: Request) {
           paidConversionPercent,
           revenueThisMonth: Number(revenueThisMonthRows[0]?.total || 0),
           expiringSoon,
+          expiringLastDay,
+          expiringThreeDays,
           topDistrict,
         },
         weeklyRegistrations,
