@@ -19,7 +19,7 @@ import {
 import { useI18n } from "@/components/i18n/I18nProvider";
 import { useSiteSettings } from "@/app/_components/SiteSettingsProvider";
 import { replaceSiteNameInText } from "@/lib/siteSettings";
-import { CREATOR, FOUNDER_IMAGE_URL } from "@/app/_lib/creator";
+import { CREATOR, FOUNDER_IMAGE_ALT, FOUNDER_IMAGE_URL } from "@/app/_lib/creator";
 
 const CREATOR_ROLE_EN: string = CREATOR.roleEn;
 const CREATOR_ROLE_BN: string = CREATOR.roleBn;
@@ -172,7 +172,7 @@ export default function AboutContent() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={FOUNDER_IMAGE_URL}
-                alt={`${CREATOR.nameBn} (${CREATOR.nameEn})`}
+                alt={FOUNDER_IMAGE_ALT}
                 width={44}
                 height={44}
                 className="h-11 w-11 rounded-full object-cover object-[center_25%] ring-2 ring-white"
@@ -240,7 +240,7 @@ export default function AboutContent() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={FOUNDER_IMAGE_URL}
-              alt={`${CREATOR.nameBn} (${CREATOR.nameEn})`}
+              alt={FOUNDER_IMAGE_ALT}
               width={96}
               height={120}
               className="h-28 w-24 shrink-0 rounded-2xl object-cover object-[center_25%] shadow-md shadow-indigo-600/20 ring-1 ring-slate-200 sm:h-32 sm:w-28"

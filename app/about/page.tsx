@@ -4,6 +4,7 @@ import Footer from "@/components/Footer";
 import {
   ABOUT_URL,
   CREATOR,
+  FOUNDER_IMAGE_ALT,
   FOUNDER_IMAGE_PATH,
   SITE_NAME,
   aboutPageJsonLd,
@@ -30,7 +31,7 @@ export const metadata: Metadata = {
     title,
     description,
     siteName: SITE_NAME,
-    images: [{ url: FOUNDER_IMAGE_PATH, alt: `${CREATOR.nameBn} (${CREATOR.nameEn})` }],
+    images: [{ url: FOUNDER_IMAGE_PATH, alt: FOUNDER_IMAGE_ALT }],
   },
   twitter: {
     card: "summary",

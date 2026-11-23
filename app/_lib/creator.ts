@@ -16,6 +16,9 @@ export const CREATOR = {
     "Jahidul Hassan Srijon",
     "Zahidul Hasan Srizon",
     "Zahidul Hasan Srijon",
+    // The spelling used on his Facebook profile, so Google can match both.
+    "Jahidul Hasan Sreezon",
+    "Jahidul Hassan Sreezon",
   ],
   roleEn: "Founder, designer & full-stack developer",
   roleBn: "প্রতিষ্ঠাতা, ডিজাইনার ও ফুল-স্ট্যাক ডেভেলপার",
@@ -39,6 +42,8 @@ export const FAMILY = {
 // public/adminpic/srizonFbPic.jpg (file name is case-sensitive on the server).
 export const FOUNDER_IMAGE_PATH = "/adminpic/srizonFbPic.jpg";
 export const FOUNDER_IMAGE_URL = FOUNDER_IMAGE_PATH;
+// Alt text for the founder photo (Google Images reads this to connect the photo with the name).
+export const FOUNDER_IMAGE_ALT = `${CREATOR.nameEn} (${CREATOR.nameBn}) - Founder and Developer of ${SITE_NAME}`;
 
 // The founder's own profiles. Google uses these links to confirm that the person on this site
 // and the person on Facebook / YouTube are the same, which helps the name and photo show up in search.
@@ -88,7 +93,11 @@ const familyJsonLd = () =>
 export const personJsonLd = () => ({
   ...personCore,
   ...familyJsonLd(),
-  image: `${SITE_URL}${FOUNDER_IMAGE_PATH}`,
+  image: {
+    "@type": "ImageObject",
+    url: `${SITE_URL}${FOUNDER_IMAGE_PATH}`,
+    caption: FOUNDER_IMAGE_ALT,
+  },
   jobTitle: CREATOR.roleEn,
   description: CREATOR_DESCRIPTION_EN,
   worksFor: { "@id": ORGANIZATION_ID },
