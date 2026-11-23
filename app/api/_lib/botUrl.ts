@@ -74,6 +74,25 @@ async function loadPool(): Promise<PoolNode[]> {
   return state.nodes;
 }
 
+/** Admin panel: every bot seen in the last 10 minutes (alive or just stopped), straight from MongoDB. */
+export type BotNodeInfo = { url: string; slot: number; lastSeen: number };
+
+export async function listBotNodes(): Promise<BotNodeInfo[]> {
+  await connectDB();
+  const db = mongoose.connection.db;
+  if (!db) return [];
+  const since = new Date(Date.now() - 10 * 60_000);
+  const docs = await db.collection(POOL_COLLECTION).find({ lastSeen: { $gte: since } }).toArray();
+  return docs
+    .map((doc: Record<string, unknown>) => ({
+      url: typeof doc.url === "string" ? doc.url.trim().replace(/\/+$/, "") : "",
+      slot: Number(doc.slot) || 0,
+      lastSeen: doc.lastSeen instanceof Date ? doc.lastSeen.getTime() : 0,
+    }))
+    .filter((node: BotNodeInfo) => /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(node.url) && node.lastSeen > 0)
+    .sort((a: BotNodeInfo, b: BotNodeInfo) => a.slot - b.slot || (a.url < b.url ? -1 : 1));
+}
+
 export async function getBotUrl(): Promise<string> {
   const pool = await loadPool();
   if (pool.length > 0) {

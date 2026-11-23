@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/app/api/admin/_lib/adminAuth";
-import { getBotUrl } from "@/app/api/_lib/botUrl";
+import { createHash } from "crypto";
+import { getBotUrl, listBotNodes } from "@/app/api/_lib/botUrl";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -302,6 +303,99 @@ function buildProblems(report: any, runs: Run[] | null, detailed: boolean, warm:
   return out;
 }
 
+
+// ---- All bots of the pool (from MongoDB) ----
+// Every running bot (any GitHub account) registers itself in MongoDB. We list them all and ask each live bot
+// for its numbers. Bots are told apart by their address (never sent to the browser), NOT by slot, so equal
+// slot numbers on different accounts are fine.
+type PoolNodeView = {
+  id: string;
+  slot: number;
+  online: boolean;
+  answered: boolean;
+  seenSecondsAgo: number;
+  uptimeSeconds: number;
+  ok: number;
+  failed: number;
+  readyPages: number;
+  active: number;
+  waiting: number;
+};
+
+type PoolView = { alive: number; total: number; ok: number; failed: number; active: number; nodes: PoolNodeView[] };
+
+const POOL_ALIVE_MS = 90_000;
+
+async function readNode(url: string, key: string): Promise<any | null> {
+  const ask = async (path: string, headers: Record<string, string>) => {
+    try {
+      const res = await fetch(`${url}${path}`, { cache: "no-store", headers, signal: AbortSignal.timeout(6_000) });
+      if (!res.ok) return null;
+      const body = await res.json().catch(() => null);
+      return body?.success ? body : null;
+    } catch {
+      return null;
+    }
+  };
+  let body = key ? await ask("/admin-report", { "x-bot-alert-key": key }) : null;
+  if (!body) body = await ask("/health", {});
+  return body;
+}
+
+async function loadPoolView(): Promise<PoolView | null> {
+  let list: Awaited<ReturnType<typeof listBotNodes>>;
+  try {
+    list = await listBotNodes();
+  } catch {
+    return null;
+  }
+  const key = process.env.BOT_ALERT_KEY?.trim() || "";
+  const now = Date.now();
+
+  const nodes: PoolNodeView[] = await Promise.all(
+    list.slice(0, 40).map(async (n) => {
+      const online = now - n.lastSeen <= POOL_ALIVE_MS;
+      const view: PoolNodeView = {
+        id: createHash("sha1").update(n.url).digest("hex").slice(0, 4),
+        slot: n.slot,
+        online,
+        answered: false,
+        seenSecondsAgo: Math.max(0, Math.round((now - n.lastSeen) / 1000)),
+        uptimeSeconds: 0,
+        ok: 0,
+        failed: 0,
+        readyPages: 0,
+        active: 0,
+        waiting: 0,
+      };
+      if (!online) return view;
+      const data = await readNode(n.url, key);
+      if (!data) return view;
+      const duck = data.duckai && data.duckai.enabled === true ? data.duckai : null;
+      view.answered = true;
+      view.uptimeSeconds = num(data.uptimeSeconds);
+      view.ok = duck ? num(duck.ok) : num(data.stats?.jobsOk);
+      view.failed = duck ? num(duck.failed) : num(data.stats?.jobsFailed);
+      view.readyPages = duck ? num(duck.readyPages) : 0;
+      view.active = num(data.generation?.active);
+      view.waiting = num(data.generation?.waiting);
+      return view;
+    }),
+  );
+
+  // Running bots first, then the ones that just stopped.
+  nodes.sort((a, b) => Number(b.online) - Number(a.online) || a.slot - b.slot || (a.id < b.id ? -1 : 1));
+
+  return {
+    alive: nodes.filter((x) => x.online).length,
+    total: nodes.length,
+    ok: nodes.reduce((n, x) => n + x.ok, 0),
+    failed: nodes.reduce((n, x) => n + x.failed, 0),
+    active: nodes.reduce((n, x) => n + x.active + x.waiting, 0),
+    nodes,
+  };
+}
+
 // Admin only. Reads the bot and GitHub and returns a cleaned copy.
 // The secret bot address is never sent to the browser.
 export async function GET(request: Request) {
@@ -311,6 +405,7 @@ export async function GET(request: Request) {
   const checkedAt = new Date().toISOString();
   const botUrl = await getBotUrl();
   const runsPromise = loadRuns();
+  const poolPromise = loadPoolView();
 
   const offline = async (reason: string) => {
     const runs = await runsPromise;
@@ -330,7 +425,8 @@ export async function GET(request: Request) {
         advice: "Open GitHub Actions and press Run workflow if the schedule does not start one.",
       });
     }
-    return NextResponse.json({ success: true, online: false, reason, checkedAt, runs, problems }, { headers: NO_STORE });
+    const pool = await poolPromise;
+    return NextResponse.json({ success: true, online: false, reason, checkedAt, runs, problems, pool }, { headers: NO_STORE });
   };
 
   if (!botUrl) return offline("The bot address (botUrl) is not set.");
@@ -400,6 +496,7 @@ export async function GET(request: Request) {
   };
 
   const runs = await runsPromise;
+  const pool = await poolPromise;
   const warm = cleanWarm(data.warmPool);
   const duck = cleanDuck(data.duckai);
 
@@ -453,6 +550,7 @@ export async function GET(request: Request) {
         text: text(l?.text, 300),
       })),
       runs,
+      pool,
       problems: buildProblems(report, runs, detailed, warm, duck),
     },
     { headers: NO_STORE },

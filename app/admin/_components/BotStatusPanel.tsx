@@ -44,6 +44,13 @@ type BotStatus = {
   logTail?: Array<{ at: string; level: string; text: string }>;
   runs?: Array<{ number: number; status: string; conclusion: string; event: string; startedAt: string; updatedAt: string }> | null;
   problems?: Problem[];
+  pool?: {
+    alive: number; total: number; ok: number; failed: number; active: number;
+    nodes: Array<{
+      id: string; slot: number; online: boolean; answered: boolean; seenSecondsAgo: number; uptimeSeconds: number;
+      ok: number; failed: number; readyPages: number; active: number; waiting: number;
+    }>;
+  } | null;
 };
 
 // UI-only label: the real AI provider name is never shown in the admin panel.
@@ -327,6 +334,46 @@ export default function BotStatusPanel() {
           </p>
         )}
       </section>
+
+      {/* All bots (from the database): works with many GitHub accounts, equal slot numbers are fine */}
+      {data?.pool && data.pool.nodes.length > 0 && (
+        <section className={`${PANEL} p-5 sm:p-7`}>
+          <SectionTitle
+            title="সব বট (ডাটাবেস থেকে)"
+            hint={`${data.pool.alive}টা চালু · মোট ছবি ${data.pool.ok} · ফেল ${data.pool.failed}`}
+          />
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+            {data.pool.nodes.map((b) => {
+              const bad = !b.online || !b.answered;
+              return (
+                <li
+                  key={b.id}
+                  className={`rounded-2xl border p-4 ${bad ? "border-red-200 bg-red-50" : "border-[#EADFC4] bg-[#FBF5E4]"}`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-base font-bold text-[#2B2116]">
+                      বট {b.id} <span className="text-sm font-semibold text-[#7A6A50]">(slot {b.slot})</span>
+                    </span>
+                    <span className={`rounded-full px-3 py-1 text-xs font-bold ${bad ? "bg-red-100 text-red-800" : "bg-emerald-100 text-emerald-800"}`}>
+                      {!b.online ? "বন্ধ" : b.answered ? "চালু" : "সাড়া দিচ্ছে না"}
+                    </span>
+                  </div>
+                  {b.online && b.answered ? (
+                    <p className="mt-2 text-sm leading-relaxed text-[#3B2F1E]">
+                      ছবি বানিয়েছে {b.ok}টা · ফেল {b.failed}টা · রেডি পেজ {b.readyPages}টা · এখন চলছে {b.active + b.waiting}টা · চালু আছে {bnDuration(b.uptimeSeconds)}
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-sm leading-relaxed text-[#3B2F1E]">
+                      {b.online ? "ডাটাবেসে আছে কিন্তু তথ্য দিচ্ছে না।" : `${bnDuration(b.seenSecondsAgo)} আগে শেষবার সাড়া দিয়েছিল।`}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-3 text-xs text-[#7A6A50]">সংখ্যাগুলো বট শেষবার চালু হওয়ার পর থেকে। বট নতুন করে চালু হলে ০ থেকে শুরু হয়।</p>
+        </section>
+      )}
 
       {/* Problems (only when there are some) */}
       {data && problems.length > 0 && (
