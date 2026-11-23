@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import GenerationLog from "@/models/GenerationLog";
 import User from "@/models/User";
+import Subscription from "@/models/Subscription";
 import { GENERATION_DAILY_LIMIT, GENERATION_HOURLY_LIMIT, computeLimitStatus } from "@/app/api/_lib/generationGuard";
 import { requireAdmin } from "../_lib/adminAuth";
 
@@ -53,6 +54,7 @@ export async function GET(request: Request) {
           _id: "$userId",
           allowed: { $sum: { $cond: [{ $eq: ["$outcome", "allowed"] }, 1, 0] } },
           blocked: { $sum: { $cond: [{ $eq: ["$outcome", "blocked"] }, 1, 0] } },
+          failed: { $sum: { $cond: [{ $and: [{ $eq: ["$outcome", "allowed"] }, { $eq: ["$success", false] }] }, 1, 0] } },
           lastHour: { $sum: { $cond: [{ $and: [{ $eq: ["$outcome", "allowed"] }, { $ne: ["$success", false] }, { $gte: ["$createdAt", hourAgo] }] }, 1, 0] } },
           ips: { $addToSet: "$ip" },
           lastAt: { $max: "$createdAt" },
@@ -77,17 +79,69 @@ export async function GET(request: Request) {
           _id: null,
           allowed: { $sum: { $cond: [{ $eq: ["$outcome", "allowed"] }, 1, 0] } },
           blocked: { $sum: { $cond: [{ $eq: ["$outcome", "blocked"] }, 1, 0] } },
+          failed: { $sum: { $cond: [{ $and: [{ $eq: ["$outcome", "allowed"] }, { $eq: ["$success", false] }] }, 1, 0] } },
         },
       },
     ]);
+
+    // ---- Chart: pictures per hour (24 hours) or per day (7 days), Bangladesh time ----
+    const perDay = hours === 168;
+    const bucketFormat = perDay ? "%Y-%m-%d" : "%Y-%m-%dT%H";
+    const bucketRows = await GenerationLog.aggregate([
+      { $match: { createdAt: { $gte: since }, outcome: "allowed" } },
+      {
+        $group: {
+          _id: { $dateToString: { format: bucketFormat, date: "$createdAt", timezone: "Asia/Dhaka" } },
+          ok: { $sum: { $cond: [{ $ne: ["$success", false] }, 1, 0] } },
+          failed: { $sum: { $cond: [{ $eq: ["$success", false] }, 1, 0] } },
+        },
+      },
+    ]);
+    const bucketMap = new Map<string, { ok: number; failed: number }>(
+      bucketRows.map((b: any) => [String(b._id), { ok: Number(b.ok) || 0, failed: Number(b.failed) || 0 }]),
+    );
+    const bucketCount = perDay ? 7 : 24;
+    const bucketStep = perDay ? 24 * HOUR_MS : HOUR_MS;
+    const series = Array.from({ length: bucketCount }, (_, i) => {
+      const t = new Date(now - (bucketCount - 1 - i) * bucketStep);
+      const local = t.toLocaleString("sv-SE", { timeZone: "Asia/Dhaka" }); // "2026-11-23 14:05:00"
+      const key = perDay ? local.slice(0, 10) : `${local.slice(0, 10)}T${local.slice(11, 13)}`;
+      const label = perDay ? `${local.slice(8, 10)}/${local.slice(5, 7)}` : `${local.slice(11, 13)}:00`;
+      const v = bucketMap.get(key) || { ok: 0, failed: 0 };
+      return { label, ok: v.ok, failed: v.failed };
+    });
 
     const userIds = new Set<string>();
     rows.forEach((r: any) => userIds.add(String(r._id)));
     sharedIpRows.forEach((r: any) => r.users.forEach((u: any) => userIds.add(String(u))));
     const users = await User.find({ _id: { $in: Array.from(userIds) } })
-      .select("fullName email phoneNumber loginCount lastLoginAt isBanned role")
+      .select("fullName email phoneNumber loginCount lastLoginAt isBanned role manualAccessEnabled manualAccessExpiresAt")
       .lean();
     const userMap = new Map<string, any>(users.map((u: any) => [String(u._id), u]));
+
+    // Subscription state of every listed user: premium / manual (given by admin) / expired / free / admin.
+    const subRows = await Subscription.find({ userId: { $in: Array.from(userIds) }, paymentStatus: "COMPLETED" })
+      .select("userId accessStatus expiresAt")
+      .lean<{ userId: any; accessStatus: string; expiresAt?: Date }[]>();
+    const subByUser = new Map<string, { activeUntil: number; ever: boolean }>();
+    subRows.forEach((r) => {
+      const key = String(r.userId);
+      const cur = subByUser.get(key) || { activeUntil: 0, ever: false };
+      cur.ever = true;
+      const exp = r.expiresAt ? new Date(r.expiresAt).getTime() : 0;
+      if (r.accessStatus === "ACTIVE" && exp > now) cur.activeUntil = Math.max(cur.activeUntil, exp);
+      subByUser.set(key, cur);
+    });
+    const planOf = (id: string): { plan: "admin" | "premium" | "manual" | "expired" | "free"; planUntil: string | null } => {
+      const u = userMap.get(id);
+      if (u?.role === "admin") return { plan: "admin", planUntil: null };
+      const sub = subByUser.get(id);
+      if (sub && sub.activeUntil > now) return { plan: "premium", planUntil: new Date(sub.activeUntil).toISOString() };
+      const manualExp = u?.manualAccessExpiresAt ? new Date(u.manualAccessExpiresAt).getTime() : 0;
+      if (u?.manualAccessEnabled === true && manualExp > now) return { plan: "manual", planUntil: new Date(manualExp).toISOString() };
+      if (sub?.ever || manualExp > 0) return { plan: "expired", planUntil: null };
+      return { plan: "free", planUntil: null };
+    };
 
     const describe = (id: string) => {
       const u = userMap.get(id);
@@ -131,6 +185,7 @@ export async function GET(request: Request) {
       if (r.allowed >= Math.ceil(GENERATION_DAILY_LIMIT * 0.7)) reasons.push("Very high volume");
       const realIps = (r.ips as string[]).filter((ip) => ip !== "unknown");
       if (realIps.length >= 3) reasons.push(`${realIps.length} different IPs`);
+      if (Number(userMap.get(String(r._id))?.loginCount || 0) >= 100) reasons.push("Unusually many logins");
       const id = String(r._id);
       const isAdminUser = userMap.get(id)?.role === "admin"; // admins are exempt from the limit
       const status = !isAdminUser && timesByUser.has(id) ? computeLimitStatus(timesByUser.get(id) || [], now) : null;
@@ -140,8 +195,11 @@ export async function GET(request: Request) {
         limitedNow,
         limitKind: !status || !limitedNow ? null : status.hourHit && status.dayHit ? "both" : status.hourHit ? "hourly" : "daily",
         unlockAt: limitedNow && status?.unlockAt ? new Date(status.unlockAt).toISOString() : null,
+        ...planOf(id),
+        isAdminUser,
         allowed: r.allowed,
         blocked: r.blocked,
+        failed: r.failed,
         lastHour: r.lastHour,
         ipCount: realIps.length,
         lastAt: r.lastAt,
@@ -154,7 +212,8 @@ export async function GET(request: Request) {
       success: true,
       hours,
       limits: { hourly: GENERATION_HOURLY_LIMIT, daily: GENERATION_DAILY_LIMIT },
-      totals: { allowed: totals[0]?.allowed || 0, blocked: totals[0]?.blocked || 0, users: rows.length },
+      totals: { allowed: totals[0]?.allowed || 0, blocked: totals[0]?.blocked || 0, failed: totals[0]?.failed || 0, users: rows.length },
+      series,
       items,
       sharedIps: sharedIpRows.map((r: any) => ({
         ip: r._id,

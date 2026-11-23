@@ -10,6 +10,7 @@ import FloatingSupportGroup from "./_components/FloatingSupportGroup";
 import FloatingUserAdminChat from "./_components/FloatingUserAdminChat";
 import ImpersonationBanner from "./_components/ImpersonationBanner";
 import MyFilesSavedPopup from "./_components/MyFilesSavedPopup";
+import FileExpiryPopup from "./_components/FileExpiryPopup";
 import PaidAccessWelcomePopup from "./_components/PaidAccessWelcomePopup";
 import PrePaintScript from "./_components/PrePaintScript";
 import ToolAccessGuard from "./_components/ToolAccessGuard";
@@ -122,6 +123,7 @@ export default async function RootLayout({
           <FloatingSupportGroup />
           <FloatingUserAdminChat />
           <MyFilesSavedPopup />
+          <FileExpiryPopup />
           <PaidAccessWelcomePopup />
           <LoginSuccessOverlay />
         </I18nProvider>

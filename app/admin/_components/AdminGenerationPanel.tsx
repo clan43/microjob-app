@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Ban, LoaderCircle, RefreshCw, ShieldAlert, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Ban, LoaderCircle, RefreshCw, Search, ShieldAlert, X } from "lucide-react";
 import { getClientAuthHeaders } from "@/lib/clientAuth";
 
 type Item = {
@@ -14,6 +14,10 @@ type Item = {
   isBanned: boolean;
   allowed: number;
   blocked: number;
+  failed: number;
+  plan: "admin" | "premium" | "manual" | "expired" | "free";
+  planUntil: string | null;
+  isAdminUser: boolean;
   lastHour: number;
   ipCount: number;
   lastAt: string | null;
@@ -29,7 +33,8 @@ type SharedIp = { ip: string; count: number; users: Pick<Item, "id" | "fullName"
 type Data = {
   hours: number;
   limits: { hourly: number; daily: number };
-  totals: { allowed: number; blocked: number; users: number };
+  totals: { allowed: number; blocked: number; failed: number; users: number };
+  series: { label: string; ok: number; failed: number }[];
   items: Item[];
   sharedIps: SharedIp[];
 };
@@ -65,6 +70,68 @@ function remaining(unlockAt: string, nowMs: number) {
   return m ? `${h}h ${m}m` : `${h}h`;
 }
 
+const PLAN_BADGE: Record<Item["plan"], { text: string; cls: string }> = {
+  admin: { text: "Admin", cls: "bg-slate-200 text-slate-700" },
+  premium: { text: "Premium", cls: "bg-emerald-100 text-emerald-700" },
+  manual: { text: "Given by admin", cls: "bg-sky-100 text-sky-700" },
+  expired: { text: "Expired", cls: "bg-amber-100 text-amber-800" },
+  free: { text: "Free", cls: "bg-stone-200 text-stone-700" },
+};
+
+type SortKey = "total" | "lastHour" | "failed" | "ips" | "recent";
+const SORT_LABEL: Record<SortKey, string> = {
+  total: "Most images",
+  lastHour: "Most in last hour",
+  failed: "Most failed",
+  ips: "Most IPs",
+  recent: "Latest activity",
+};
+
+// Pictures per hour / per day. Green = delivered, red = failed.
+function Chart({ series, perDay }: { series: Data["series"]; perDay: boolean }) {
+  const max = Math.max(1, ...series.map((x) => x.ok + x.failed));
+  const total = series.reduce((n, x) => n + x.ok + x.failed, 0);
+  return (
+    <div className="mt-5 rounded-xl border border-[#E3D6B8] bg-[#FFFDF6] p-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-semibold text-[#3B2F1E]">{perDay ? "Images per day" : "Images per hour (Bangladesh time)"}</h3>
+        <p className="text-xs text-[#7A6A50]">
+          <span className="mr-3 inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-emerald-500" /> delivered</span>
+          <span className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-sm bg-rose-500" /> failed</span>
+        </p>
+      </div>
+      {total === 0 ? (
+        <p className="py-6 text-center text-sm text-[#7A6A50]">No images in this period.</p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <div className="flex h-36 min-w-[560px] items-end gap-1">
+            {series.map((b, i) => {
+              const sum = b.ok + b.failed;
+              const h = Math.round((sum / max) * 100);
+              return (
+                <div key={`${b.label}-${i}`} className="flex h-full flex-1 flex-col items-center justify-end" title={`${b.label}: ${b.ok} delivered, ${b.failed} failed`}>
+                  <span className="mb-0.5 text-[10px] tabular-nums text-[#7A6A50]">{sum > 0 ? sum : ""}</span>
+                  <div className="flex w-full flex-col justify-end overflow-hidden rounded-t" style={{ height: `${h}%`, minHeight: sum > 0 ? 3 : 0 }}>
+                    {b.failed > 0 && <div className="bg-rose-500" style={{ flex: b.failed }} />}
+                    {b.ok > 0 && <div className="bg-emerald-500" style={{ flex: b.ok }} />}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="mt-1 flex min-w-[560px] gap-1">
+            {series.map((b, i) => (
+              <span key={`${b.label}-l${i}`} className="flex-1 text-center text-[10px] text-[#A8987A]">
+                {perDay || i % 3 === 0 ? b.label : ""}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminGenerationPanel({ refreshKey = 0 }: { refreshKey?: number }) {
   const [hours, setHours] = useState<24 | 168>(24);
   const [data, setData] = useState<Data | null>(null);
@@ -75,6 +142,9 @@ export default function AdminGenerationPanel({ refreshKey = 0 }: { refreshKey?: 
   const [detailLoading, setDetailLoading] = useState(false);
   const [busyId, setBusyId] = useState("");
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const [query, setQuery] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey>("total");
+  const [onlySuspicious, setOnlySuspicious] = useState(false);
 
   // Keep the "opens in" countdown fresh without reloading the list.
   useEffect(() => {
@@ -143,6 +213,23 @@ export default function AdminGenerationPanel({ refreshKey = 0 }: { refreshKey?: 
   const items = data?.items || [];
   const suspicious = items.filter((i) => i.suspicious);
 
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = items.filter((i) => {
+      if (onlySuspicious && !i.suspicious) return false;
+      if (!q) return true;
+      return `${i.fullName} ${i.email} ${i.phoneNumber}`.toLowerCase().includes(q);
+    });
+    const time = (v: string | null) => (v ? new Date(v).getTime() : 0);
+    return [...list].sort((a, b) => {
+      if (sortKey === "lastHour") return b.lastHour - a.lastHour || b.allowed - a.allowed;
+      if (sortKey === "failed") return b.failed - a.failed || b.allowed - a.allowed;
+      if (sortKey === "ips") return b.ipCount - a.ipCount || b.allowed - a.allowed;
+      if (sortKey === "recent") return time(b.lastAt) - time(a.lastAt);
+      return b.allowed - a.allowed || b.blocked - a.blocked;
+    });
+  }, [items, query, sortKey, onlySuspicious]);
+
   return (
     <div className="space-y-6">
       <section className={`${CARD} p-5`}>
@@ -174,9 +261,10 @@ export default function AdminGenerationPanel({ refreshKey = 0 }: { refreshKey?: 
           </div>
         </div>
 
-        <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-4">
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
           {[
             ["Images generated", data?.totals.allowed ?? 0],
+            ["Failed images", data?.totals.failed ?? 0],
             ["Blocked by limit", data?.totals.blocked ?? 0],
             ["Users generating", data?.totals.users ?? 0],
             ["Suspicious accounts", suspicious.length],
@@ -187,20 +275,51 @@ export default function AdminGenerationPanel({ refreshKey = 0 }: { refreshKey?: 
             </div>
           ))}
         </div>
+        {data?.series && <Chart series={data.series} perDay={hours === 168} />}
         {error && <p className="mt-4 text-sm text-rose-700">{error}</p>}
       </section>
 
       <section className={`${CARD} overflow-hidden`}>
         <div className="flex items-center gap-2 border-b border-[#E3D6B8] px-5 py-4 text-sm font-semibold text-[#3B2F1E]">
           <ShieldAlert size={16} className="text-[#DC2626]" /> Accounts by generation count
+          <span className="font-normal text-[#7A6A50]">({visible.length}{visible.length !== items.length ? ` of ${items.length}` : ""})</span>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#E3D6B8] px-5 py-3">
+          <label className="flex min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-[#D8C9A6] bg-[#FFFDF6] px-3 py-2 text-sm text-[#3B2F1E]">
+            <Search size={14} className="text-[#7A6A50]" aria-hidden="true" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name, email or phone"
+              className="w-full bg-transparent outline-none placeholder:text-[#A8987A]"
+            />
+          </label>
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            aria-label="Sort"
+            className="rounded-lg border border-[#D8C9A6] bg-[#FFFDF6] px-3 py-2 text-sm font-semibold text-[#3B2F1E]"
+          >
+            {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+              <option key={k} value={k}>{SORT_LABEL[k]}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => setOnlySuspicious((v) => !v)}
+            className={`rounded-lg border px-3 py-2 text-sm font-semibold ${onlySuspicious ? "border-rose-300 bg-rose-100 text-rose-800" : "border-[#D8C9A6] bg-[#FFFDF6] text-[#3B2F1E]"}`}
+          >
+            Only suspicious ({suspicious.length})
+          </button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1080px] border-collapse text-left">
+          <table className="w-full min-w-[1180px] border-collapse text-left">
             <thead>
               <tr className="border-b border-[#E3D6B8]">
                 <th className={TH}>User</th>
                 <th className={TH}>Last hour</th>
                 <th className={TH}>Total</th>
+                <th className={TH}>Failed</th>
                 <th className={TH}>Blocked</th>
                 <th className={TH}>Limit status</th>
                 <th className={TH}>IPs</th>
@@ -211,15 +330,19 @@ export default function AdminGenerationPanel({ refreshKey = 0 }: { refreshKey?: 
             </thead>
             <tbody>
               {loading && !data ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-sm text-[#7A6A50]"><LoaderCircle className="mx-auto animate-spin" size={18} /></td></tr>
-              ) : items.length === 0 ? (
-                <tr><td colSpan={9} className="px-5 py-10 text-center text-sm text-[#7A6A50]">No generations recorded in this period yet.</td></tr>
+                <tr><td colSpan={10} className="px-5 py-10 text-center text-sm text-[#7A6A50]"><LoaderCircle className="mx-auto animate-spin" size={18} /></td></tr>
+              ) : visible.length === 0 ? (
+                <tr><td colSpan={10} className="px-5 py-10 text-center text-sm text-[#7A6A50]">{items.length === 0 ? "No generations recorded in this period yet." : "No account matches your search."}</td></tr>
               ) : (
-                items.map((item) => (
+                visible.map((item) => (
                   <tr key={item.id} className={`border-b border-[#EFE4C8] ${item.suspicious ? "bg-rose-50/60" : ""}`}>
                     <td className="px-4 py-3">
-                      <div className="text-sm font-semibold text-[#3B2F1E]">{item.fullName}</div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-sm font-semibold text-[#3B2F1E]">{item.fullName}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${(PLAN_BADGE[item.plan] ?? PLAN_BADGE.free).cls}`}>{(PLAN_BADGE[item.plan] ?? PLAN_BADGE.free).text}</span>
+                      </div>
                       <div className="text-xs text-[#7A6A50]">{item.email || item.phoneNumber}</div>
+                      {item.planUntil && <div className="text-[11px] text-[#A8987A]">until {fmt(item.planUntil)}</div>}
                       {item.suspicious && (
                         <div className="mt-1 text-[11px] font-semibold text-rose-700">⚠ {item.reasons.join(" · ")}</div>
                       )}
@@ -227,6 +350,7 @@ export default function AdminGenerationPanel({ refreshKey = 0 }: { refreshKey?: 
                     </td>
                     <td className="px-4 py-3 text-sm font-semibold tabular-nums text-[#3B2F1E]">{item.lastHour}</td>
                     <td className="px-4 py-3 text-sm font-semibold tabular-nums text-[#3B2F1E]">{item.allowed}</td>
+                    <td className={`px-4 py-3 text-sm tabular-nums ${item.failed > 0 ? "font-semibold text-rose-700" : "text-[#3B2F1E]"}`}>{item.failed}</td>
                     <td className="px-4 py-3 text-sm tabular-nums text-[#3B2F1E]">{item.blocked}</td>
                     <td className="px-4 py-3">
                       {(() => {
