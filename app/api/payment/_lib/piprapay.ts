@@ -506,3 +506,96 @@ export async function verifyAndActivateSubscription(
     subscription: resultSubscription(activated),
   };
 }
+
+function pickTransactionId(payment: PipraPayRecord) {
+  return String(
+    payment?.transaction_id || payment?.transactionId || payment?.trx_id || payment?.trxId || payment?.trxID || "",
+  ).trim();
+}
+
+function pickSenderNumber(payment: PipraPayRecord) {
+  return String(
+    payment?.sender_number || payment?.senderNumber || payment?.sender || payment?.customer_number || payment?.mobile_number || "",
+  ).trim();
+}
+
+export type SyncPendingResult = {
+  state: "completed" | "pending-with-trx" | "cancelled" | "pending" | "skipped" | "error";
+  message?: string;
+};
+
+/**
+ * Reconcile one still-pending PipraPay order with the provider.
+ *  - completed                      -> activate (existing verified flow)
+ *  - failed/cancelled/expired       -> mark CANCELLED
+ *  - pending + customer TrxID       -> save TrxID / sender number so Admin can see it and approve manually
+ *  - pending + no TrxID             -> CANCELLED only when the customer already left (`customerLeft`)
+ *                                      or the order is older than `staleAfterMinutes`
+ * A CANCELLED order is still activated automatically if the payment is verified later.
+ */
+export async function syncPendingPipraPayOrder(
+  subscriptionId: string,
+  options?: { customerLeft?: boolean; staleAfterMinutes?: number },
+): Promise<SyncPendingResult> {
+  try {
+    await connectDB();
+    const order: any = await Subscription.findOne({
+      _id: subscriptionId,
+      paymentProvider: "PipraPay",
+      paymentStatus: "PENDING",
+      accessStatus: "PENDING",
+    });
+    if (!order || !order.invoiceId) return { state: "skipped" };
+
+    const provider = await verifyPipraPayPayment(String(order.invoiceId));
+    if (!provider.providerOk || !provider.payment) return { state: "error", message: provider.message };
+
+    const payment = provider.payment;
+    const status = String(payment.payment_status || payment.status || payment.transaction_status || "").trim().toLowerCase();
+
+    if (status === "completed") {
+      const result = await verifyAndActivateSubscription(String(order.invoiceId));
+      return { state: result.ok ? "completed" : "error", message: result.message };
+    }
+
+    const cancelNote = "Customer left the PipraPay checkout without paying.";
+    if (["failed", "cancelled", "canceled", "expired"].includes(status)) {
+      await Subscription.updateOne(
+        { _id: order._id, paymentStatus: "PENDING", accessStatus: "PENDING" },
+        { $set: { paymentStatus: "CANCELLED", accessStatus: "CANCELLED", reviewNote: `PipraPay reported this payment as ${status}.` } },
+      );
+      return { state: "cancelled" };
+    }
+
+    const transactionId = pickTransactionId(payment);
+    const senderNumber = pickSenderNumber(payment);
+    if (transactionId) {
+      const set: Record<string, any> = { transactionId, paymentMethod: String(payment.payment_method || payment.paymentMethod || payment.gateway || order.paymentMethod || "PipraPay").trim() };
+      if (senderNumber) set.senderNumber = senderNumber;
+      if (!order.submittedAt) set.submittedAt = new Date();
+      try {
+        await Subscription.updateOne(
+          { _id: order._id, paymentStatus: "PENDING", accessStatus: "PENDING" },
+          { $set: set },
+        );
+      } catch {
+        // transactionIdKey uniqueness is not used here; ignore rare write races.
+      }
+      return { state: "pending-with-trx" };
+    }
+
+    const staleMs = (options?.staleAfterMinutes ?? 0) * 60_000;
+    const ageMs = Date.now() - new Date(order.createdAt).getTime();
+    if (options?.customerLeft || (staleMs > 0 && ageMs > staleMs)) {
+      await Subscription.updateOne(
+        { _id: order._id, paymentStatus: "PENDING", accessStatus: "PENDING" },
+        { $set: { paymentStatus: "CANCELLED", accessStatus: "CANCELLED", reviewNote: cancelNote } },
+      );
+      return { state: "cancelled" };
+    }
+    return { state: "pending" };
+  } catch (error) {
+    console.error("[PipraPay sync] failed:", error instanceof Error ? error.message : error);
+    return { state: "error" };
+  }
+}

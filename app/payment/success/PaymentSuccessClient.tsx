@@ -13,6 +13,7 @@ export default function PaymentSuccessClient({ ppId, invoiceId, subscriptionId, 
   const [phase, setPhase] = useState<Phase>("loading");
   const [reference, setReference] = useState(provider === "uddoktapay" ? invoiceId : ppId);
   const [retryKey, setRetryKey] = useState(0);
+  const [cancelledByServer, setCancelledByServer] = useState(false);
 
   const verify = useCallback(async (signal?: AbortSignal) => {
     if (cancelled) {
@@ -46,6 +47,12 @@ export default function PaymentSuccessClient({ ppId, invoiceId, subscriptionId, 
           ? (data?.payment?.invoice_id || invoiceId)
           : (data?.payment?.pp_id || ppId);
         setReference(String(verifiedReference || ""));
+        return true;
+      }
+      if (data?.cancelled || data?.paymentStatus === "CANCELLED") {
+        setPhase("error");
+        setCancelledByServer(true);
+        setStatus(data?.message || "পেমেন্ট বাতিল করা হয়েছে।");
         return true;
       }
       if (response.status === 202 || data?.paymentStatus === "PENDING" || data?.paymentStatus === "UNKNOWN") {
@@ -90,7 +97,7 @@ export default function PaymentSuccessClient({ ppId, invoiceId, subscriptionId, 
     };
   }, [verify, retryKey]);
 
-  const isCancelled = cancelled && phase === "error";
+  const isCancelled = (cancelled || cancelledByServer) && phase === "error";
   const Icon = phase === "success" ? CheckCircle2 : phase === "pending" ? Clock3 : isCancelled ? Undo2 : phase === "error" ? CircleAlert : LoaderCircle;
 
   // One tone per state keeps the card calm: green = done, amber = waiting / cancelled, red = problem.

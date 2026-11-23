@@ -4,7 +4,7 @@ import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import { connectDB } from "@/lib/db";
 import Subscription from "@/models/Subscription";
-import { verifyAndActivateSubscription } from "../_lib/piprapay";
+import { verifyAndActivateSubscription, syncPendingPipraPayOrder } from "../_lib/piprapay";
 import { setSubscriptionAccessCookie } from "../../_lib/requireActiveSubscription";
 
 export const runtime = "nodejs";
@@ -102,6 +102,28 @@ export async function POST(request: Request) {
 
     if (!candidatePpId) {
       return NextResponse.json({ success: false, paymentStatus: "PENDING", message: "The PipraPay payment reference has not arrived yet." }, { status: 202 });
+    }
+
+    // The success page is only reached when the customer comes back from PipraPay. If PipraPay still
+    // has no completed payment and no TrxID, they left without paying -> cancel (reversible on later
+    // verification). If a TrxID exists it stays Pending and is saved so Admin can approve it.
+    if (subscriptionId) {
+      const synced = await syncPendingPipraPayOrder(subscriptionId, { customerLeft: true });
+      if (synced.state === "cancelled") {
+        return NextResponse.json({
+          success: false,
+          cancelled: true,
+          paymentStatus: "CANCELLED",
+          message: "পেমেন্ট সম্পন্ন হয়নি, তাই অর্ডারটি বাতিল করা হয়েছে।",
+        }, { status: 200 });
+      }
+      if (synced.state === "pending-with-trx") {
+        return NextResponse.json({
+          success: false,
+          paymentStatus: "PENDING",
+          message: "আপনার TrxID জমা হয়েছে। অ্যাডমিন যাচাই করে অ্যাক্সেস চালু করবেন।",
+        }, { status: 202 });
+      }
     }
 
     const result = await verifyAndActivateSubscription(candidatePpId, {

@@ -3,6 +3,7 @@ import { connectDB } from "@/lib/db";
 import User from "@/models/User";
 import Subscription from "@/models/Subscription";
 import { requireAdmin } from "../_lib/adminAuth";
+import { syncPendingPipraPayOrder } from "@/app/api/payment/_lib/piprapay";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,16 @@ export async function GET(request: Request) {
       } else {
         filter.userId = { $in: ids };
       }
+    }
+
+    // Refresh recent pending PipraPay orders first so their TrxID / sender number appear for manual
+    // approval, and abandoned checkouts (no TrxID after 20 min) show as Cancelled instead of Pending.
+    if (status === "pending" || status === "all" || status === "cancelled") {
+      const pendingPipra = await Subscription.find({
+        paymentProvider: "PipraPay", paymentStatus: "PENDING", accessStatus: "PENDING",
+        createdAt: { $gt: new Date(now.getTime() - 7 * 86_400_000) },
+      }).sort({ createdAt: -1 }).limit(15).select("_id").lean();
+      await Promise.allSettled(pendingPipra.map((row: any) => syncPendingPipraPayOrder(String(row._id), { staleAfterMinutes: 20 })));
     }
 
     const [total, itemsRaw] = await Promise.all([
