@@ -27,6 +27,9 @@ export const revalidate = 0;
 const JWT_SECRET = getJwtSecret();
 const SEEN_FIELD = "paidAccessWelcomeSeenKey";
 const EXPIRED_SEEN_FIELD = "paidAccessExpiredSeenKey";
+const EXPIRING_SEEN_FIELD = "paidAccessExpiringSeenKey";
+/** "Your access ends soon" popup starts this long before the end. */
+const EXPIRING_WINDOW_MS = 3 * 24 * 60 * 60 * 1000;
 /**
  * The welcome popup is only for a grant that has JUST started (payment completed or an
  * admin grant). People who bought earlier and are already using the tools never see it.
@@ -90,6 +93,7 @@ type GrantLookup = {
   expired: Grant | null;
   seenKey: string;
   expiredSeenKey: string;
+  expiringSeenKey: string;
   /** Database accounts with role = "admin" (sub-admins) never get paid-access popups. */
   isAdmin: boolean;
 };
@@ -135,6 +139,7 @@ async function findCurrentGrant(userId: string): Promise<GrantLookup> {
           role: 1,
           [SEEN_FIELD]: 1,
           [EXPIRED_SEEN_FIELD]: 1,
+          [EXPIRING_SEEN_FIELD]: 1,
         },
       },
     ),
@@ -144,6 +149,8 @@ async function findCurrentGrant(userId: string): Promise<GrantLookup> {
   const seenKey = typeof user?.[SEEN_FIELD] === "string" ? (user[SEEN_FIELD] as string) : "";
   const expiredSeenKey =
     typeof user?.[EXPIRED_SEEN_FIELD] === "string" ? (user[EXPIRED_SEEN_FIELD] as string) : "";
+  const expiringSeenKey =
+    typeof user?.[EXPIRING_SEEN_FIELD] === "string" ? (user[EXPIRING_SEEN_FIELD] as string) : "";
 
   const manualExpiresMs = toMs(user?.manualAccessExpiresAt);
   const manualStartedMs = toMs(user?.manualAccessStartedAt) || toMs(user?.manualAccessGrantedAt);
@@ -195,7 +202,7 @@ async function findCurrentGrant(userId: string): Promise<GrantLookup> {
       });
     }
     ended.sort((a, b) => b.expiresAtMs - a.expiresAtMs);
-    return { grant: null, expired: ended[0] ?? null, seenKey, expiredSeenKey, isAdmin };
+    return { grant: null, expired: ended[0] ?? null, seenKey, expiredSeenKey, expiringSeenKey, isAdmin };
   }
 
   // The most recently started grant is the one the user just received.
@@ -203,7 +210,7 @@ async function findCurrentGrant(userId: string): Promise<GrantLookup> {
   const grant = candidates[0];
   // Show the real end of access (a paid plan and an admin grant may overlap).
   grant.expiresAtMs = Math.max(...candidates.map((c) => c.expiresAtMs));
-  return { grant, expired: null, seenKey, expiredSeenKey, isAdmin };
+  return { grant, expired: null, seenKey, expiredSeenKey, expiringSeenKey, isAdmin };
 }
 
 export async function GET(request: Request) {
@@ -214,7 +221,7 @@ export async function GET(request: Request) {
     if (auth.impersonating) return NextResponse.json({ success: true, show: false }, { headers: NO_STORE });
 
     await connectDB();
-    const { grant, expired, seenKey, expiredSeenKey, isAdmin } = await findCurrentGrant(auth.userId);
+    const { grant, expired, seenKey, expiredSeenKey, expiringSeenKey, isAdmin } = await findCurrentGrant(auth.userId);
     const hidden = () => NextResponse.json({ success: true, show: false }, { headers: NO_STORE });
 
     // Admins (database role = "admin") are staff, not customers: no welcome / expired popup.
@@ -243,20 +250,40 @@ export async function GET(request: Request) {
       grant.startedAtMs > 0 &&
       Date.now() - grant.startedAtMs <= WELCOME_WINDOW_MS &&
       grant.startedAtMs >= WELCOME_CUTOFF_MS;
-    if (!fresh || grant.key === seenKey) return hidden();
+    if (fresh && grant.key !== seenKey) {
+      return NextResponse.json(
+        {
+          success: true,
+          show: true,
+          kind: "welcome",
+          key: grant.key,
+          months: grant.months,
+          planName: grant.planName || "",
+          expiresAt: new Date(grant.expiresAtMs).toISOString(),
+        },
+        { headers: NO_STORE },
+      );
+    }
 
-    return NextResponse.json(
-      {
-        success: true,
-        show: true,
-        kind: "welcome",
-        key: grant.key,
-        months: grant.months,
-        planName: grant.planName || "",
-        expiresAt: new Date(grant.expiresAtMs).toISOString(),
-      },
-      { headers: NO_STORE },
-    );
+    // 3) Access is about to end: remind the user once per grant when 3 days or less are left.
+    const expiringKey = `expiring:${grant.key}`;
+    const msLeft = grant.expiresAtMs - Date.now();
+    if (msLeft > 0 && msLeft <= EXPIRING_WINDOW_MS && expiringKey !== expiringSeenKey) {
+      return NextResponse.json(
+        {
+          success: true,
+          show: true,
+          kind: "expiring",
+          key: expiringKey,
+          months: grant.months,
+          planName: grant.planName || "",
+          expiresAt: new Date(grant.expiresAtMs).toISOString(),
+        },
+        { headers: NO_STORE },
+      );
+    }
+
+    return hidden();
   } catch (error) {
     console.error("Paid access welcome lookup error:", error);
     return NextResponse.json({ success: false, show: false }, { status: 500, headers: NO_STORE });
@@ -271,7 +298,7 @@ export async function POST(request: Request) {
 
     const body = await request.json().catch(() => null);
     const key = typeof body?.key === "string" ? body.key.trim() : "";
-    if (!/^(expired:)?(sub:[a-f0-9]{24}|admin:\d{1,16})$/i.test(key)) {
+    if (!/^(expired:|expiring:)?(sub:[a-f0-9]{24}|admin:\d{1,16})$/i.test(key)) {
       return NextResponse.json({ success: false, message: "Invalid key." }, { status: 400, headers: NO_STORE });
     }
 
@@ -285,7 +312,11 @@ export async function POST(request: Request) {
     // The key is format-checked above. Worst case a user can only silence their own popup.
     await User.collection.updateOne(
       { _id: new mongoose.Types.ObjectId(auth.userId) },
-      { $set: { [key.startsWith("expired:") ? EXPIRED_SEEN_FIELD : SEEN_FIELD]: key } },
+      {
+        $set: {
+          [key.startsWith("expired:") ? EXPIRED_SEEN_FIELD : key.startsWith("expiring:") ? EXPIRING_SEEN_FIELD : SEEN_FIELD]: key,
+        },
+      },
     );
 
     return NextResponse.json({ success: true }, { headers: NO_STORE });

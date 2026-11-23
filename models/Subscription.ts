@@ -146,6 +146,17 @@ const SubscriptionSchema = new Schema(
       default: null,
       index: true,
     },
+
+    // Expiry e-mails (see app/api/cron/expiry-notices). Each is set once so a user is never mailed twice.
+    expiryWarningSentAt: {
+      type: Date,
+      default: null,
+    },
+
+    expiredNoticeSentAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

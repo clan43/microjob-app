@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Crown, Hourglass, X } from "lucide-react";
+import { Clock, Crown, Hourglass, X } from "lucide-react";
 import { useI18n } from "@/components/i18n/I18nProvider";
 
-type Kind = "welcome" | "expired";
+type Kind = "welcome" | "expiring" | "expired";
 type Welcome = { kind: Kind; key: string; months: number; planName?: string; expiresAt: string };
 
 const SEEN_STORAGE_KEYS: Record<Kind, string> = {
   welcome: "sebalagbe:paid-welcome-seen",
+  expiring: "sebalagbe:paid-expiring-seen",
   expired: "sebalagbe:paid-expired-seen",
 };
 /** Re-check at most this often while the user navigates (a payment may have just completed). */
@@ -61,9 +62,17 @@ const COPY = {
       cta: "টুলস ব্যবহার শুরু করুন",
       later: "পরে দেখব",
     },
+    expiring: {
+      title: "আপনার প্রিমিয়াম এক্সেস শীঘ্রই শেষ হচ্ছে",
+      body: "মেয়াদ শেষ হলে এআই এডিটরসহ সব পেইড টুল বন্ধ হয়ে যাবে। এখনই রিনিউ করে নিলে আপনার কাজ একটুও থামবে না।",
+      plan: "আপনার প্ল্যান",
+      until: "এক্সেস চলবে",
+      cta: "এখনই রিনিউ করুন",
+      later: "পরে দেখব",
+    },
     expired: {
       title: "পেইড এক্সেসের মেয়াদ শেষ",
-      body: "আজ থেকে আপনার পেইড টুলসের এক্সেস বন্ধ হয়ে গেছে। আবার ব্যবহার করতে সাবস্ক্রিপশন প্ল্যান দেখুন।",
+      body: "আজ থেকে আপনার পেইড টুলসের এক্সেস বন্ধ হয়ে গেছে। যেকোনো সময় রিনিউ করে আবার সব টুল ব্যবহার করতে পারবেন।",
       plan: "আপনার প্ল্যান ছিল",
       until: "মেয়াদ শেষ হয়েছে",
       cta: "সাবস্ক্রিপশন দেখুন",
@@ -78,6 +87,14 @@ const COPY = {
       plan: "Your plan",
       until: "Access until",
       cta: "Start using the tools",
+      later: "Maybe later",
+    },
+    expiring: {
+      title: "Your premium access is ending soon",
+      body: "When the time runs out, all paid tools including the AI Editor will stop. Renew now and your work will not be interrupted.",
+      plan: "Your plan",
+      until: "Access until",
+      cta: "Renew now",
       later: "Maybe later",
     },
     expired: {
@@ -216,11 +233,11 @@ export default function PaidAccessWelcomePopup() {
         if (data && data.show === false) writeNoneCache();
         return;
       }
-      const kind: Kind = data.kind === "expired" ? "expired" : "welcome";
+      const kind: Kind = data.kind === "expired" ? "expired" : data.kind === "expiring" ? "expiring" : "welcome";
       if (data.key === dismissedKeyRef.current || data.key === readLocalSeen(kind)) return;
       // Someone already on the buying screens does not need the "expired" nudge.
       const path = window.location.pathname;
-      if (kind === "expired" && (path.startsWith("/subscription") || path.startsWith("/payment"))) return;
+      if ((kind === "expired" || kind === "expiring") && (path.startsWith("/subscription") || path.startsWith("/payment"))) return;
       const next: Welcome = {
         kind,
         key: data.key,
@@ -299,15 +316,24 @@ export default function PaidAccessWelcomePopup() {
 
   const copy = lang[welcome.kind];
   const expired = welcome.kind === "expired";
+  const expiring = welcome.kind === "expiring";
   const plan = welcome.planName || planLabel(welcome.months, bn);
   const until = formatDate(welcome.expiresAt, bn);
-  const Icon = expired ? Hourglass : Crown;
+  const Icon = expired ? Hourglass : expiring ? Clock : Crown;
+  const daysLeft = expiring
+    ? Math.max(1, Math.ceil((new Date(welcome.expiresAt).getTime() - Date.now()) / 86_400_000))
+    : 0;
+  const daysText = bn
+    ? `আর মাত্র ${digitsBn(daysLeft)} দিন বাকি`
+    : daysLeft === 1
+      ? "Only 1 day left"
+      : `Only ${daysLeft} days left`;
 
   return (
     <div className="paw-backdrop" onMouseDown={(e) => e.target === e.currentTarget && dismiss()}>
       <div
         ref={dialogRef}
-        className={`paw-card${expired ? " paw-card--expired" : ""}`}
+        className={`paw-card${expired ? " paw-card--expired" : ""}${expiring ? " paw-card--expiring" : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="paw-title"
@@ -324,6 +350,7 @@ export default function PaidAccessWelcomePopup() {
           <h2 id="paw-title" className="paw-title">
             {copy.title}
           </h2>
+          {expiring && <span className="paw-pill">{daysText}</span>}
           <p className="paw-body">{copy.body}</p>
         </div>
 
@@ -346,7 +373,7 @@ export default function PaidAccessWelcomePopup() {
 
         <div className="paw-actions">
           <Link
-            href={expired ? "/subscription" : "/dashboard"}
+            href={expired || expiring ? "/subscription" : "/dashboard"}
             className="paw-cta"
             onClick={dismiss}
             prefetch
@@ -431,6 +458,16 @@ export default function PaidAccessWelcomePopup() {
         .paw-card--expired .paw-emblem {
           color: #E8D4A2; border-color: #B9A67F;
           box-shadow: 0 0 0 7px rgba(138, 119, 83, 0.14), 0 14px 30px rgba(43, 33, 19, 0.3);
+        }
+        .paw-card--expiring .paw-emblem {
+          color: #F6C453; border-color: #E0A030;
+          box-shadow: 0 0 0 7px rgba(224, 160, 48, 0.2), 0 14px 30px rgba(43, 33, 19, 0.35);
+        }
+        .paw-card--expiring::before { background: linear-gradient(90deg, #C2410C, #F6C453 50%, #C2410C); }
+        .paw-pill {
+          margin-top: 14px; padding: 6px 16px; border-radius: 999px;
+          font-size: 14px; font-weight: 800; color: #B45309;
+          background: #FFF1CC; border: 1px solid #F0D58A;
         }
         .paw-card--expired::before { background: linear-gradient(90deg, #8A7753, #D9C79A 50%, #8A7753); }
         @keyframes pawFade { from { opacity: 0; } to { opacity: 1; } }

@@ -56,7 +56,11 @@ function siteOrigin() {
   return (configured || "https://sebalagbe.com").replace(/\/+$/, "");
 }
 
-function shell(preheader: string, inner: string) {
+function shell(
+  preheader: string,
+  inner: string,
+  footerNote = "This is an automated security message. Please do not reply to this email.<br>এটি একটি স্বয়ংক্রিয় নিরাপত্তা বার্তা, অনুগ্রহ করে উত্তর দেবেন না।",
+) {
   const year = new Date().getFullYear();
   const origin = siteOrigin();
   const logo = `${origin}/sebalagbelogo/sebalagbelogo.png`;
@@ -82,7 +86,7 @@ function shell(preheader: string, inner: string) {
         </td></tr>
       </table>
     </td></tr>
-    <tr><td align="center" style="padding:16px 8px 0;font-family:${FONT};font-size:11px;line-height:1.6;color:#9A8A6E;">This is an automated security message. Please do not reply to this email.<br>এটি একটি স্বয়ংক্রিয় নিরাপত্তা বার্তা, অনুগ্রহ করে উত্তর দেবেন না।</td></tr>
+    <tr><td align="center" style="padding:16px 8px 0;font-family:${FONT};font-size:11px;line-height:1.6;color:#9A8A6E;">${footerNote}</td></tr>
   </table>
 </td></tr>
 </table>
@@ -157,4 +161,113 @@ export function renderVerifyLinkEmail(input: { name?: string; link: string; expi
       <p style="margin:22px 0 0;font-size:12px;line-height:1.7;color:#9A8A6E;">If you did not request this, you can safely ignore this email.<br>আপনি অনুরোধ না করে থাকলে এই ইমেইলটি উপেক্ষা করুন।</p>
     </td></tr>`;
   return shell("Confirm your email address for Seba Lagbe.", inner);
+}
+
+const bnDigits = (value: string | number) => String(value).replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[Number(d)]);
+
+function formatBnDate(date: Date) {
+  try {
+    return date.toLocaleDateString("bn-BD", { timeZone: "Asia/Dhaka", day: "numeric", month: "long", year: "numeric" });
+  } catch {
+    return date.toDateString();
+  }
+}
+
+function formatEnDate(date: Date) {
+  try {
+    return date.toLocaleDateString("en-GB", { timeZone: "Asia/Dhaka", day: "numeric", month: "long", year: "numeric" });
+  } catch {
+    return date.toDateString();
+  }
+}
+
+/**
+ * Premium-plan expiry mail. kind "warning" is sent a few days BEFORE access ends,
+ * kind "expired" right AFTER it ended. Bengali first, English underneath.
+ */
+export function renderSubscriptionExpiryEmail(input: {
+  kind: "warning" | "expired";
+  name?: string;
+  planName?: string;
+  expiresAt: Date;
+  daysLeft?: number;
+}) {
+  const warning = input.kind === "warning";
+  const name = escapeHtml((input.name || "").trim().slice(0, 100));
+  const plan = escapeHtml((input.planName || "").trim().slice(0, 80));
+  const days = Math.max(1, Math.round(input.daysLeft || 1));
+  const dateBn = escapeHtml(formatBnDate(input.expiresAt));
+  const dateEn = escapeHtml(formatEnDate(input.expiresAt));
+  const link = `${siteOrigin()}/subscription`;
+
+  const accent = warning ? "#B45309" : "#8A7753";
+  const badgeBorder = warning ? "#F0DDA8" : "#E3D6B8";
+  const badgeBg = warning ? "#FFF6E0" : "#F6EFDC";
+
+  const badge = warning ? "PREMIUM REMINDER · রিমাইন্ডার" : "ACCESS ENDED · মেয়াদ শেষ";
+  const titleBn = warning ? "আপনার প্রিমিয়াম এক্সেস শীঘ্রই শেষ হচ্ছে" : "আপনার পেইড এক্সেসের মেয়াদ শেষ হয়েছে";
+  const titleEn = warning ? "Your premium access is ending soon" : "Your paid access has ended";
+  const introBn = warning
+    ? "সেবা লাগবে-এর পাশে থাকার জন্য ধন্যবাদ। মেয়াদ শেষ হয়ে গেলে এআই এডিটরসহ সব পেইড টুল বন্ধ হয়ে যাবে। এখনই রিনিউ করে নিলে আপনার কাজ একটুও থামবে না।"
+    : "সেবা লাগবে-এর পাশে থাকার জন্য ধন্যবাদ। আপনার পেইড টুলসের এক্সেস এখন বন্ধ আছে। যেকোনো সময় রিনিউ করে আবার সব টুল ব্যবহার করতে পারবেন।";
+  const introEn = warning
+    ? "Thank you for being with Seba Lagbe. When the time runs out, all paid tools including the AI Editor will stop. Renew now and your work will not be interrupted."
+    : "Thank you for being with Seba Lagbe. Your access to the paid tools is now closed. You can renew any time to use every tool again.";
+  const cta = warning ? "এখনই রিনিউ করুন · Renew now" : "আবার শুরু করুন · Renew plan";
+  const dateLabelBn = warning ? "এক্সেস চলবে" : "মেয়াদ শেষ হয়েছে";
+  const dateLabelEn = warning ? "Access until" : "Ended on";
+
+  const counter = warning
+    ? `<tr><td align="center" style="padding:0 0 18px;">
+          <div style="display:inline-block;padding:10px 22px;border:1px solid #F0DDA8;border-radius:999px;background:#FFF6E0;color:#B45309;font-size:18px;font-weight:800;font-family:${FONT};">আর মাত্র ${bnDigits(days)} দিন বাকি <span style="font-size:12px;font-weight:600;color:#9A6B1F;">&middot; ${days} day${days === 1 ? "" : "s"} left</span></div>
+        </td></tr>`
+    : "";
+
+  const inner = `<tr><td style="padding:32px 32px 30px;">
+      <div style="display:inline-block;margin-bottom:16px;padding:6px 12px;border:1px solid ${badgeBorder};border-radius:999px;background:${badgeBg};color:${accent};font-size:11px;font-weight:700;letter-spacing:1.2px;font-family:Arial,Helvetica,sans-serif;">${badge}</div>
+      <h1 style="margin:0;font-size:25px;line-height:1.4;color:#3B2F1E;font-weight:800;">${titleBn}</h1>
+      <div style="margin:2px 0 20px;font-size:14px;line-height:1.6;color:#7A6A50;">${titleEn}</div>
+      <p style="margin:0 0 8px;font-size:14px;line-height:1.75;color:#4A3C27;font-weight:600;">${name ? `প্রিয় ${name},` : "প্রিয় গ্রাহক,"}</p>
+      <p style="margin:0;font-size:14px;line-height:1.85;color:#5A4A32;">${introBn}</p>
+      <p style="margin:6px 0 0;font-size:13px;line-height:1.75;color:#7A6A50;">${introEn}</p>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0;"><tr>
+        <td bgcolor="#F6EFDC" style="padding:20px 18px;background:#F6EFDC;background:linear-gradient(135deg,#F6EFDC 0%,#FBF0D2 100%);border:1px solid #E8D4A2;border-radius:16px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+            ${counter}
+            <tr><td>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:${FONT};">
+                ${plan ? `<tr><td style="padding:6px 0;font-size:12px;color:#8A7753;">আপনার প্ল্যান &middot; Your plan</td><td align="right" style="padding:6px 0;font-size:15px;font-weight:800;color:#3B2F1E;">${plan}</td></tr>` : ""}
+                <tr><td style="padding:6px 0;font-size:12px;color:#8A7753;border-top:${plan ? "1px solid #E8D4A2" : "0"};">${dateLabelBn} &middot; ${dateLabelEn}</td><td align="right" style="padding:6px 0;font-size:15px;font-weight:800;color:#3B2F1E;border-top:${plan ? "1px solid #E8D4A2" : "0"};">${dateBn}<div style="font-size:11px;font-weight:600;color:#9A8A6E;">${dateEn}</div></td></tr>
+              </table>
+            </td></tr>
+          </table>
+        </td>
+      </tr></table>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td align="center" bgcolor="#DC2626" style="border-radius:12px;background:#DC2626;">
+            <a href="${escapeHtml(link)}" target="_blank" style="display:inline-block;padding:15px 34px;font-size:16px;font-weight:700;color:#FFFFFF;text-decoration:none;font-family:Arial,Helvetica,sans-serif;">${cta}</a>
+          </td>
+        </tr></table>
+      </td></tr></table>
+
+      <p style="margin:24px 0 0;font-size:12px;line-height:1.7;color:#9A8A6E;">আপনি ইতোমধ্যে রিনিউ করে থাকলে এই বার্তাটি উপেক্ষা করুন।<br>If you have already renewed, please ignore this message.</p>
+    </td></tr>`;
+
+  const preheader = warning
+    ? `Your Seba Lagbe premium access ends in ${days} day${days === 1 ? "" : "s"}. Renew to keep every paid tool.`
+    : "Your Seba Lagbe paid access has ended. Renew any time to use every tool again.";
+  const footer = "এটি একটি স্বয়ংক্রিয় বার্তা, অনুগ্রহ করে উত্তর দেবেন না।<br>This is an automated message. Please do not reply to this email.";
+  const html = shell(preheader, inner, footer);
+
+  const subject = warning
+    ? `আপনার সেবা লাগবে প্রিমিয়াম ${bnDigits(days)} দিনের মধ্যে শেষ হচ্ছে`
+    : "আপনার সেবা লাগবে পেইড এক্সেসের মেয়াদ শেষ হয়েছে";
+  const text = warning
+    ? `${name ? `প্রিয় ${name},` : "প্রিয় গ্রাহক,"}\n\n${introBn}\n\nআর মাত্র ${bnDigits(days)} দিন বাকি। এক্সেস চলবে: ${formatBnDate(input.expiresAt)}\n\nরিনিউ করুন: ${link}\n\n--\n${introEn}`
+    : `${name ? `প্রিয় ${name},` : "প্রিয় গ্রাহক,"}\n\n${introBn}\n\nমেয়াদ শেষ হয়েছে: ${formatBnDate(input.expiresAt)}\n\nরিনিউ করুন: ${link}\n\n--\n${introEn}`;
+
+  return { subject, html, text };
 }

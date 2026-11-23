@@ -252,6 +252,8 @@ jobs:
           # Mark finished subscriptions as Expired: every 15 minutes. Delete 30-day-old user files: every 6 hours.
           NEXT_EXPIRE_AT=$(( $(date +%s) + 120 ))
           NEXT_CLEAN_AT=$(( $(date +%s) + 600 ))
+          # Premium reminder / "access ended" e-mails to subscribers: every 30 minutes.
+          NEXT_NOTICE_AT=$(( $(date +%s) + 240 ))
 
           SITE_FAILS=0
           while [ "$(date +%s)" -lt "$END_AT" ]; do
@@ -284,6 +286,10 @@ jobs:
             if [ "$NOW_TS" -ge "$NEXT_EXPIRE_AT" ]; then
               NEXT_EXPIRE_AT=$((NOW_TS + 15 * 60))
               call_cron expire-subscriptions 25 &
+            fi
+            if [ "$NOW_TS" -ge "$NEXT_NOTICE_AT" ]; then
+              NEXT_NOTICE_AT=$((NOW_TS + 30 * 60))
+              call_cron expiry-notices 65 &
             fi
             if [ "$NOW_TS" -ge "$NEXT_CLEAN_AT" ]; then
               NEXT_CLEAN_AT=$((NOW_TS + 6 * 3600))
