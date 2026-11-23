@@ -63,6 +63,7 @@ import {
 } from "./documentAi";
 import { composeTextSafe } from "./documentComposite";
 import { blockImageMenu } from "@/app/_lib/imageProtect";
+import DocumentScannerVideoGuide, { DocumentScannerVideoCard } from "./DocumentScannerVideoGuide";
 declare global {
   interface Window {
     cv: any;
@@ -9450,6 +9451,7 @@ export default function DocumentScanner() {
           </div>
 
           <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-end">
+            <DocumentScannerVideoGuide />
             <div className="flex items-center bg-[#FBF6E8] border border-[#E3D6B8] rounded-lg p-0.5 sm:p-1 shadow-xs mr-1 sm:mr-2">
               <button
                 onClick={() => handlePageNavigation(-1)}
@@ -9637,6 +9639,7 @@ export default function DocumentScanner() {
                         {"Upload Document\n                    "}
                       </DocumentText>
                     </span>
+                    <DocumentScannerVideoCard />
                     <input
                       type="file"
                       className="hidden"
