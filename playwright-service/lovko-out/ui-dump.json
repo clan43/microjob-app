@@ -1,0 +1,200 @@
+[
+  {
+    "tag": "a",
+    "type": "",
+    "text": "lovkoai",
+    "aria": "Lovko AI",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "logo",
+    "visible": true
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "text": "Open in Telegram",
+    "aria": "",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "app-header-tg",
+    "visible": true
+  },
+  {
+    "tag": "button",
+    "type": "button",
+    "text": "",
+    "aria": "Close chat list",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-fFmWCW iamilK",
+    "visible": false
+  },
+  {
+    "tag": "button",
+    "type": "button",
+    "text": "New chat",
+    "aria": "",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-kbeVdv jsjZtE",
+    "visible": true
+  },
+  {
+    "tag": "button",
+    "type": "button",
+    "text": "Files and documents",
+    "aria": "",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-bUAJAs gfNoZC",
+    "visible": true
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "text": "Open in Telegram",
+    "aria": "",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-bUAJAs gfNoZC",
+    "visible": true
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "text": "Built on FlowCastle",
+    "aria": "",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-gJUwzu kRsFnL",
+    "visible": true
+  },
+  {
+    "tag": "button",
+    "type": "button",
+    "text": "",
+    "aria": "Open chat list",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-jBaHRL iUzJcz",
+    "visible": false
+  },
+  {
+    "tag": "button",
+    "type": "button",
+    "text": "",
+    "aria": "Files and documents",
+    "title": "Files and documents",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-jBaHRL cUzONC",
+    "visible": true
+  },
+  {
+    "tag": "button",
+    "type": "button",
+    "text": "Write a complaint to a store",
+    "aria": "",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-ixcdjX dkpGZL",
+    "visible": true
+  },
+  {
+    "tag": "button",
+    "type": "button",
+    "text": "Check a rental agreement",
+    "aria": "",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-ixcdjX dkpGZL",
+    "visible": true
+  },
+  {
+    "tag": "button",
+    "type": "button",
+    "text": "Make an expense table",
+    "aria": "",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-ixcdjX dkpGZL",
+    "visible": true
+  },
+  {
+    "tag": "button",
+    "type": "button",
+    "text": "Explain a letter from the tax office",
+    "aria": "",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-ixcdjX dkpGZL",
+    "visible": true
+  },
+  {
+    "tag": "input",
+    "type": "file",
+    "text": "",
+    "aria": "",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "",
+    "visible": false
+  },
+  {
+    "tag": "button",
+    "type": "button",
+    "text": "",
+    "aria": "Attach file",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-cCVJLD blHqoA",
+    "visible": true
+  },
+  {
+    "tag": "textarea",
+    "type": "",
+    "text": "",
+    "aria": "",
+    "title": "",
+    "placeholder": "Type a message...",
+    "id": "",
+    "cls": "sc-pYNGo hbDyBe",
+    "visible": true
+  },
+  {
+    "tag": "button",
+    "type": "button",
+    "text": "",
+    "aria": "Speak instead of typing",
+    "title": "Speak instead of typing",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-dNFkOE asSJp",
+    "visible": true
+  },
+  {
+    "tag": "button",
+    "type": "",
+    "text": "",
+    "aria": "Send",
+    "title": "",
+    "placeholder": "",
+    "id": "",
+    "cls": "sc-jYczwO dwmTey",
+    "visible": true
+  }
+]

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<rect x="0" y="0" width="210" height="297" rx="0" fill="#f0fdf4"  data-layer-name="Background"/>
+<rect x="0" y="0" width="210" height="52" rx="0" fill="#064e3b"  data-layer-name="Header"/>
+<rect x="0" y="52" width="210" height="3" rx="0" fill="#d4a017"  data-layer-name="Header line"/>
+<text x="105" y="16" font-size="6" fill="#fde68a" font-weight="600" text-anchor="middle"  data-layer-name="Election title">ইউনিয়ন পরিষদ নির্বাচন ২০২৬</text>
+<text x="105" y="34" font-size="14" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Post title">চেয়ারম্যান পদপ্রার্থী</text>
+<text x="105" y="45" font-size="5" fill="#bbf7d0" font-weight="500" text-anchor="middle"  data-layer-name="Tagline">আপনার একটি ভোট, এলাকার উন্নয়ন</text>
+<rect x="48" y="63" width="114" height="112" rx="6" fill="#d4a017"  data-layer-name="Photo gold frame"/>
+<rect x="51" y="66" width="108" height="106" rx="4" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="105.0" y="119.0" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<rect x="25" y="183" width="160" height="24" rx="3" fill="#dc2626"  data-layer-name="Name ribbon"/>
+<text x="105" y="200" font-size="15" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<text x="105" y="216" font-size="5.5" fill="#064e3b" font-weight="600" text-anchor="middle"  data-layer-name="Info line">পিতা: ______ | গ্রাম: ______ | ইউনিয়ন: ______</text>
+<rect x="18" y="224" width="128" height="44" rx="4" fill="#ffffff" stroke="#064e3b" stroke-width="0.5" data-layer-name="Promise box"/>
+<text x="26" y="233" font-size="5.5" fill="#dc2626" font-weight="800" text-anchor="start"  data-layer-name="Promise title">আমার অঙ্গীকার</text>
+<text x="26" y="241" font-size="4.6" fill="#14532d" font-weight="500" text-anchor="start"  data-layer-name="Promise 1">✔ রাস্তাঘাট ও যোগাযোগ ব্যবস্থার উন্নয়ন</text>
+<text x="26" y="248" font-size="4.6" fill="#14532d" font-weight="500" text-anchor="start"  data-layer-name="Promise 2">✔ সবার জন্য বিশুদ্ধ পানি ও স্বাস্থ্যসেবা</text>
+<text x="26" y="255" font-size="4.6" fill="#14532d" font-weight="500" text-anchor="start"  data-layer-name="Promise 3">✔ দুর্নীতিমুক্ত ও স্বচ্ছ ইউনিয়ন পরিষদ</text>
+<text x="26" y="262" font-size="4.6" fill="#14532d" font-weight="500" text-anchor="start"  data-layer-name="Promise 4">✔ যুবকদের কর্মসংস্থান ও শিক্ষা</text>
+<circle cx="172" cy="246" r="22" fill="#ffffff" stroke="#064e3b" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="172" y="247.2" font-size="8.36" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="172" y="276" font-size="4.5" fill="#064e3b" font-weight="700" text-anchor="middle"  data-layer-name="Symbol label">মার্কা: ______</text>
+<rect x="0" y="281" width="210" height="16" rx="0" fill="#064e3b"  data-layer-name="Footer"/>
+<text x="105" y="291" font-size="5.5" fill="#fde68a" font-weight="600" text-anchor="middle"  data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX  |  আপনার মূল্যবান ভোট দিয়ে বিজয়ী করুন</text>
+</svg>

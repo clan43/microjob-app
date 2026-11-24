@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 148 210" width="148mm" height="210mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<rect x="0" y="0" width="148" height="210" rx="0" fill="#ffffff"  data-layer-name="Background"/>
+<rect x="0" y="0" width="148" height="46" rx="0" fill="#1e3a8a"  data-layer-name="Header"/>
+<rect x="0" y="46" width="148" height="2.5" rx="0" fill="#f59e0b"  data-layer-name="Header line"/>
+<rect x="8" y="7" width="30" height="34" rx="3" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="23.0" y="24.0" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<text x="44" y="17" font-size="5" fill="#fde68a" font-weight="700" text-anchor="start"  data-layer-name="Leaflet title">নির্বাচনী ইশতেহার</text>
+<text x="44" y="28" font-size="9.5" fill="#ffffff" font-weight="800" text-anchor="start"  data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<text x="44" y="38" font-size="4.8" fill="#bfdbfe" font-weight="600" text-anchor="start"  data-layer-name="Post">মেম্বার / চেয়ারম্যান পদপ্রার্থী</text>
+<text x="74" y="60" font-size="7" fill="#1e3a8a" font-weight="800" text-anchor="middle"  data-layer-name="Pledge title">আমার ৬ দফা অঙ্গীকার</text>
+<rect x="10" y="70" width="128" height="13" rx="3" fill="#eff6ff"  data-layer-name="Pledge row 1"/>
+<circle cx="19" cy="76.5" r="4.5" fill="#f59e0b"  data-layer-name="Pledge badge 1"/>
+<text x="19" y="78" font-size="5" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Pledge no 1">1</text>
+<text x="27" y="78.2" font-size="5" fill="#1e3a8a" font-weight="600" text-anchor="start"  data-layer-name="Pledge 1">সুপেয় পানি ও স্বাস্থ্যসেবা নিশ্চিত করা</text>
+<rect x="10" y="87" width="128" height="13" rx="3" fill="#eff6ff"  data-layer-name="Pledge row 2"/>
+<circle cx="19" cy="93.5" r="4.5" fill="#f59e0b"  data-layer-name="Pledge badge 2"/>
+<text x="19" y="95" font-size="5" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Pledge no 2">2</text>
+<text x="27" y="95.2" font-size="5" fill="#1e3a8a" font-weight="600" text-anchor="start"  data-layer-name="Pledge 2">রাস্তা, ব্রিজ ও যোগাযোগ উন্নয়ন</text>
+<rect x="10" y="104" width="128" height="13" rx="3" fill="#eff6ff"  data-layer-name="Pledge row 3"/>
+<circle cx="19" cy="110.5" r="4.5" fill="#f59e0b"  data-layer-name="Pledge badge 3"/>
+<text x="19" y="112" font-size="5" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Pledge no 3">3</text>
+<text x="27" y="112.2" font-size="5" fill="#1e3a8a" font-weight="600" text-anchor="start"  data-layer-name="Pledge 3">শিক্ষা ও যুবকদের কর্মসংস্থান</text>
+<rect x="10" y="121" width="128" height="13" rx="3" fill="#eff6ff"  data-layer-name="Pledge row 4"/>
+<circle cx="19" cy="127.5" r="4.5" fill="#f59e0b"  data-layer-name="Pledge badge 4"/>
+<text x="19" y="129" font-size="5" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Pledge no 4">4</text>
+<text x="27" y="129.2" font-size="5" fill="#1e3a8a" font-weight="600" text-anchor="start"  data-layer-name="Pledge 4">নারী ও বয়স্কদের সুরক্ষা ভাতা</text>
+<rect x="10" y="138" width="128" height="13" rx="3" fill="#eff6ff"  data-layer-name="Pledge row 5"/>
+<circle cx="19" cy="144.5" r="4.5" fill="#f59e0b"  data-layer-name="Pledge badge 5"/>
+<text x="19" y="146" font-size="5" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Pledge no 5">5</text>
+<text x="27" y="146.2" font-size="5" fill="#1e3a8a" font-weight="600" text-anchor="start"  data-layer-name="Pledge 5">দুর্নীতি ও সন্ত্রাসমুক্ত এলাকা</text>
+<rect x="10" y="155" width="128" height="13" rx="3" fill="#eff6ff"  data-layer-name="Pledge row 6"/>
+<circle cx="19" cy="161.5" r="4.5" fill="#f59e0b"  data-layer-name="Pledge badge 6"/>
+<text x="19" y="163" font-size="5" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Pledge no 6">6</text>
+<text x="27" y="163.2" font-size="5" fill="#1e3a8a" font-weight="600" text-anchor="start"  data-layer-name="Pledge 6">সবার জন্য সমান সেবা ও স্বচ্ছতা</text>
+<rect x="0" y="178" width="148" height="32" rx="0" fill="#1e3a8a"  data-layer-name="Footer"/>
+<circle cx="24" cy="194" r="11" fill="#ffffff" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="24" y="195.2" font-size="4.18" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="42" y="190" font-size="5.5" fill="#fde68a" font-weight="700" text-anchor="start"  data-layer-name="Vote line">আপনার ভোট আমার প্রতীকে</text>
+<text x="42" y="199" font-size="4.6" fill="#ffffff" font-weight="600" text-anchor="start"  data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+<text x="42" y="206" font-size="4" fill="#bfdbfe" font-weight="500" text-anchor="start"  data-layer-name="Publisher">প্রচারে: ______ কমিটি</text>
+</svg>

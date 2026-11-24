@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs><pattern id="stripes" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect x="0" y="0" width="6" height="12" fill="#ffffff" fill-opacity="0.07"/></pattern></defs>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="#0a7a3c"  data-layer-name="Background"/>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="url(#stripes)"  data-layer-name="Stripe pattern"/>
+<text x="105" y="11" font-size="6.2" fill="#ffffff" font-weight="700" text-anchor="middle"  data-layer-name="Election title">ইউনিয়ন পরিষদ নির্বাচন ২০২৬</text>
+<rect x="30" y="17" width="150" height="18" rx="9" fill="#ffe600" stroke="#e4172b" stroke-width="1" data-layer-name="Post ribbon"/>
+<text x="105" y="30" font-size="11.5" fill="#e4172b" font-weight="800" text-anchor="middle"  data-layer-name="Post title">কাউন্সিলর পদপ্রার্থী</text>
+<circle cx="159" cy="96" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="157.65" cy="108.02" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="153.65" cy="119.43" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="147.22" cy="129.67" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="138.67" cy="138.22" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="128.43" cy="144.65" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="117.02" cy="148.65" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="105" cy="150" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="92.98" cy="148.65" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="81.57" cy="144.65" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="71.33" cy="138.22" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="62.78" cy="129.67" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="56.35" cy="119.43" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="52.35" cy="108.02" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="51" cy="96" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="52.35" cy="83.98" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="56.35" cy="72.57" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="62.78" cy="62.33" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="71.33" cy="53.78" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="81.57" cy="47.35" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="92.98" cy="43.35" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="105" cy="42" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="117.02" cy="43.35" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="128.43" cy="47.35" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="138.67" cy="53.78" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="147.22" cy="62.33" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="153.65" cy="72.57" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="157.65" cy="83.98" r="5.2" fill="#ffe600"  data-layer-name="Medallion scallop"/>
+<circle cx="105" cy="96" r="54" fill="#ffe600"  data-layer-name="Medallion outer"/>
+<circle cx="105" cy="96" r="50" fill="#e4172b"  data-layer-name="Medallion red"/>
+<circle cx="105" cy="96" r="47.5" fill="#ffffff"  data-layer-name="Medallion white"/>
+<circle cx="105" cy="96" r="43.5" fill="#ffffff" stroke="#e4172b" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="105" y="97.5" font-size="16.53" fill="#6b7280" font-weight="500" text-anchor="middle" id="symbol_placeholder_hint" data-layer-name="প্রতীক hint">প্রতীক</text>
+<rect x="30" y="158" width="150" height="18" rx="9" fill="#e4172b" stroke="#ffe600" stroke-width="0.9" data-layer-name="Symbol banner"/>
+<text x="105" y="171" font-size="10.2" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Symbol banner text">এই প্রতীকে ভোট দিন</text>
+<rect x="12" y="184" width="66" height="80" rx="4" fill="#ffe600"  data-layer-name="Photo frame"/>
+<rect x="14.5" y="186.5" width="61" height="75" rx="2.5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="45" y="225.5" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি</text>
+<rect x="86" y="186" width="112" height="25" rx="5" fill="#27269b" stroke="#ffe600" stroke-width="0.8" data-layer-name="Name plate"/>
+<text x="142" y="204.5" font-size="15.5" fill="#ffe600" font-weight="800" text-anchor="middle"  data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<text x="142" y="221.5" font-size="7.4" fill="#ffffff" font-weight="700" text-anchor="middle"  data-layer-name="Ward line">ওয়ার্ড নং ___ (সাধারণ আসন)</text>
+<text x="142" y="233.5" font-size="6.2" fill="#ffe600" font-weight="700" text-anchor="middle"  data-layer-name="Appeal">আপনাদের দোয়া ও সমর্থন প্রত্যাশী</text>
+<circle cx="100" cy="252" r="9.7" fill="#ffe600"  data-layer-name="Leader ring 1"/>
+<circle cx="100" cy="252" r="8.5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="leader_photo_1" data-object-type="image" data-layer-name="নেতার ছবি 1"/>
+<text x="100" y="253.5" font-size="3.2" fill="#6b7280" font-weight="500" text-anchor="middle" id="leader_photo_1_hint" data-layer-name="নেতার ছবি 1 hint">ছবি</text>
+<circle cx="124" cy="252" r="9.7" fill="#ffe600"  data-layer-name="Leader ring 2"/>
+<circle cx="124" cy="252" r="8.5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="leader_photo_2" data-object-type="image" data-layer-name="নেতার ছবি 2"/>
+<text x="124" y="253.5" font-size="3.2" fill="#6b7280" font-weight="500" text-anchor="middle" id="leader_photo_2_hint" data-layer-name="নেতার ছবি 2 hint">ছবি</text>
+<circle cx="148" cy="252" r="9.7" fill="#ffe600"  data-layer-name="Leader ring 3"/>
+<circle cx="148" cy="252" r="8.5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="leader_photo_3" data-object-type="image" data-layer-name="নেতার ছবি 3"/>
+<text x="148" y="253.5" font-size="3.2" fill="#6b7280" font-weight="500" text-anchor="middle" id="leader_photo_3_hint" data-layer-name="নেতার ছবি 3 hint">ছবি</text>
+<circle cx="180" cy="250" r="14.5" fill="#e4172b" stroke="#ffe600" stroke-width="0.8" data-layer-name="Vote badge"/>
+<text x="180" y="249" font-size="5.8" fill="#ffe600" font-weight="800" text-anchor="middle"  data-layer-name="Vote badge 1">ভোট</text>
+<text x="180" y="256" font-size="5.8" fill="#ffe600" font-weight="800" text-anchor="middle"  data-layer-name="Vote badge 2">দিন</text>
+<rect x="0" y="270" width="210" height="27" rx="0" fill="#ffe600"  data-layer-name="Contact strip"/>
+<text x="105" y="280" font-size="5" fill="#e4172b" font-weight="800" text-anchor="middle"  data-layer-name="Campaign by">প্রচারে: এলাকার সর্বস্তরের জনগণ।</text>
+<text x="105" y="289" font-size="5.6" fill="#7a0010" font-weight="700" text-anchor="middle"  data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

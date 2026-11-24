@@ -1,0 +1,19 @@
+{
+  "id": "106-green-leaf-women-member-poster",
+  "title": "Green Leaf Women Member Poster",
+  "category": "Election & Campaign",
+  "aspectRatio": "210:297",
+  "physicalWidth": 210,
+  "physicalHeight": 297,
+  "unit": "mm",
+  "physicalSizeLabel": "A4 portrait",
+  "file": "templates/106-green-leaf-women-member-poster.svg",
+  "preview": "previews/106-green-leaf-women-member-poster.svg",
+  "platform": "SebaLagbe.com",
+  "viewBox": "0 0 210 297",
+  "editableObjects": [],
+  "printSettings": {
+    "bleedMm": 3,
+    "safeMarginMm": 5
+  }
+}

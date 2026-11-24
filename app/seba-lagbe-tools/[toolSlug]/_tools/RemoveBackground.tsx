@@ -30,6 +30,9 @@ const REMOVE_BG_TEXT: Record<string, string> = {
   "Preparing...": "প্রস্তুত করা হচ্ছে…",
   "Cleaning edges...": "ধার পরিষ্কার করা হচ্ছে…",
   Cancel: "বাতিল করুন",
+  "Download Result": "রেজাল্ট ডাউনলোড করুন",
+  "Click Remove background first. The download button turns red when the result is ready.":
+    "আগে “ব্যাকগ্রাউন্ড সরান” বাটনে ক্লিক করুন। রেজাল্ট তৈরি হলে ডাউনলোড বাটন লাল হয়ে যাবে।",
   "First time only: the AI model (about 80 MB) is downloaded once and then saved in your browser.":
     "শুধু প্রথমবার: AI মডেল (প্রায় ৮০ MB) একবার ডাউনলোড হয়ে আপনার ব্রাউজারে সংরক্ষিত থাকে।",
   "Choose background photo": "ব্যাকগ্রাউন্ডের ছবি বেছে নিন",
@@ -165,13 +168,19 @@ function createLevel(w: number, h: number): ColorLevel {
 }
 
 /** Colour sums built only from fully opaque pixels. Level k has cells of 2^(k+1) px. */
-function buildSolidPyramid(data: Uint8ClampedArray, w: number, h: number) {
+function buildSolidPyramid(
+  data: Uint8ClampedArray,
+  w: number,
+  h: number,
+  include?: Uint8Array,
+) {
   const levels: ColorLevel[] = [];
   const first = createLevel((w + 1) >> 1, (h + 1) >> 1);
   for (let y = 0; y < h; y += 1) {
     for (let x = 0; x < w; x += 1) {
       const i = y * w + x;
       if (data[i * 4 + 3] !== 255) continue;
+      if (include && !include[i]) continue;
       const j = (y >> 1) * first.w + (x >> 1);
       first.weight[j] += 1;
       first.r[j] += data[i * 4];
@@ -199,6 +208,47 @@ function buildSolidPyramid(data: Uint8ClampedArray, w: number, h: number) {
   return levels;
 }
 
+/** Smooth colour of the clean subject interior around (x, y), or null. */
+function sampleInterior(
+  levels: ColorLevel[],
+  x: number,
+  y: number,
+): [number, number, number] | null {
+  const order = [2, 3, 4, 5, 1, 0];
+  for (const k of order) {
+    const level = levels[k];
+    if (!level) continue;
+    const size = 1 << (k + 1);
+    const fx = (x + 0.5) / size - 0.5;
+    const fy = (y + 0.5) / size - 0.5;
+    const x0 = Math.floor(fx);
+    const y0 = Math.floor(fy);
+    const tx = fx - x0;
+    const ty = fy - y0;
+    let sw = 0;
+    let sr = 0;
+    let sg = 0;
+    let sb = 0;
+    for (let dy = 0; dy < 2; dy += 1) {
+      for (let dx = 0; dx < 2; dx += 1) {
+        const cx = x0 + dx;
+        const cy = y0 + dy;
+        if (cx < 0 || cy < 0 || cx >= level.w || cy >= level.h) continue;
+        const j = cy * level.w + cx;
+        const n = level.weight[j];
+        if (n <= 0) continue;
+        const bw = (dx ? tx : 1 - tx) * (dy ? ty : 1 - ty);
+        sw += bw;
+        sr += (level.r[j] / n) * bw;
+        sg += (level.g[j] / n) * bw;
+        sb += (level.b[j] / n) * bw;
+      }
+    }
+    if (sw > 0) return [sr / sw, sg / sw, sb / sw];
+  }
+  return null;
+}
+
 /**
  * Cleans the colour fringe of an AI cut-out (RGBA):
  *  - green background that leaked into hair / edges is neutralised,
@@ -220,6 +270,95 @@ function cleanCutoutEdges(image: ImageData): void {
       data[k] = Math.round(
         ((a - ALPHA_CUT_LOW) * 255) / (ALPHA_CUT_HIGH - ALPHA_CUT_LOW),
       );
+  }
+
+  // 1b. Edge band. The old background colour bleeds several pixels into hair
+  //     edges. `bandDistance` = distance (px) from fully transparent space,
+  //     up to `bandMax`. The outer `rim` px are made gradually softer (step 3
+  //     repaints them with clean colour from deeper inside), and in the whole
+  //     band bright background-coloured patches are pulled back to the hair
+  //     colour (1c).
+  const rim = Math.min(7, Math.max(3, Math.round(Math.max(w, h) / 320)));
+  const bandMax = Math.min(18, Math.max(8, Math.round(Math.max(w, h) / 120)));
+  const dilate = (src: Uint8Array): Uint8Array => {
+    const horizontal = new Uint8Array(total);
+    for (let y = 0; y < h; y += 1) {
+      const row = y * w;
+      for (let x = 0; x < w; x += 1) {
+        horizontal[row + x] =
+          src[row + x] ||
+          (x > 0 && src[row + x - 1]) ||
+          (x < w - 1 && src[row + x + 1])
+            ? 1
+            : 0;
+      }
+    }
+    const out = new Uint8Array(total);
+    for (let y = 0; y < h; y += 1) {
+      for (let x = 0; x < w; x += 1) {
+        const i = y * w + x;
+        out[i] =
+          horizontal[i] ||
+          (y > 0 && horizontal[i - w]) ||
+          (y < h - 1 && horizontal[i + w])
+            ? 1
+            : 0;
+      }
+    }
+    return out;
+  };
+  const bandDistance = new Uint8Array(total); // 0 = outside the band
+  {
+    let reached: Uint8Array = new Uint8Array(total);
+    for (let i = 0; i < total; i += 1) {
+      if (data[i * 4 + 3] === 0) reached[i] = 1;
+    }
+    for (let d = 1; d <= bandMax; d += 1) {
+      const next = dilate(reached);
+      for (let i = 0; i < total; i += 1) {
+        if (next[i] && !reached[i]) bandDistance[i] = d;
+      }
+      reached = next;
+    }
+  }
+
+  // 1c. Pull bright background-coloured patches in the band back to the
+  //     colour of the clean interior (only pixels clearly brighter than their
+  //     surroundings are changed, so real light edges stay untouched).
+  {
+    const deep = new Uint8Array(total);
+    for (let i = 0; i < total; i += 1) {
+      if (data[i * 4 + 3] === 255 && bandDistance[i] === 0) deep[i] = 1;
+    }
+    const deepLevels = buildSolidPyramid(data, w, h, deep);
+    const LUM_MARGIN = 26;
+    const LUM_RAMP = 44;
+    for (let y = 0; y < h; y += 1) {
+      for (let x = 0; x < w; x += 1) {
+        const i = y * w + x;
+        if (bandDistance[i] === 0 || data[i * 4 + 3] !== 255) continue;
+        const ref = sampleInterior(deepLevels, x, y);
+        if (!ref) continue;
+        const r = data[i * 4];
+        const g = data[i * 4 + 1];
+        const b = data[i * 4 + 2];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const refLum = 0.299 * ref[0] + 0.587 * ref[1] + 0.114 * ref[2];
+        const t = Math.min(1, Math.max(0, (lum - refLum - LUM_MARGIN) / LUM_RAMP));
+        if (t <= 0) continue;
+        data[i * 4] = Math.round(r * (1 - t) + ref[0] * t);
+        data[i * 4 + 1] = Math.round(g * (1 - t) + ref[1] * t);
+        data[i * 4 + 2] = Math.round(b * (1 - t) + ref[2] * t);
+      }
+    }
+  }
+
+  // 1d. Soften the outer rim; step 3 repaints these pixels.
+  for (let i = 0; i < total; i += 1) {
+    const d = bandDistance[i];
+    if (d === 0 || d > rim) continue;
+    const k = i * 4 + 3;
+    data[k] = Math.round((data[k] * d) / (rim + 1));
   }
 
   // 2. Green despill on the edge band of the subject.
@@ -621,8 +760,10 @@ export default function RemoveBackground() {
       if (jobId !== jobIdRef.current) return;
       // Dynamic import: the library only ever loads in the browser (no SSR issues)
       const { removeBackground } = await import("@imgly/background-removal");
-      const rawBlob = await removeBackground(input, {
+      const runModel = (model?: string) =>
+        removeBackground(input, {
         ...(MODEL_PUBLIC_PATH ? { publicPath: MODEL_PUBLIC_PATH } : {}),
+        ...(model ? { model } : {}),
         output: { format: "image/png" },
         progress: (key: string, current: number, total: number) => {
           if (jobId !== jobIdRef.current) return;
@@ -651,7 +792,8 @@ export default function RemoveBackground() {
             setDownloadMb({ current: sumCurrent, total: sumTotal });
           }
         },
-      });
+        } as Parameters<typeof removeBackground>[1]);
+      const rawBlob: Blob = await runModel();
       // The user already chose a new image or reset: drop this result.
       if (jobId !== jobIdRef.current) return;
 
@@ -1119,17 +1261,26 @@ export default function RemoveBackground() {
               </>
             )}
 
-            {processedUrl && !isProcessing && (
-              <button
-                type="button"
-                onClick={handleDownload}
-                className="w-full mt-1 py-2.5 bg-[#D42020] hover:bg-[#AE1717] text-white text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm"
-              >
-                <Download size={14} />
-                <span>
-                  <T>{"Download Result"}</T>
-                </span>
-              </button>
+            {/* Download button: always visible, enabled once the cut-out is ready */}
+            <button
+              type="button"
+              onClick={handleDownload}
+              disabled={!processedUrl || isProcessing}
+              className={`w-full mt-1 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+                processedUrl && !isProcessing
+                  ? "bg-[#D42020] hover:bg-[#AE1717] text-white shadow-sm"
+                  : "bg-[#F3E9D2] text-[#6B5A40] border border-[#E3D6B8]"
+              }`}
+            >
+              <Download size={14} />
+              <span>{tx("Download Result")}</span>
+            </button>
+            {!processedUrl && !isProcessing && (
+              <p className="text-[12px] text-[#6B5A40] text-center">
+                {tx(
+                  "Click Remove background first. The download button turns red when the result is ready.",
+                )}
+              </p>
             )}
           </div>
         </div>

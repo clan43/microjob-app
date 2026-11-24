@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs><radialGradient id="bg107" cx="0.68" cy="0.28" r="0.8"><stop offset="0" stop-color="#fffde0"/><stop offset="1" stop-color="#e8f5a6"/></radialGradient><linearGradient id="grn107" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b8a3a"/><stop offset="1" stop-color="#0b5a24"/></linearGradient></defs>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="url(#bg107)" data-layer-name="Background"/>
+<circle cx="148" cy="92" r="84" fill="#b8dc4a" opacity="0.85" data-layer-name="Ring 1"/>
+<circle cx="148" cy="92" r="72" fill="#e3f08a" opacity="0.85" data-layer-name="Ring 2"/>
+<circle cx="148" cy="92" r="60" fill="#8cc63f" opacity="0.85" data-layer-name="Ring 3"/>
+<circle cx="148" cy="92" r="48" fill="#fff2a0" opacity="0.85" data-layer-name="Ring 4"/>
+<circle cx="148" cy="92" r="36" fill="#ffe14d" opacity="0.85" data-layer-name="Ring 5"/>
+<rect x="142" y="5" width="60" height="7" rx="1.5" fill="#ffffff" stroke="#16a34a" stroke-width="0.5" data-layer-name="Bismillah box"/>
+<text x="172" y="9.9" font-size="3.2" fill="#1b6f35" font-weight="600" text-anchor="middle" data-layer-name="Bismillah">বিসমিল্লাহির রাহমানির রাহিম</text>
+<text x="48" y="22" font-size="4.3" fill="#222222" font-weight="700" text-anchor="middle" data-layer-name="Pledge 1">সেবা, উন্নয়ন ও ন্যায় প্রতিষ্ঠায়</text>
+<text x="48" y="28" font-size="4.3" fill="#222222" font-weight="700" text-anchor="middle" data-layer-name="Pledge 2">নিজেকে উৎসর্গ করতে</text>
+<text x="48" y="36" font-size="7" fill="#e4172b" font-weight="800" text-anchor="middle" data-layer-name="Pledge 3">প্রতিশ্রুতিবদ্ধ</text>
+<text x="48" y="47" font-size="6" fill="#1d3fa0" font-weight="800" text-anchor="middle" data-layer-name="Ward intro">আসন্ন ০৩ নং</text>
+<text x="48" y="55.5" font-size="5.8" fill="#1d3fa0" font-weight="800" text-anchor="middle" data-layer-name="Union name">…… ইউনিয়ন পরিষদ</text>
+<path d="M8,60 L82,60 L78,78 L12,78 Z" fill="#e4172b" data-layer-name="Election ribbon"/>
+<text x="45" y="74" font-size="12" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Election text">নির্বাচনে</text>
+<circle cx="45" cy="94" r="13" fill="#ffd400" stroke="#ff7a00" stroke-width="1" data-layer-name="Sun badge"/>
+<text x="45" y="92" font-size="5.6" fill="#b3121f" font-weight="800" text-anchor="middle" data-layer-name="Ward no">৮নং</text>
+<text x="45" y="98" font-size="4.2" fill="#b3121f" font-weight="800" text-anchor="middle" data-layer-name="Ward text">ওয়ার্ডের</text>
+<path d="M8,104 L84,102 L82,134 L10,136 Z" fill="#b3121f" stroke="#ffd400" stroke-width="1.2" data-layer-name="Member ribbon"/>
+<text x="46" y="128" font-size="21" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Post title">মেম্বার</text>
+<rect x="18" y="140" width="56" height="10" rx="5" fill="#16a34a" stroke="#ffffff" stroke-width="0.8" data-layer-name="Candidate pill"/>
+<text x="46" y="147.2" font-size="6" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Candidate pill text">পদপ্রার্থী</text>
+<circle cx="40" cy="178" r="17.25" fill="#ffffff" data-layer-name="Symbol ring"/>
+<circle cx="40" cy="178" r="15" fill="#ffffff" stroke="#16a34a" stroke-width="0.5" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="40" y="179.5" font-size="5.7" fill="#6b7280" font-weight="500" text-anchor="middle" id="symbol_placeholder_hint" data-layer-name="প্রতীক বৃত্ত hint">প্রতীক</text>
+<rect x="90" y="24" width="116" height="176" rx="0" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="148.0" y="112.0" font-size="6" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি (ব্যাকগ্রাউন্ড মুছে দিন)</text>
+<rect x="0" y="200" width="210" height="97" rx="0" fill="url(#grn107)" data-layer-name="Green block"/>
+<rect x="10" y="206" width="190" height="13" rx="2" fill="#0b5a24" data-layer-name="Quote box"/>
+<text x="105" y="212" font-size="4.2" fill="#ffffff" font-weight="600" text-anchor="middle" data-layer-name="Quote 1">“সৎ, নির্ভীক, ন্যায় পরায়ণ ও</text>
+<text x="105" y="217.2" font-size="4.2" fill="#ffffff" font-weight="600" text-anchor="middle" data-layer-name="Quote 2">মেহনতি মানুষের আস্থা, সমাজ সেবক”</text>
+<text x="105" y="241" font-size="19" fill="#ffffff" font-weight="800" text-anchor="middle" stroke="#0b5a24" stroke-width="0.4" data-layer-name="Candidate name">প্রার্থীর নাম (ডাকনাম)</text>
+<text x="105" y="254" font-size="7.4" fill="#ffe14d" font-weight="700" text-anchor="middle" data-layer-name="Dua text">আপনাদের দোয়া ও সহযোগিতা কামনা করি</text>
+<rect x="0" y="264" width="210" height="7" rx="0" fill="#ffffff" data-layer-name="Colour strip bg"/>
+<rect x="8" y="265" width="60" height="5" rx="1" fill="#1d3fa0" data-layer-name="Strip blue"/>
+<rect x="70" y="265" width="60" height="5" rx="1" fill="#e4172b" data-layer-name="Strip red"/>
+<rect x="132" y="265" width="70" height="5" rx="1" fill="#ffd400" data-layer-name="Strip yellow"/>
+<text x="105" y="281" font-size="5" fill="#ffffff" font-weight="700" text-anchor="middle" data-layer-name="Campaign by">প্রচারে: ৩নং ওয়ার্ডের সর্বস্তরের জনগণ</text>
+<text x="105" y="290" font-size="5.6" fill="#ffe14d" font-weight="800" text-anchor="middle" data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

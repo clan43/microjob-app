@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<rect x="0" y="0" width="210" height="297" rx="0" fill="#fff8d6" data-layer-name="Background"/>
+<rect x="0" y="0" width="210" height="34" rx="0" fill="#c2218f" data-layer-name="Top band"/>
+<rect x="0" y="34" width="210" height="2" rx="0" fill="#ffe600" data-layer-name="Band line"/>
+<text x="105" y="15" font-size="8" fill="#fff" font-weight="800" text-anchor="middle" data-layer-name="Election title">ইউনিয়ন পরিষদ নির্বাচন ২০২৬</text>
+<text x="105" y="28" font-size="6" fill="#ffe600" font-weight="700" text-anchor="middle" data-layer-name="Ward">ওয়ার্ড নং ___</text>
+<rect x="0" y="42" width="210" height="52" rx="0" fill="#e4172b" data-layer-name="Red box"/>
+<text x="105" y="60" font-size="9" fill="#ffe600" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="0.63" stroke-linejoin="round" paint-order="stroke" data-layer-name="Post title">চেয়ারম্যান পদপ্রার্থী</text>
+<text x="105" y="83" font-size="19" fill="#fff" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="1.33" stroke-linejoin="round" paint-order="stroke" data-layer-name="Vote headline">প্রতীকে ভোট দিন</text>
+<rect x="6" y="102" width="94" height="108" rx="6" fill="#27269b" data-layer-name="Photo frame"/>
+<rect x="9" y="105" width="88" height="102" rx="4" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="53.0" y="158.0" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<rect x="108" y="102" width="96" height="108" rx="4" fill="#fff" stroke="#e4172b" stroke-width="1.6" data-layer-name="Ballot box"/>
+<circle cx="156" cy="132" r="24" fill="#ffffff" stroke="#e4172b" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="156" y="133.5" font-size="9.12" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="156" y="166" font-size="4.6" fill="#7a0010" font-weight="700" text-anchor="middle" data-layer-name="Symbol label">মার্কা: ____</text>
+<rect x="134" y="172" width="44" height="30" rx="2" fill="#ffffff" stroke="#0a7a3c" stroke-width="1" data-layer-name="Stamp box"/>
+<polyline points="144,188 153,196 169,178" fill="none" stroke="#0a7a3c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" data-layer-name="Tick mark"/>
+<rect x="0" y="216" width="210" height="28" rx="0" fill="#27269b" data-layer-name="Name block"/>
+<text x="105" y="235" font-size="17" fill="#ffe600" font-weight="800" text-anchor="middle" data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<rect x="0" y="244" width="210" height="16" rx="0" fill="#0a7a3c" data-layer-name="Appeal band"/>
+<text x="105" y="255" font-size="8" fill="#fff" font-weight="800" text-anchor="middle" data-layer-name="Appeal">আপনাদের দোয়া ও সমর্থন প্রত্যাশী</text>
+<rect x="0" y="260" width="210" height="37" rx="0" fill="#ffe600" data-layer-name="Contact strip"/>
+<text x="105" y="274" font-size="5.6" fill="#e4172b" font-weight="800" text-anchor="middle" data-layer-name="Campaign by">প্রচারে: এলাকার সর্বস্তরের জনগণ।</text>
+<text x="105" y="284" font-size="5.2" fill="#7a0010" font-weight="700" text-anchor="middle" data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

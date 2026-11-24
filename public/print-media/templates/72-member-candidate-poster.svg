@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<rect x="0" y="0" width="210" height="297" rx="0" fill="#fff7ed"  data-layer-name="Background"/>
+<circle cx="0" cy="0" r="70" fill="#fecaca"  data-layer-name="Decor circle"/>
+<circle cx="210" cy="297" r="80" fill="#fecaca"  data-layer-name="Decor circle"/>
+<rect x="8" y="8" width="194" height="281" rx="5" fill="none" stroke="#9f1239" stroke-width="0.8" data-layer-name="Frame"/>
+<text x="105" y="28" font-size="6" fill="#9f1239" font-weight="600" text-anchor="middle"  data-layer-name="Election title">ইউনিয়ন পরিষদ সাধারণ নির্বাচন</text>
+<text x="105" y="46" font-size="15" fill="#7f1d1d" font-weight="800" text-anchor="middle"  data-layer-name="Post title">মেম্বার পদপ্রার্থী</text>
+<rect x="70" y="52" width="70" height="9" rx="4.5" fill="#9f1239"  data-layer-name="Ward badge"/>
+<text x="105" y="58.5" font-size="5.5" fill="#ffffff" font-weight="700" text-anchor="middle"  data-layer-name="Ward">ওয়ার্ড নং ____</text>
+<circle cx="105" cy="108" r="44" fill="#d4a017"  data-layer-name="Photo ring"/>
+<circle cx="105" cy="108" r="41" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="105" y="109" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<text x="105" y="170" font-size="16" fill="#7f1d1d" font-weight="800" text-anchor="middle"  data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<text x="105" y="181" font-size="5" fill="#9f1239" font-weight="600" text-anchor="middle"  data-layer-name="Tagline">আপনার প্রতিবেশী, আপনার আপনজন</text>
+<text x="105" y="198" font-size="5.5" fill="#7f1d1d" font-weight="800" text-anchor="middle"  data-layer-name="Pledge title">আমি যা করবো</text>
+<circle cx="40" cy="212" r="8" fill="#9f1239"  data-layer-name="Pledge circle 1"/>
+<text x="40" y="214.5" font-size="7" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Pledge no 1">1</text>
+<text x="40" y="228" font-size="4.6" fill="#7f1d1d" font-weight="600" text-anchor="middle"  data-layer-name="Pledge 1">রাস্তা ও নালা</text>
+<circle cx="89" cy="212" r="8" fill="#9f1239"  data-layer-name="Pledge circle 2"/>
+<text x="89" y="214.5" font-size="7" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Pledge no 2">2</text>
+<text x="89" y="228" font-size="4.6" fill="#7f1d1d" font-weight="600" text-anchor="middle"  data-layer-name="Pledge 2">নিরাপদ পানি</text>
+<circle cx="138" cy="212" r="8" fill="#9f1239"  data-layer-name="Pledge circle 3"/>
+<text x="138" y="214.5" font-size="7" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Pledge no 3">3</text>
+<text x="138" y="228" font-size="4.6" fill="#7f1d1d" font-weight="600" text-anchor="middle"  data-layer-name="Pledge 3">বিদ্যুৎ ও আলো</text>
+<circle cx="187" cy="212" r="8" fill="#9f1239"  data-layer-name="Pledge circle 4"/>
+<text x="187" y="214.5" font-size="7" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Pledge no 4">4</text>
+<text x="187" y="228" font-size="4.6" fill="#7f1d1d" font-weight="600" text-anchor="middle"  data-layer-name="Pledge 4">সবার সেবা</text>
+<rect x="25" y="238" width="160" height="34" rx="5" fill="#ffffff" stroke="#9f1239" stroke-width="0.5" data-layer-name="Symbol box"/>
+<circle cx="48" cy="255" r="13" fill="#ffffff" stroke="#9f1239" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="48" y="256.2" font-size="4.94" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="70" y="251" font-size="5" fill="#7f1d1d" font-weight="700" text-anchor="start"  data-layer-name="Vote line">আপনার ভোট দিন আমার প্রতীকে</text>
+<text x="70" y="261" font-size="4.6" fill="#9f1239" font-weight="700" text-anchor="start"  data-layer-name="Symbol name">প্রতীক: ______</text>
+<text x="105" y="283" font-size="5" fill="#7f1d1d" font-weight="700" text-anchor="middle"  data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

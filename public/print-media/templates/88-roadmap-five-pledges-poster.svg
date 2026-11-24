@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<rect x="0" y="0" width="210" height="297" rx="0" fill="#fff8d6" data-layer-name="Background"/>
+<rect x="0" y="0" width="210" height="100" rx="0" fill="#27269b" data-layer-name="Top block"/>
+<path d="M0,100 Q52,86 105,100 T210,100 V108 Q158,94 105,108 T0,108 Z" fill="#e4172b" data-layer-name="Top wave"/>
+<rect x="7" y="9" width="70" height="84" rx="5" fill="#ffe600" data-layer-name="Photo frame"/>
+<rect x="10" y="12" width="64" height="78" rx="3" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="42.0" y="52.5" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<text x="84" y="22" font-size="6" fill="#ffe600" font-weight="700" text-anchor="start" data-layer-name="Election title">ইউনিয়ন পরিষদ নির্বাচন ২০২৬</text>
+<text x="84" y="32" font-size="6" fill="#ffffff" font-weight="600" text-anchor="start" data-layer-name="Post title">মেম্বার পদপ্রার্থী | ওয়ার্ড নং ___</text>
+<text x="84" y="56" font-size="18" fill="#ffffff" font-weight="800" text-anchor="start" data-layer-name="Headline">আমার ৫ অঙ্গীকার</text>
+<text x="84" y="68" font-size="8.2" fill="#ffe600" font-weight="700" text-anchor="start" data-layer-name="Subheadline">উন্নয়নের রোডম্যাপ</text>
+<rect x="84" y="76" width="118" height="15" rx="7.5" fill="#e4172b" data-layer-name="Name pill"/>
+<text x="143" y="86.6" font-size="9.5" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<line x1="30" y1="122" x2="30" y2="228" stroke="#c2218f" stroke-width="1.6" stroke-dasharray="2.5 1.5" data-layer-name="Timeline"/>
+<rect x="44" y="112" width="158" height="20" rx="3" fill="#ffffff" stroke="#e4172b" stroke-width="0.8" data-layer-name="Card 1"/>
+<rect x="44" y="112" width="4" height="20" rx="1.5" fill="#e4172b" data-layer-name="Card stripe 1"/>
+<circle cx="30" cy="122" r="8" fill="#e4172b" data-layer-name="Node 1"/>
+<text x="30" y="124.6" font-size="7.4" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Node number 1">১</text>
+<text x="54" y="124.3" font-size="7" fill="#27269b" font-weight="700" text-anchor="start" data-layer-name="Pledge 1">নিরাপদ সুপেয় পানি ও স্যানিটেশন</text>
+<rect x="44" y="138" width="158" height="20" rx="3" fill="#ffffff" stroke="#c2218f" stroke-width="0.8" data-layer-name="Card 2"/>
+<rect x="44" y="138" width="4" height="20" rx="1.5" fill="#c2218f" data-layer-name="Card stripe 2"/>
+<circle cx="30" cy="148" r="8" fill="#c2218f" data-layer-name="Node 2"/>
+<text x="30" y="150.6" font-size="7.4" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Node number 2">২</text>
+<text x="54" y="150.3" font-size="7" fill="#27269b" font-weight="700" text-anchor="start" data-layer-name="Pledge 2">পাকা রাস্তা ও যোগাযোগ উন্নয়ন</text>
+<rect x="44" y="164" width="158" height="20" rx="3" fill="#ffffff" stroke="#0a7a3c" stroke-width="0.8" data-layer-name="Card 3"/>
+<rect x="44" y="164" width="4" height="20" rx="1.5" fill="#0a7a3c" data-layer-name="Card stripe 3"/>
+<circle cx="30" cy="174" r="8" fill="#0a7a3c" data-layer-name="Node 3"/>
+<text x="30" y="176.6" font-size="7.4" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Node number 3">৩</text>
+<text x="54" y="176.3" font-size="7" fill="#27269b" font-weight="700" text-anchor="start" data-layer-name="Pledge 3">শিক্ষা ও স্বাস্থ্যসেবা নিশ্চিতকরণ</text>
+<rect x="44" y="190" width="158" height="20" rx="3" fill="#ffffff" stroke="#27269b" stroke-width="0.8" data-layer-name="Card 4"/>
+<rect x="44" y="190" width="4" height="20" rx="1.5" fill="#27269b" data-layer-name="Card stripe 4"/>
+<circle cx="30" cy="200" r="8" fill="#27269b" data-layer-name="Node 4"/>
+<text x="30" y="202.6" font-size="7.4" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Node number 4">৪</text>
+<text x="54" y="202.3" font-size="7" fill="#27269b" font-weight="700" text-anchor="start" data-layer-name="Pledge 4">দুর্নীতি ও মাদকমুক্ত এলাকা</text>
+<rect x="44" y="216" width="158" height="20" rx="3" fill="#ffffff" stroke="#ffe600" stroke-width="0.8" data-layer-name="Card 5"/>
+<rect x="44" y="216" width="4" height="20" rx="1.5" fill="#ffe600" data-layer-name="Card stripe 5"/>
+<circle cx="30" cy="226" r="8" fill="#ffe600" stroke="#7a0010" stroke-width="0.5" data-layer-name="Node 5"/>
+<text x="30" y="228.6" font-size="7.4" fill="#7a0010" font-weight="800" text-anchor="middle" data-layer-name="Node number 5">৫</text>
+<text x="54" y="228.3" font-size="7" fill="#27269b" font-weight="700" text-anchor="start" data-layer-name="Pledge 5">সবার জন্য সমান সুযোগ ও সেবা</text>
+<rect x="0" y="244" width="210" height="53" rx="0" fill="#0a7a3c" data-layer-name="Bottom block"/>
+<rect x="0" y="244" width="210" height="2" rx="0" fill="#ffe600" data-layer-name="Bottom line"/>
+<circle cx="30" cy="271" r="19" fill="#ffe600" data-layer-name="Symbol ring"/>
+<circle cx="30" cy="271" r="17" fill="#ffffff" stroke="#e4172b" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="30" y="272.5" font-size="6.46" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="58" y="263" font-size="8" fill="#ffffff" font-weight="800" text-anchor="start" data-layer-name="Appeal">আপনাদের দোয়া ও সমর্থন প্রত্যাশী</text>
+<text x="58" y="275" font-size="6" fill="#ffe600" font-weight="700" text-anchor="start" data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+<text x="58" y="285" font-size="5" fill="#ffffff" font-weight="600" text-anchor="start" data-layer-name="Campaign by">প্রচারে: এলাকার সর্বস্তরের জনগণ।</text>
+</svg>

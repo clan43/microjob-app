@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs><pattern id="dots109" width="6" height="6" patternUnits="userSpaceOnUse"><circle cx="3" cy="3" r="0.6" fill="#e9c98a"/></pattern></defs>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="#fff6e3" data-layer-name="Background"/>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="url(#dots109)" data-layer-name="Dot pattern"/>
+<path d="M0,0 L210,0 L210,22 Q105,40 0,22 Z" fill="#c62828" data-layer-name="Top wave"/>
+<text x="105" y="13" font-size="4.6" fill="#ffffff" font-weight="600" text-anchor="middle" data-layer-name="Bismillah">বিসমিল্লাহির রাহমানির রাহিম</text>
+<text x="105" y="48" font-size="8.6" fill="#c62828" font-weight="800" text-anchor="middle" data-layer-name="Slogan">আপনার ভোট, আপনার অধিকার</text>
+<text x="105" y="56.5" font-size="4.8" fill="#333333" font-weight="700" text-anchor="middle" data-layer-name="Union name">আসন্ন …… ইউনিয়ন পরিষদ নির্বাচনে</text>
+<circle cx="105" cy="126" r="56" fill="none" stroke="#c62828" stroke-width="0.7" stroke-dasharray="1.2 2" data-layer-name="Orbit ring"/>
+<circle cx="161.0" cy="126.0" r="2.1" fill="#c62828" data-layer-name="Orbit dot 1"/>
+<circle cx="156.74" cy="147.43" r="2.1" fill="#f6a800" data-layer-name="Orbit dot 2"/>
+<circle cx="144.6" cy="165.6" r="2.1" fill="#c62828" data-layer-name="Orbit dot 3"/>
+<circle cx="126.43" cy="177.74" r="2.1" fill="#f6a800" data-layer-name="Orbit dot 4"/>
+<circle cx="105.0" cy="182.0" r="2.1" fill="#c62828" data-layer-name="Orbit dot 5"/>
+<circle cx="83.57" cy="177.74" r="2.1" fill="#f6a800" data-layer-name="Orbit dot 6"/>
+<circle cx="65.4" cy="165.6" r="2.1" fill="#c62828" data-layer-name="Orbit dot 7"/>
+<circle cx="53.26" cy="147.43" r="2.1" fill="#f6a800" data-layer-name="Orbit dot 8"/>
+<circle cx="49.0" cy="126.0" r="2.1" fill="#c62828" data-layer-name="Orbit dot 9"/>
+<circle cx="53.26" cy="104.57" r="2.1" fill="#f6a800" data-layer-name="Orbit dot 10"/>
+<circle cx="65.4" cy="86.4" r="2.1" fill="#c62828" data-layer-name="Orbit dot 11"/>
+<circle cx="83.57" cy="74.26" r="2.1" fill="#f6a800" data-layer-name="Orbit dot 12"/>
+<circle cx="105.0" cy="70.0" r="2.1" fill="#c62828" data-layer-name="Orbit dot 13"/>
+<circle cx="126.43" cy="74.26" r="2.1" fill="#f6a800" data-layer-name="Orbit dot 14"/>
+<circle cx="144.6" cy="86.4" r="2.1" fill="#c62828" data-layer-name="Orbit dot 15"/>
+<circle cx="156.74" cy="104.57" r="2.1" fill="#f6a800" data-layer-name="Orbit dot 16"/>
+<circle cx="105" cy="126" r="49" fill="#f6a800" data-layer-name="Photo ring outer"/>
+<circle cx="105" cy="126" r="46.5" fill="#ffffff" data-layer-name="Photo ring inner"/>
+<circle cx="105" cy="126" r="44" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="105" y="127.5" font-size="7" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি</text>
+<rect x="70" y="178" width="70" height="11" rx="5.5" fill="#c62828" stroke="#ffffff" stroke-width="0.8" data-layer-name="Ward pill"/>
+<text x="105" y="185.6" font-size="6" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Ward pill text">___ নং ওয়ার্ড</text>
+<circle cx="27" cy="160" r="19" fill="#ffffff" data-layer-name="Dua ring"/>
+<circle cx="27" cy="160" r="17.8" fill="#f6a800" stroke="#c62828" stroke-width="1.2" data-layer-name="Dua badge"/>
+<text x="27" y="154.5" font-size="4.6" fill="#6b1a00" font-weight="700" text-anchor="middle" data-layer-name="Dua 1">আপনাদের</text>
+<text x="27" y="162" font-size="6.6" fill="#c62828" font-weight="800" text-anchor="middle" data-layer-name="Dua 2">দোয়া ও</text>
+<text x="27" y="169" font-size="4.4" fill="#6b1a00" font-weight="700" text-anchor="middle" data-layer-name="Dua 3">সমর্থন চাই</text>
+<circle cx="183" cy="160" r="19.549999999999997" fill="#c62828" data-layer-name="Symbol ring"/>
+<circle cx="183" cy="160" r="17" fill="#ffffff" stroke="#c62828" stroke-width="0.5" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="183" y="161.5" font-size="6.46" fill="#6b7280" font-weight="500" text-anchor="middle" id="symbol_placeholder_hint" data-layer-name="প্রতীক বৃত্ত hint">প্রতীক</text>
+<text x="105" y="203" font-size="16" fill="#c62828" font-weight="800" text-anchor="middle" data-layer-name="Post title">কাউন্সিলর</text>
+<text x="105" y="213" font-size="6.4" fill="#333333" font-weight="700" text-anchor="middle" data-layer-name="Post sub title">পদপ্রার্থী</text>
+<path d="M0,232 Q105,216 210,232 L210,297 L0,297 Z" fill="#f6a800" data-layer-name="Wave gold"/>
+<path d="M0,238 Q105,222 210,238 L210,297 L0,297 Z" fill="#c62828" data-layer-name="Wave red"/>
+<text x="105" y="257" font-size="19" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<text x="105" y="265" font-size="4.6" fill="#ffe9b0" font-weight="600" text-anchor="middle" data-layer-name="Candidate info">পেশা, গ্রাম, ইউনিয়ন, উপজেলা, জেলা।</text>
+<rect x="30" y="268.5" width="150" height="10" rx="5.5" fill="#fff6e3" data-layer-name="Dua strip"/>
+<text x="105" y="275.3" font-size="5.4" fill="#c62828" font-weight="800" text-anchor="middle" data-layer-name="Dua line">আপনাদের সকলের দোয়া ও সমর্থন প্রত্যাশী</text>
+<text x="105" y="285" font-size="4.4" fill="#ffffff" font-weight="700" text-anchor="middle" data-layer-name="Campaign by">প্রচারে: এলাকার সর্বস্তরের জনগণ</text>
+<text x="105" y="291.5" font-size="4.6" fill="#ffe9b0" font-weight="800" text-anchor="middle" data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

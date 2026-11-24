@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<rect x="0" y="0" width="210" height="297" rx="0" fill="#fff8d6" data-layer-name="Background"/>
+<circle cx="105" cy="-20" r="120" fill="#c2218f" data-layer-name="Top circle"/>
+<circle cx="105" cy="-20" r="124" fill="none" stroke="#ffe600" stroke-width="1.2" data-layer-name="Top circle ring"/>
+<text x="105" y="14" font-size="6.4" fill="#ffffff" font-weight="700" text-anchor="middle" data-layer-name="Election title">ইউনিয়ন পরিষদ নির্বাচন ২০২৬</text>
+<text x="105" y="33" font-size="15" fill="#ffe600" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="1.05" stroke-linejoin="round" paint-order="stroke" data-layer-name="Headline">সংরক্ষিত মহিলা আসন</text>
+<circle cx="105.0" cy="61.0" r="11" fill="#ffe600" stroke="#7a0010" stroke-width="0.4" data-layer-name="Petal 1"/>
+<circle cx="133.5" cy="68.64" r="11" fill="#e4172b" data-layer-name="Petal 2"/>
+<circle cx="154.36" cy="89.5" r="11" fill="#ffe600" stroke="#7a0010" stroke-width="0.4" data-layer-name="Petal 3"/>
+<circle cx="162.0" cy="118.0" r="11" fill="#e4172b" data-layer-name="Petal 4"/>
+<circle cx="154.36" cy="146.5" r="11" fill="#ffe600" stroke="#7a0010" stroke-width="0.4" data-layer-name="Petal 5"/>
+<circle cx="133.5" cy="167.36" r="11" fill="#e4172b" data-layer-name="Petal 6"/>
+<circle cx="105.0" cy="175.0" r="11" fill="#ffe600" stroke="#7a0010" stroke-width="0.4" data-layer-name="Petal 7"/>
+<circle cx="76.5" cy="167.36" r="11" fill="#e4172b" data-layer-name="Petal 8"/>
+<circle cx="55.64" cy="146.5" r="11" fill="#ffe600" stroke="#7a0010" stroke-width="0.4" data-layer-name="Petal 9"/>
+<circle cx="48.0" cy="118.0" r="11" fill="#e4172b" data-layer-name="Petal 10"/>
+<circle cx="55.64" cy="89.5" r="11" fill="#ffe600" stroke="#7a0010" stroke-width="0.4" data-layer-name="Petal 11"/>
+<circle cx="76.5" cy="68.64" r="11" fill="#e4172b" data-layer-name="Petal 12"/>
+<circle cx="105" cy="118" r="52" fill="#ffffff" data-layer-name="White ring"/>
+<circle cx="105" cy="118" r="49" fill="#0a7a3c" data-layer-name="Green ring"/>
+<circle cx="105" cy="118" r="46" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="105" y="119.5" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<circle cx="22" cy="148" r="14.4" fill="#e4172b" data-layer-name="Leader ring 1"/>
+<circle cx="22" cy="148" r="13" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_1" data-object-type="image" data-layer-name="নেতার ছবি 1"/>
+<text x="22" y="149" font-size="3.9" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="Leader hint 1">ছবি</text>
+<circle cx="188" cy="148" r="14.4" fill="#e4172b" data-layer-name="Leader ring 2"/>
+<circle cx="188" cy="148" r="13" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_2" data-object-type="image" data-layer-name="নেতার ছবি 2"/>
+<text x="188" y="149" font-size="3.9" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="Leader hint 2">ছবি</text>
+<text x="105" y="200" font-size="9" fill="#c2218f" font-weight="800" text-anchor="middle" data-layer-name="Slogan">নারীর ক্ষমতায়ন, উন্নত সমাজ</text>
+<rect x="18" y="208" width="174" height="26" rx="13" fill="#27269b" data-layer-name="Name pill"/>
+<text x="105" y="226" font-size="15.5" fill="#ffe600" font-weight="800" text-anchor="middle" data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<text x="105" y="244" font-size="6.4" fill="#e4172b" font-weight="700" text-anchor="middle" data-layer-name="Post title">মহিলা সদস্য পদপ্রার্থী | ওয়ার্ড নং ___</text>
+<rect x="0" y="250" width="210" height="47" rx="0" fill="#0a7a3c" data-layer-name="Bottom block"/>
+<rect x="0" y="250" width="210" height="2" rx="0" fill="#ffe600" data-layer-name="Bottom line"/>
+<text x="92" y="266" font-size="7.2" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Appeal">আপনাদের দোয়া ও সমর্থন প্রত্যাশী</text>
+<text x="92" y="277" font-size="6" fill="#ffe600" font-weight="700" text-anchor="middle" data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+<text x="92" y="287" font-size="5" fill="#ffffff" font-weight="600" text-anchor="middle" data-layer-name="Campaign by">প্রচারে: এলাকার সর্বস্তরের জনগণ।</text>
+<circle cx="180" cy="273" r="18" fill="#ffe600" data-layer-name="Symbol ring"/>
+<circle cx="180" cy="273" r="16" fill="#ffffff" stroke="#e4172b" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="180" y="274.5" font-size="6.08" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="প্রতীক hint">প্রতীক</text>
+</svg>

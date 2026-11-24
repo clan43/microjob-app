@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs><linearGradient id="bg104" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d81b7a"/><stop offset="1" stop-color="#6a0f4a"/></linearGradient></defs>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="url(#bg104)" data-layer-name="Background"/>
+<circle cx="20" cy="90" r="22" fill="#ffffff" data-layer-name="Bubble 1" opacity="0.08"/>
+<circle cx="190" cy="60" r="26" fill="#ffffff" data-layer-name="Bubble 2" opacity="0.08"/>
+<circle cx="15" cy="190" r="18" fill="#ffffff" data-layer-name="Bubble 3" opacity="0.08"/>
+<circle cx="196" cy="170" r="20" fill="#ffffff" data-layer-name="Bubble 4" opacity="0.08"/>
+<rect x="68" y="6" width="74" height="7" rx="3.5" fill="#ffd400" data-layer-name="Bismillah pill"/>
+<text x="105" y="10.8" font-size="3.7" fill="#7a0f4a" font-weight="600" text-anchor="middle" data-layer-name="Bismillah">বিসমিল্লাহির রাহমানির রাহিম</text>
+<text x="105" y="24" font-size="5.4" fill="#ffffff" font-weight="700" text-anchor="middle" data-layer-name="Greeting 1">সুধী,</text>
+<text x="105" y="31.5" font-size="4.6" fill="#ffffff" font-weight="600" text-anchor="middle" data-layer-name="Greeting 2">আসসালামু আলাইকুম/আদাব</text>
+<text x="105" y="40.5" font-size="6.2" fill="#ffd400" font-weight="800" text-anchor="middle" data-layer-name="Union name">…… ইউনিয়ন পরিষদ</text>
+<circle cx="71.0" cy="53.0" r="8.0" fill="#ffd400" stroke="#ffffff" stroke-width="0.7" data-layer-name="Tile 1"/>
+<text x="71.0" y="56.84" font-size="10.56" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Tile text 1">নি</text>
+<circle cx="90.0" cy="53.0" r="8.0" fill="#16a34a" stroke="#ffffff" stroke-width="0.7" data-layer-name="Tile 2"/>
+<text x="90.0" y="56.84" font-size="10.56" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Tile text 2">র্বা</text>
+<circle cx="109.0" cy="53.0" r="8.0" fill="#1e88e5" stroke="#ffffff" stroke-width="0.7" data-layer-name="Tile 3"/>
+<text x="109.0" y="56.84" font-size="10.56" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Tile text 3">চ</text>
+<circle cx="128.0" cy="53.0" r="8.0" fill="#ff7a00" stroke="#ffffff" stroke-width="0.7" data-layer-name="Tile 4"/>
+<text x="128.0" y="56.84" font-size="10.56" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Tile text 4">নে</text>
+<rect x="30" y="68" width="150" height="13" rx="6.5" fill="#ffd400" stroke="#ffffff" stroke-width="0.8" data-layer-name="Post ribbon"/>
+<text x="105" y="77.4" font-size="7.6" fill="#7a0f4a" font-weight="800" text-anchor="middle" data-layer-name="Post title">সংরক্ষিত মহিলা আসনে</text>
+<circle cx="105" cy="128" r="45" fill="#ffd400" data-layer-name="Photo ring"/>
+<circle cx="105" cy="128" r="41.5" fill="#ffffff" data-layer-name="Photo ring inner"/>
+<circle cx="105" cy="128" r="39" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="105" y="129.5" font-size="6" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর বড় ছবি</text>
+<rect x="75" y="176" width="60" height="9" rx="4.5" fill="#27269b" stroke="#ffd400" stroke-width="0.8" data-layer-name="Ward pill"/>
+<text x="105" y="182.5" font-size="6" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Ward pill text">___ নং ওয়ার্ডে</text>
+<circle cx="30" cy="150" r="18.19" fill="#ffffff" data-layer-name="Dua ring outer"/>
+<circle cx="30" cy="150" r="17" fill="#ffc107" stroke="#e4172b" stroke-width="1.2" data-layer-name="Dua badge"/>
+<text x="30" y="144.9" font-size="4.59" fill="#b3121f" font-weight="700" text-anchor="middle" data-layer-name="Dua 1">আপনাদের</text>
+<text x="30" y="152.04" font-size="6.46" fill="#e4172b" font-weight="800" text-anchor="middle" data-layer-name="Dua 2">দোয়া ও</text>
+<text x="30" y="158.84" font-size="3.91" fill="#b3121f" font-weight="700" text-anchor="middle" data-layer-name="Dua 3">সমর্থন প্রার্থী</text>
+<circle cx="180" cy="150" r="16.674999999999997" fill="#ffffff" data-layer-name="Symbol ring"/>
+<circle cx="180" cy="150" r="14.5" fill="#ffffff" stroke="#d81b7a" stroke-width="0.5" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="180" y="151.5" font-size="5.51" fill="#6b7280" font-weight="500" text-anchor="middle" id="symbol_placeholder_hint" data-layer-name="প্রতীক বৃত্ত hint">প্রতীক</text>
+<circle cx="22" cy="206" r="10.9" fill="#ffd400" data-layer-name="Leader ring 1"/>
+<circle cx="22" cy="206" r="9.5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="leader_photo_1" data-object-type="image" data-layer-name="নেতার ছবি 1"/>
+<text x="22" y="207.5" font-size="3.2" fill="#6b7280" font-weight="500" text-anchor="middle" id="leader_photo_1_hint" data-layer-name="নেতার ছবি 1 hint">ছবি</text>
+<circle cx="188" cy="206" r="10.9" fill="#ffd400" data-layer-name="Leader ring 2"/>
+<circle cx="188" cy="206" r="9.5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="leader_photo_2" data-object-type="image" data-layer-name="নেতার ছবি 2"/>
+<text x="188" y="207.5" font-size="3.2" fill="#6b7280" font-weight="500" text-anchor="middle" id="leader_photo_2_hint" data-layer-name="নেতার ছবি 2 hint">ছবি</text>
+<path d="M0,226 Q105,212 210,226 L210,254 L0,254 Z" fill="#ffd400" data-layer-name="Banner stripe"/>
+<path d="M0,232 Q105,218 210,232 L210,254 L0,254 Z" fill="#27269b" data-layer-name="Name banner"/>
+<text x="105" y="246" font-size="21" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<rect x="0" y="256" width="210" height="12" rx="0" fill="#ffd400" data-layer-name="Sub strip"/>
+<text x="105" y="264.6" font-size="5.6" fill="#7a0f4a" font-weight="700" text-anchor="middle" data-layer-name="Candidate info">পেশা, গ্রাম, ইউনিয়ন, উপজেলা, জেলা।</text>
+<rect x="0" y="268" width="210" height="29" rx="0" fill="#ffd400" data-layer-name="Contact strip"/>
+<text x="105" y="279" font-size="5" fill="#ffffff" font-weight="700" text-anchor="middle" data-layer-name="Campaign by">প্রচারে: এলাকার সর্বস্তরের জনগণ।</text>
+<text x="105" y="288" font-size="6" fill="#ffd400" font-weight="800" text-anchor="middle" data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

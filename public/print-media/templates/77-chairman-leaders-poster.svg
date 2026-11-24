@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dbeafe"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="url(#bg)"  data-layer-name="Background"/>
+<rect x="0" y="0" width="210" height="44" rx="0" fill="#1e3a8a"  data-layer-name="Header"/>
+<rect x="0" y="44" width="210" height="2.5" rx="0" fill="#facc15"  data-layer-name="Header line"/>
+<circle cx="18" cy="22" r="11.2" fill="#facc15"  data-layer-name="Leader ring 1"/>
+<circle cx="18" cy="22" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_1" data-object-type="image" data-layer-name="নেতার ছবি 1"/>
+<text x="18" y="23" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 1">ছবি</text>
+<circle cx="40" cy="22" r="11.2" fill="#facc15"  data-layer-name="Leader ring 2"/>
+<circle cx="40" cy="22" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_2" data-object-type="image" data-layer-name="নেতার ছবি 2"/>
+<text x="40" y="23" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 2">ছবি</text>
+<circle cx="62" cy="22" r="11.2" fill="#facc15"  data-layer-name="Leader ring 3"/>
+<circle cx="62" cy="22" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_3" data-object-type="image" data-layer-name="নেতার ছবি 3"/>
+<text x="62" y="23" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 3">ছবি</text>
+<circle cx="148" cy="22" r="11.2" fill="#facc15"  data-layer-name="Leader ring 4"/>
+<circle cx="148" cy="22" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_4" data-object-type="image" data-layer-name="নেতার ছবি 4"/>
+<text x="148" y="23" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 4">ছবি</text>
+<circle cx="170" cy="22" r="11.2" fill="#facc15"  data-layer-name="Leader ring 5"/>
+<circle cx="170" cy="22" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_5" data-object-type="image" data-layer-name="নেতার ছবি 5"/>
+<text x="170" y="23" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 5">ছবি</text>
+<circle cx="192" cy="22" r="11.2" fill="#facc15"  data-layer-name="Leader ring 6"/>
+<circle cx="192" cy="22" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_6" data-object-type="image" data-layer-name="নেতার ছবি 6"/>
+<text x="192" y="23" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 6">ছবি</text>
+<text x="105" y="18" font-size="5" fill="#fde68a" font-weight="700" text-anchor="middle"  data-layer-name="Election title">ইউনিয়ন পরিষদ নির্বাচন ২০২৬</text>
+<text x="105" y="30" font-size="7" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Slogan">আপনার স্লোগান এখানে</text>
+<rect x="8" y="58" width="96" height="144" rx="6" fill="#1e3a8a"  data-layer-name="Photo frame"/>
+<rect x="10" y="60" width="92" height="140" rx="5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="56.0" y="130.0" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<polygon points="112,62 200,62 200,100 156,110 112,100" fill="#1e3a8a" data-layer-name="Post shield"/>
+<text x="156" y="89" font-size="13" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Post title">চেয়ারম্যান</text>
+<rect x="112" y="112" width="88" height="11" rx="5.5" fill="#dc2626"  data-layer-name="Sub pill"/>
+<text x="156" y="120" font-size="5.6" fill="#ffffff" font-weight="700" text-anchor="middle"  data-layer-name="Sub title">পদপ্রার্থী হিসেবে</text>
+<text x="156" y="140" font-size="6.2" fill="#1e3a8a" font-weight="800" text-anchor="middle"  data-layer-name="Appeal 1">আপনাদের সকলের</text>
+<text x="156" y="152" font-size="7.5" fill="#dc2626" font-weight="800" text-anchor="middle"  data-layer-name="Appeal 2">দোয়া ও সহযোগিতা</text>
+<text x="156" y="163" font-size="7.5" fill="#dc2626" font-weight="800" text-anchor="middle"  data-layer-name="Appeal 3">প্রত্যাশী</text>
+<circle cx="156" cy="190" r="17" fill="#ffffff" stroke="#1e3a8a" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="156" y="191.2" font-size="6.46" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="156" y="214" font-size="4.6" fill="#1e3a8a" font-weight="700" text-anchor="middle"  data-layer-name="Symbol label">প্রতীক: ______</text>
+<rect x="0" y="216" width="210" height="81" rx="0" fill="#1e3a8a"  data-layer-name="Bottom block"/>
+<rect x="0" y="216" width="210" height="2.5" rx="0" fill="#facc15"  data-layer-name="Bottom line"/>
+<text x="105" y="242" font-size="16" fill="#fde047" font-weight="800" text-anchor="middle"  data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<text x="105" y="253" font-size="5.5" fill="#ffffff" font-weight="600" text-anchor="middle"  data-layer-name="Designation">সভাপতি/সম্পাদক, ইউনিয়ন কমিটি</text>
+<text x="105" y="270" font-size="5" fill="#bfdbfe" font-weight="500" text-anchor="middle"  data-layer-name="Info line">পিতা: ______ | গ্রাম: ______ | ইউনিয়ন: ______</text>
+<text x="105" y="284" font-size="5.3" fill="#ffffff" font-weight="700" text-anchor="middle"  data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

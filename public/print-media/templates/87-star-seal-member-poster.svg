@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs><pattern id="dots" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse"><circle cx="4" cy="4" r="1" fill="#ffffff" fill-opacity="0.18"/></pattern></defs>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="#c2218f" data-layer-name="Background"/>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="url(#dots)" data-layer-name="Dot pattern"/>
+<text x="105" y="10" font-size="6.2" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Election title">ইউনিয়ন পরিষদ নির্বাচন ২০২৬</text>
+<polygon points="105.0,18.0 109.05,23.27 114.32,19.23 116.86,25.36 123.0,22.82 123.87,29.41 130.46,28.54 129.59,35.13 136.18,36.0 133.64,42.14 139.77,44.68 135.73,49.95 141.0,54.0 135.73,58.05 139.77,63.32 133.64,65.86 136.18,72.0 129.59,72.87 130.46,79.46 123.87,78.59 123.0,85.18 116.86,82.64 114.32,88.77 109.05,84.73 105.0,90.0 100.95,84.73 95.68,88.77 93.14,82.64 87.0,85.18 86.13,78.59 79.54,79.46 80.41,72.87 73.82,72.0 76.36,65.86 70.23,63.32 74.27,58.05 69.0,54.0 74.27,49.95 70.23,44.68 76.36,42.14 73.82,36.0 80.41,35.13 79.54,28.54 86.13,29.41 87.0,22.82 93.14,25.36 95.68,19.23 100.95,23.27" fill="#ffe600" data-layer-name="Seal star"/>
+<circle cx="105" cy="54" r="27" fill="#e4172b" data-layer-name="Seal disc"/>
+<circle cx="105" cy="54" r="25" fill="none" stroke="#ffe600" stroke-width="0.6" stroke-dasharray="1.6 1.2" data-layer-name="Seal ring"/>
+<text x="105" y="45" font-size="6.6" fill="#ffffff" font-weight="700" text-anchor="middle" data-layer-name="Ward label">ওয়ার্ড</text>
+<text x="105" y="64" font-size="15" fill="#ffe600" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="1.05" stroke-linejoin="round" paint-order="stroke" data-layer-name="Ward number">নং ___</text>
+<polygon points="12,100 32,100 32,117 12,117 18,108.5" fill="#27269b" data-layer-name="Ribbon tail left"/>
+<polygon points="198,100 178,100 178,117 198,117 192,108.5" fill="#27269b" data-layer-name="Ribbon tail right"/>
+<rect x="28" y="96" width="154" height="18" rx="1.5" fill="#27269b" data-layer-name="Ribbon"/>
+<rect x="28" y="96" width="154" height="2" rx="0" fill="#ffe600" data-layer-name="Ribbon top line"/>
+<rect x="28" y="112" width="154" height="2" rx="0" fill="#ffe600" data-layer-name="Ribbon bottom line"/>
+<text x="105" y="109.5" font-size="10" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Post title">মেম্বার পদপ্রার্থী</text>
+<circle cx="105" cy="172" r="56" fill="#0a7a3c" data-layer-name="Outer ring"/>
+<circle cx="105" cy="172" r="53" fill="#ffffff" data-layer-name="White ring"/>
+<circle cx="105" cy="172" r="50" fill="#ffe600" data-layer-name="Yellow ring"/>
+<circle cx="105" cy="172" r="46" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="105" y="173.5" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<circle cx="27" cy="150" r="14.4" fill="#ffe600" data-layer-name="Leader ring 1"/>
+<circle cx="27" cy="150" r="13" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_1" data-object-type="image" data-layer-name="নেতার ছবি 1"/>
+<text x="27" y="151" font-size="3.9" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="Leader hint 1">ছবি</text>
+<circle cx="183" cy="150" r="14.4" fill="#ffe600" data-layer-name="Leader ring 2"/>
+<circle cx="183" cy="150" r="13" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_2" data-object-type="image" data-layer-name="নেতার ছবি 2"/>
+<text x="183" y="151" font-size="3.9" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="Leader hint 2">ছবি</text>
+<circle cx="33" cy="206" r="14" fill="#ffffff" stroke="#e4172b" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="33" y="207.5" font-size="5.32" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="33" y="228" font-size="4.4" fill="#ffe600" font-weight="700" text-anchor="middle" data-layer-name="Symbol label">মার্কা: ____</text>
+<circle cx="177" cy="206" r="15" fill="#ffe600" data-layer-name="Vote badge"/>
+<circle cx="177" cy="206" r="13" fill="none" stroke="#e4172b" stroke-width="0.6" stroke-dasharray="1.6 1.2" data-layer-name="Vote badge ring"/>
+<text x="177" y="205" font-size="6" fill="#e4172b" font-weight="800" text-anchor="middle" data-layer-name="Vote badge 1">ভোট</text>
+<text x="177" y="212" font-size="6" fill="#e4172b" font-weight="800" text-anchor="middle" data-layer-name="Vote badge 2">দিন</text>
+<polygon points="14.0,66.0 15.06,68.54 17.8,68.76 15.71,70.56 16.35,73.24 14.0,71.8 11.65,73.24 12.29,70.56 10.2,68.76 12.94,68.54" fill="#ffe600" data-layer-name="Small star"/>
+<polygon points="196.0,66.0 197.06,68.54 199.8,68.76 197.71,70.56 198.35,73.24 196.0,71.8 193.65,73.24 194.29,70.56 192.2,68.76 194.94,68.54" fill="#ffe600" data-layer-name="Small star"/>
+<polygon points="14.0,246.0 15.06,248.54 17.8,248.76 15.71,250.56 16.35,253.24 14.0,251.8 11.65,253.24 12.29,250.56 10.2,248.76 12.94,248.54" fill="#ffe600" data-layer-name="Small star"/>
+<polygon points="196.0,246.0 197.06,248.54 199.8,248.76 197.71,250.56 198.35,253.24 196.0,251.8 193.65,253.24 194.29,250.56 192.2,248.76 194.94,248.54" fill="#ffe600" data-layer-name="Small star"/>
+<polygon points="20.0,88.0 21.06,90.54 23.8,90.76 21.71,92.56 22.35,95.24 20.0,93.8 17.65,95.24 18.29,92.56 16.2,90.76 18.94,90.54" fill="#ffe600" data-layer-name="Small star"/>
+<polygon points="190.0,88.0 191.06,90.54 193.8,90.76 191.71,92.56 192.35,95.24 190.0,93.8 187.65,95.24 188.29,92.56 186.2,90.76 188.94,90.54" fill="#ffe600" data-layer-name="Small star"/>
+<rect x="0" y="233" width="210" height="26" rx="0" fill="#27269b" data-layer-name="Name block"/>
+<rect x="0" y="233" width="210" height="1.6" rx="0" fill="#ffe600" data-layer-name="Name line"/>
+<text x="105" y="252" font-size="17" fill="#ffe600" font-weight="800" text-anchor="middle" data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<rect x="0" y="259" width="210" height="14" rx="0" fill="#0a7a3c" data-layer-name="Appeal band"/>
+<text x="105" y="269" font-size="7.4" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Appeal">আপনাদের দোয়া ও সমর্থন প্রত্যাশী</text>
+<rect x="0" y="273" width="210" height="24" rx="0" fill="#ffe600" data-layer-name="Contact strip"/>
+<text x="105" y="283" font-size="5" fill="#e4172b" font-weight="800" text-anchor="middle" data-layer-name="Campaign by">প্রচারে: এলাকার সর্বস্তরের জনগণ।</text>
+<text x="105" y="291" font-size="5" fill="#7a0010" font-weight="700" text-anchor="middle" data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ccfbf1"/><stop offset="1" stop-color="#fce7f3"/></linearGradient></defs>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="url(#bg)"  data-layer-name="Background"/>
+<polygon points="0,0 210,0 210,70 0,105" fill="#0f766e" data-layer-name="Diagonal band"/>
+<polygon points="0,105 210,70 210,76 0,111" fill="#f472b6" data-layer-name="Diagonal line"/>
+<text x="105" y="12" font-size="4.5" fill="#ccfbf1" font-weight="500" text-anchor="middle"  data-layer-name="Bismillah">বিসমিল্লাহির রাহমানির রাহিম</text>
+<text x="105" y="28" font-size="6" fill="#fbcfe8" font-weight="700" text-anchor="middle"  data-layer-name="Election title">উপজেলা পরিষদ নির্বাচন ২০২৬</text>
+<text x="105" y="46" font-size="12" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Post title">ভাইস চেয়ারম্যান</text>
+<text x="105" y="58" font-size="5.2" fill="#ccfbf1" font-weight="700" text-anchor="middle"  data-layer-name="Sub title">(মহিলা) পদপ্রার্থী হিসেবে</text>
+<circle cx="20" cy="84" r="10.2" fill="#f472b6"  data-layer-name="Leader ring 1"/>
+<circle cx="20" cy="84" r="9" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_1" data-object-type="image" data-layer-name="নেতার ছবি 1"/>
+<text x="20" y="85" font-size="3.06" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 1">ছবি</text>
+<circle cx="42" cy="84" r="10.2" fill="#f472b6"  data-layer-name="Leader ring 2"/>
+<circle cx="42" cy="84" r="9" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_2" data-object-type="image" data-layer-name="নেতার ছবি 2"/>
+<text x="42" y="85" font-size="3.06" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 2">ছবি</text>
+<circle cx="64" cy="84" r="10.2" fill="#f472b6"  data-layer-name="Leader ring 3"/>
+<circle cx="64" cy="84" r="9" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_3" data-object-type="image" data-layer-name="নেতার ছবি 3"/>
+<text x="64" y="85" font-size="3.06" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 3">ছবি</text>
+<circle cx="146" cy="76" r="10.2" fill="#f472b6"  data-layer-name="Leader ring 4"/>
+<circle cx="146" cy="76" r="9" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_4" data-object-type="image" data-layer-name="নেতার ছবি 4"/>
+<text x="146" y="77" font-size="3.06" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 4">ছবি</text>
+<circle cx="168" cy="76" r="10.2" fill="#f472b6"  data-layer-name="Leader ring 5"/>
+<circle cx="168" cy="76" r="9" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_5" data-object-type="image" data-layer-name="নেতার ছবি 5"/>
+<text x="168" y="77" font-size="3.06" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 5">ছবি</text>
+<circle cx="190" cy="76" r="10.2" fill="#f472b6"  data-layer-name="Leader ring 6"/>
+<circle cx="190" cy="76" r="9" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_6" data-object-type="image" data-layer-name="নেতার ছবি 6"/>
+<text x="190" y="77" font-size="3.06" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 6">ছবি</text>
+<rect x="50" y="110" width="110" height="128" rx="6" fill="#0f766e"  data-layer-name="Photo frame"/>
+<rect x="52" y="112" width="106" height="124" rx="5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="105.0" y="174.0" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<circle cx="30" cy="196" r="15" fill="#ffffff" stroke="#0f766e" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="30" y="197.2" font-size="5.7" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="30" y="218" font-size="4.5" fill="#0f766e" font-weight="700" text-anchor="middle"  data-layer-name="Symbol label">মার্কা: ____</text>
+<text x="105" y="250" font-size="6.5" fill="#134e4a" font-weight="800" text-anchor="middle"  data-layer-name="Appeal">আপনাদের সকলের দোয়া ও সমর্থন প্রত্যাশী</text>
+<rect x="0" y="256" width="210" height="41" rx="0" fill="#0f766e"  data-layer-name="Name block"/>
+<rect x="0" y="256" width="210" height="2.5" rx="0" fill="#f472b6"  data-layer-name="Name line"/>
+<text x="105" y="274" font-size="15" fill="#fbcfe8" font-weight="800" text-anchor="middle"  data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<text x="105" y="284" font-size="5" fill="#ffffff" font-weight="600" text-anchor="middle"  data-layer-name="Designation">মহিলা বিষয়ক সম্পাদক | যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

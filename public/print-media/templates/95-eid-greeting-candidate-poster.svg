@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0b1f6b"/><stop offset="0.6" stop-color="#0a5a45"/><stop offset="1" stop-color="#0a7a3c"/></linearGradient></defs>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="url(#sky)"  data-layer-name="Background"/>
+<polygon points="20,57.4 20.64,59.12 22.47,59.2 21.04,60.34 21.53,62.1 20,61.09 18.47,62.1 18.96,60.34 17.53,59.2 19.36,59.12" fill="#ffe600"  data-layer-name="Twinkle star"/>
+<polygon points="60,28 60.49,29.32 61.9,29.38 60.8,30.26 61.18,31.62 60,30.84 58.82,31.62 59.2,30.26 58.1,29.38 59.51,29.32" fill="#ffe600"  data-layer-name="Twinkle star"/>
+<polygon points="96,64.2 96.44,65.39 97.71,65.44 96.72,66.23 97.06,67.46 96,66.76 94.94,67.46 95.28,66.23 94.29,65.44 95.56,65.39" fill="#ffe600"  data-layer-name="Twinkle star"/>
+<polygon points="130,21.6 130.59,23.18 132.28,23.26 130.96,24.31 131.41,25.94 130,25.01 128.59,25.94 129.04,24.31 127.72,23.26 129.41,23.18" fill="#ffe600"  data-layer-name="Twinkle star"/>
+<polygon points="14,98.2 14.44,99.39 15.71,99.44 14.72,100.23 15.06,101.46 14,100.76 12.94,101.46 13.28,100.23 12.29,99.44 13.56,99.39" fill="#ffe600"  data-layer-name="Twinkle star"/>
+<polygon points="196,89.8 196.54,91.25 198.09,91.32 196.88,92.29 197.29,93.78 196,92.92 194.71,93.78 195.12,92.29 193.91,91.32 195.46,91.25" fill="#ffe600"  data-layer-name="Twinkle star"/>
+<polygon points="120,50.4 120.39,51.46 121.52,51.51 120.64,52.21 120.94,53.29 120,52.67 119.06,53.29 119.36,52.21 118.48,51.51 119.61,51.46" fill="#ffe600"  data-layer-name="Twinkle star"/>
+<polygon points="84,16.4 84.39,17.46 85.52,17.51 84.64,18.21 84.94,19.29 84,18.67 83.06,19.29 83.36,18.21 82.48,17.51 83.61,17.46" fill="#ffe600"  data-layer-name="Twinkle star"/>
+<path d="M168,24 A26,26 0 1 0 168,76 A33,33 0 0 1 168,24 Z" fill="#ffe600"  data-layer-name="Crescent"/>
+<polygon points="178,43.5 179.6,47.79 184.18,47.99 180.6,50.84 181.82,55.26 178,52.73 174.18,55.26 175.4,50.84 171.82,47.99 176.4,47.79" fill="#ffe600"  data-layer-name="Crescent star"/>
+<line x1="26" y1="0" x2="26" y2="20" stroke="#ffffff" stroke-opacity="0.7" stroke-width="0.5" data-layer-name="Lantern string 1"/>
+<rect x="23" y="20" width="6" height="3" rx="1" fill="#ffe600"  data-layer-name="Lantern cap 1"/>
+<ellipse cx="26" cy="32" rx="7.5" ry="10" fill="#e4172b" stroke="#ffe600" stroke-width="0.6" data-layer-name="Lantern body 1"/>
+<ellipse cx="26" cy="32" rx="2.8" ry="10" fill="none" stroke="#ffe600" stroke-width="0.5" data-layer-name="Lantern rib 1"/>
+<rect x="23" y="42" width="6" height="3" rx="1" fill="#ffe600"  data-layer-name="Lantern base 1"/>
+<line x1="46" y1="0" x2="46" y2="34" stroke="#ffffff" stroke-opacity="0.7" stroke-width="0.5" data-layer-name="Lantern string 2"/>
+<rect x="43" y="34" width="6" height="3" rx="1" fill="#ffe600"  data-layer-name="Lantern cap 2"/>
+<ellipse cx="46" cy="46" rx="7.5" ry="10" fill="#c2218f" stroke="#ffe600" stroke-width="0.6" data-layer-name="Lantern body 2"/>
+<ellipse cx="46" cy="46" rx="2.8" ry="10" fill="none" stroke="#ffe600" stroke-width="0.5" data-layer-name="Lantern rib 2"/>
+<rect x="43" y="56" width="6" height="3" rx="1" fill="#ffe600"  data-layer-name="Lantern base 2"/>
+<line x1="66" y1="0" x2="66" y2="24" stroke="#ffffff" stroke-opacity="0.7" stroke-width="0.5" data-layer-name="Lantern string 3"/>
+<rect x="63" y="24" width="6" height="3" rx="1" fill="#ffe600"  data-layer-name="Lantern cap 3"/>
+<ellipse cx="66" cy="36" rx="7.5" ry="10" fill="#e4172b" stroke="#ffe600" stroke-width="0.6" data-layer-name="Lantern body 3"/>
+<ellipse cx="66" cy="36" rx="2.8" ry="10" fill="none" stroke="#ffe600" stroke-width="0.5" data-layer-name="Lantern rib 3"/>
+<rect x="63" y="46" width="6" height="3" rx="1" fill="#ffe600"  data-layer-name="Lantern base 3"/>
+<text x="105" y="88" font-size="8" fill="#ffffff" font-weight="700" text-anchor="middle"  data-layer-name="Greeting small">এলাকাবাসীর প্রতি</text>
+<text x="105" y="111" font-size="25" fill="#ffe600" font-weight="800" text-anchor="middle" stroke="#06391d" stroke-width="1.4" stroke-linejoin="round" paint-order="stroke"  data-layer-name="Greeting headline">ঈদ মোবারক</text>
+<text x="105" y="124" font-size="7" fill="#ffffff" font-weight="600" text-anchor="middle"  data-layer-name="Greeting line">আন্তরিক শুভেচ্ছা ও ভালোবাসা</text>
+<path d="M0,236 L0,214 Q22,176 44,214 L44,236 Z" fill="#06391d"  data-layer-name="Skyline dome left"/>
+<path d="M166,236 L166,214 Q188,176 210,214 L210,236 Z" fill="#06391d"  data-layer-name="Skyline dome right"/>
+<path d="M50,236 L50,200 L55.5,190 L61,200 L61,236 Z" fill="#06391d"  data-layer-name="Minaret left"/>
+<path d="M149,236 L149,200 L154.5,190 L160,200 L160,236 Z" fill="#06391d"  data-layer-name="Minaret right"/>
+<path d="M62,236 Q105,150 148,236 Z" fill="#06391d"  data-layer-name="Skyline centre dome"/>
+<circle cx="55.5" cy="188" r="1.6" fill="#ffe600"  data-layer-name="Minaret light left"/>
+<circle cx="154.5" cy="188" r="1.6" fill="#ffe600"  data-layer-name="Minaret light right"/>
+<circle cx="105" cy="178" r="45" fill="#ffe600"  data-layer-name="Photo ring"/>
+<circle cx="105" cy="178" r="42" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="105" y="179.5" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<circle cx="28" cy="160" r="13.4" fill="#ffe600"  data-layer-name="Leader ring 1"/>
+<circle cx="28" cy="160" r="12" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="leader_photo_1" data-object-type="image" data-layer-name="নেতার ছবি 1"/>
+<text x="28" y="161.5" font-size="3.6" fill="#6b7280" font-weight="500" text-anchor="middle" id="leader_photo_1_hint" data-layer-name="নেতার ছবি 1 hint">ছবি</text>
+<circle cx="182" cy="160" r="13.4" fill="#ffe600"  data-layer-name="Leader ring 2"/>
+<circle cx="182" cy="160" r="12" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="leader_photo_2" data-object-type="image" data-layer-name="নেতার ছবি 2"/>
+<text x="182" y="161.5" font-size="3.6" fill="#6b7280" font-weight="500" text-anchor="middle" id="leader_photo_2_hint" data-layer-name="নেতার ছবি 2 hint">ছবি</text>
+<rect x="46" y="236" width="118" height="25" rx="12.5" fill="#ffe600" stroke="#e4172b" stroke-width="0.9" data-layer-name="Name plate"/>
+<text x="105" y="253.5" font-size="16" fill="#27269b" font-weight="800" text-anchor="middle"  data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<circle cx="24" cy="248" r="11.8" fill="#ffffff"  data-layer-name="Leader ring 3"/>
+<circle cx="24" cy="248" r="10.5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="leader_photo_3" data-object-type="image" data-layer-name="নেতার ছবি 3"/>
+<text x="24" y="249.5" font-size="3.2" fill="#6b7280" font-weight="500" text-anchor="middle" id="leader_photo_3_hint" data-layer-name="নেতার ছবি 3 hint">ছবি</text>
+<circle cx="186" cy="248" r="12" fill="#ffffff"  data-layer-name="Symbol ring"/>
+<circle cx="186" cy="248" r="10.5" fill="#ffffff" stroke="#e4172b" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="186" y="249.5" font-size="3.99" fill="#6b7280" font-weight="500" text-anchor="middle" id="symbol_placeholder_hint" data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="105" y="268.5" font-size="6.2" fill="#ffffff" font-weight="700" text-anchor="middle"  data-layer-name="Appeal">আপনাদের দোয়া ও ভালোবাসা প্রত্যাশী</text>
+<rect x="0" y="272" width="210" height="25" rx="0" fill="#ffe600"  data-layer-name="Contact strip"/>
+<text x="105" y="282" font-size="5" fill="#e4172b" font-weight="800" text-anchor="middle"  data-layer-name="Campaign by">শুভেচ্ছান্তে: এলাকার সর্বস্তরের জনগণ।</text>
+<text x="105" y="290" font-size="5.6" fill="#7a0010" font-weight="700" text-anchor="middle"  data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<rect x="0" y="0" width="210" height="297" rx="0" fill="#bfe3fa" data-layer-name="Background"/>
+<polygon points="105,132 405.0,132.0 402.4,171.2" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 394.8,209.6 382.2,246.8" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="105,132 364.8,282.0 343.0,314.6" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 317.1,344.1 287.6,370.0" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="105,132 255.0,391.8 219.8,409.2" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 182.6,421.8 144.2,429.4" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="105,132 105.0,432.0 65.8,429.4" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 27.4,421.8 -9.8,409.2" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="105,132 -45.0,391.8 -77.6,370.0" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 -107.1,344.1 -133.0,314.6" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="105,132 -154.8,282.0 -172.2,246.8" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 -184.8,209.6 -192.4,171.2" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="105,132 -195.0,132.0 -192.4,92.8" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 -184.8,54.4 -172.2,17.2" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="105,132 -154.8,-18.0 -133.0,-50.6" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 -107.1,-80.1 -77.6,-106.0" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="105,132 -45.0,-127.8 -9.8,-145.2" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 27.4,-157.8 65.8,-165.4" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="105,132 105.0,-168.0 144.2,-165.4" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 182.6,-157.8 219.8,-145.2" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="105,132 255.0,-127.8 287.6,-106.0" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 317.1,-80.1 343.0,-50.6" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="105,132 364.8,-18.0 382.2,17.2" fill="#ffe600" data-layer-name="Sunray"/>
+<polygon points="105,132 394.8,54.4 402.4,92.8" fill="#fff6a8" data-layer-name="Sunray"/>
+<polygon points="0,0 210,0 210,30 0,40" fill="#27269b" data-layer-name="Top ribbon"/>
+<polygon points="0,40 210,30 210,34 0,44" fill="#e4172b" data-layer-name="Ribbon line"/>
+<text x="105" y="19" font-size="8.5" fill="#fff" font-weight="800" text-anchor="middle" data-layer-name="Election title">পৌরসভা নির্বাচন ২০২৬</text>
+<polygon points="14,50 196,46 192,70 18,74" fill="#e4172b" data-layer-name="Post banner"/>
+<text x="105" y="67" font-size="12" fill="#ffe600" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="0.84" stroke-linejoin="round" paint-order="stroke" data-layer-name="Post title">কাউন্সিলর পদপ্রার্থী</text>
+<rect x="6" y="86" width="44" height="26" rx="4" fill="#0a7a3c" stroke="#fff" stroke-width="1" data-layer-name="Pledge box 1"/>
+<text x="28" y="102" font-size="5.0" fill="#fff" font-weight="800" text-anchor="middle" data-layer-name="Pledge 1">সুপেয় পানি</text>
+<rect x="6" y="118" width="44" height="26" rx="4" fill="#27269b" stroke="#fff" stroke-width="1" data-layer-name="Pledge box 2"/>
+<text x="28" y="134" font-size="5.0" fill="#fff" font-weight="800" text-anchor="middle" data-layer-name="Pledge 2">উন্নত রাস্তা</text>
+<rect x="160" y="86" width="44" height="26" rx="4" fill="#c2218f" stroke="#fff" stroke-width="1" data-layer-name="Pledge box 3"/>
+<text x="182" y="102" font-size="5.0" fill="#fff" font-weight="800" text-anchor="middle" data-layer-name="Pledge 3">নিরাপদ এলাকা</text>
+<rect x="160" y="118" width="44" height="26" rx="4" fill="#e4172b" stroke="#fff" stroke-width="1" data-layer-name="Pledge box 4"/>
+<text x="182" y="134" font-size="5.0" fill="#fff" font-weight="800" text-anchor="middle" data-layer-name="Pledge 4">সবার শিক্ষা</text>
+<circle cx="105" cy="132" r="55" fill="#e4172b" data-layer-name="Red ring"/>
+<circle cx="105" cy="132" r="52" fill="#fff" data-layer-name="White ring"/>
+<circle cx="105" cy="132" r="50" fill="#0a7a3c" data-layer-name="Green ring"/>
+<circle cx="105" cy="132" r="47" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="105" y="134" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<circle cx="28" cy="208" r="16" fill="#ffffff" stroke="#e4172b" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="28" y="209.5" font-size="6.08" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="28" y="229" font-size="4" fill="#7a0010" font-weight="700" text-anchor="middle" data-layer-name="Symbol label">মার্কা: ____</text>
+<circle cx="130" cy="206" r="10.73" fill="#e4172b" data-layer-name="Leader ring 1"/>
+<circle cx="130" cy="206" r="9.5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_1" data-object-type="image" data-layer-name="নেতার ছবি 1"/>
+<text x="130" y="207" font-size="3" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="Leader hint 1">ছবি</text>
+<circle cx="160" cy="206" r="10.73" fill="#e4172b" data-layer-name="Leader ring 2"/>
+<circle cx="160" cy="206" r="9.5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_2" data-object-type="image" data-layer-name="নেতার ছবি 2"/>
+<text x="160" y="207" font-size="3" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="Leader hint 2">ছবি</text>
+<circle cx="190" cy="206" r="10.73" fill="#e4172b" data-layer-name="Leader ring 3"/>
+<circle cx="190" cy="206" r="9.5" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_3" data-object-type="image" data-layer-name="নেতার ছবি 3"/>
+<text x="190" y="207" font-size="3" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="Leader hint 3">ছবি</text>
+<path d="M0,226 Q26,219 52,226 T105,226 T158,226 T210,226 V297 H0 Z" fill="#0a7a3c" data-layer-name="Green wave"/>
+<text x="105" y="248" font-size="18" fill="#ffe600" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="1.26" stroke-linejoin="round" paint-order="stroke" data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<rect x="14" y="254" width="182" height="15" rx="7.5" fill="#27269b" stroke="#ffe600" stroke-width="0.8" data-layer-name="Appeal pill"/>
+<text x="105" y="264.4" font-size="8" fill="#fff" font-weight="800" text-anchor="middle" data-layer-name="Appeal">আপনাদের দোয়া ও সমর্থন প্রত্যাশী</text>
+<text x="105" y="284" font-size="5.2" fill="#fff" font-weight="700" text-anchor="middle" data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

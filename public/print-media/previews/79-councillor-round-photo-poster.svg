@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f5f3ff"/><stop offset="1" stop-color="#ddd6fe"/></linearGradient></defs>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="url(#bg)"  data-layer-name="Background"/>
+<rect x="0" y="0" width="12" height="297" rx="0" fill="#6d28d9"  data-layer-name="Side band"/>
+<rect x="12" y="0" width="3" height="297" rx="0" fill="#f59e0b"  data-layer-name="Side line"/>
+<text x="112" y="16" font-size="4.6" fill="#4c1d95" font-weight="500" text-anchor="middle"  data-layer-name="Bismillah">বিসমিল্লাহির রাহমানির রাহিম</text>
+<circle cx="34" cy="34" r="11.2" fill="#6d28d9"  data-layer-name="Leader ring 1"/>
+<circle cx="34" cy="34" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_1" data-object-type="image" data-layer-name="নেতার ছবি 1"/>
+<text x="34" y="35" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 1">ছবি</text>
+<circle cx="58" cy="34" r="11.2" fill="#6d28d9"  data-layer-name="Leader ring 2"/>
+<circle cx="58" cy="34" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_2" data-object-type="image" data-layer-name="নেতার ছবি 2"/>
+<text x="58" y="35" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 2">ছবি</text>
+<circle cx="82" cy="34" r="11.2" fill="#6d28d9"  data-layer-name="Leader ring 3"/>
+<circle cx="82" cy="34" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_3" data-object-type="image" data-layer-name="নেতার ছবি 3"/>
+<text x="82" y="35" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 3">ছবি</text>
+<text x="160" y="32" font-size="5.5" fill="#6d28d9" font-weight="800" text-anchor="middle"  data-layer-name="Election title">পৌরসভা / সিটি নির্বাচন</text>
+<text x="160" y="42" font-size="4.5" fill="#4c1d95" font-weight="700" text-anchor="middle"  data-layer-name="Year">২০২৬</text>
+<rect x="24" y="58" width="110" height="26" rx="13" fill="#6d28d9"  data-layer-name="Post pill"/>
+<text x="79" y="77" font-size="17" fill="#ffffff" font-weight="800" text-anchor="middle"  data-layer-name="Post title">কাউন্সিলর</text>
+<text x="79" y="98" font-size="6" fill="#4c1d95" font-weight="800" text-anchor="middle"  data-layer-name="Ward line">ওয়ার্ড নং ___ পদপ্রার্থী</text>
+<text x="79" y="118" font-size="6" fill="#1f2937" font-weight="800" text-anchor="middle"  data-layer-name="Appeal 1">আপনাদের সকলের</text>
+<text x="79" y="130" font-size="8" fill="#6d28d9" font-weight="800" text-anchor="middle"  data-layer-name="Appeal 2">দোয়া ও সমর্থন</text>
+<text x="79" y="142" font-size="8" fill="#6d28d9" font-weight="800" text-anchor="middle"  data-layer-name="Appeal 3">প্রত্যাশী</text>
+<circle cx="150" cy="148" r="52" fill="#f59e0b"  data-layer-name="Photo ring"/>
+<circle cx="150" cy="148" r="48" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="150" y="149" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<circle cx="34" cy="178" r="11.2" fill="#f59e0b"  data-layer-name="Leader ring 4"/>
+<circle cx="34" cy="178" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_4" data-object-type="image" data-layer-name="নেতার ছবি 4"/>
+<text x="34" y="179" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 4">ছবি</text>
+<circle cx="60" cy="198" r="11.2" fill="#f59e0b"  data-layer-name="Leader ring 5"/>
+<circle cx="60" cy="198" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_5" data-object-type="image" data-layer-name="নেতার ছবি 5"/>
+<text x="60" y="199" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 5">ছবি</text>
+<circle cx="86" cy="178" r="11.2" fill="#f59e0b"  data-layer-name="Leader ring 6"/>
+<circle cx="86" cy="178" r="10" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_6" data-object-type="image" data-layer-name="নেতার ছবি 6"/>
+<text x="86" y="179" font-size="3.4000000000000004" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="Leader hint 6">ছবি</text>
+<circle cx="40" cy="236" r="16" fill="#ffffff" stroke="#6d28d9" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="40" y="237.2" font-size="6.08" fill="#6b7280" font-weight="500" text-anchor="middle"  data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="40" y="258" font-size="4.6" fill="#4c1d95" font-weight="700" text-anchor="middle"  data-layer-name="Symbol label">প্রতীক: ____</text>
+<path d="M15 262 Q 100 236 210 258 L210 297 L15 297 Z" fill="#6d28d9" data-layer-name="Name wave"/>
+<text x="112" y="276" font-size="15" fill="#fde68a" font-weight="800" text-anchor="middle"  data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<text x="112" y="287" font-size="5" fill="#ffffff" font-weight="600" text-anchor="middle"  data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

@@ -1,0 +1,19 @@
+{
+  "id": "112-hexagon-flag-chairman-poster",
+  "title": "Hexagon Flag Chairman Poster",
+  "category": "Election & Campaign",
+  "aspectRatio": "210:297",
+  "physicalWidth": 210,
+  "physicalHeight": 297,
+  "unit": "mm",
+  "physicalSizeLabel": "A4 portrait",
+  "file": "templates/112-hexagon-flag-chairman-poster.svg",
+  "preview": "previews/112-hexagon-flag-chairman-poster.svg",
+  "platform": "SebaLagbe.com",
+  "viewBox": "0 0 210 297",
+  "editableObjects": [],
+  "printSettings": {
+    "bleedMm": 3,
+    "safeMarginMm": 5
+  }
+}

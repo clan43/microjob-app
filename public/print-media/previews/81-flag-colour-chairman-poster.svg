@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e4172b"/><stop offset="0.5" stop-color="#ffe600"/><stop offset="1" stop-color="#c2218f"/></linearGradient></defs>
+<rect x="0" y="0" width="210" height="297" rx="0" fill="url(#bg)" data-layer-name="Background"/>
+<rect x="140" y="8" width="62" height="6.5" rx="1.5" fill="#0a7a3c" data-layer-name="Slogan tag 1"/>
+<text x="171" y="12.8" font-size="3.6" fill="#fff" font-weight="700" text-anchor="middle" data-layer-name="Slogan 1">অগ্রযাত্রা আমার সময়</text>
+<rect x="140" y="16" width="62" height="6.5" rx="1.5" fill="#e4172b" data-layer-name="Slogan tag 2"/>
+<text x="171" y="20.8" font-size="3.6" fill="#fff" font-weight="700" text-anchor="middle" data-layer-name="Slogan 2">সততা আমার মূলধন</text>
+<rect x="140" y="24" width="62" height="6.5" rx="1.5" fill="#c2218f" data-layer-name="Slogan tag 3"/>
+<text x="171" y="28.8" font-size="3.6" fill="#fff" font-weight="700" text-anchor="middle" data-layer-name="Slogan 3">জনগণ আমার শক্তি</text>
+<text x="60" y="22" font-size="9" fill="#fff" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="0.63" stroke-linejoin="round" paint-order="stroke" data-layer-name="Upcoming">আসন্ন</text>
+<text x="60" y="39" font-size="13" fill="#ffe600" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="0.91" stroke-linejoin="round" paint-order="stroke" data-layer-name="Area name">এলাকার নাম</text>
+<text x="60" y="52" font-size="9.5" fill="#fff" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="0.67" stroke-linejoin="round" paint-order="stroke" data-layer-name="Council">ইউনিয়ন পরিষদ</text>
+<rect x="10" y="60" width="100" height="22" rx="3" fill="#ffffff" stroke="#e4172b" stroke-width="1" data-layer-name="Election box"/>
+<text x="60" y="76.5" font-size="15" fill="#e4172b" font-weight="800" text-anchor="middle" data-layer-name="Election word">নির্বাচনে</text>
+<rect x="34" y="86" width="52" height="7" rx="1.5" fill="#27269b" data-layer-name="Gender tag"/>
+<text x="60" y="91" font-size="4.2" fill="#fff" font-weight="700" text-anchor="middle" data-layer-name="Gender">সংরক্ষিত মহিলা</text>
+<polygon points="8,98 112,102 108,126 12,122" fill="#27269b" data-layer-name="Post banner"/>
+<text x="60" y="118" font-size="13" fill="#fff" font-weight="800" text-anchor="middle" data-layer-name="Post title">মেম্বার</text>
+<rect x="40" y="130" width="40" height="9" rx="2" fill="#ffe600" data-layer-name="Pode tag"/>
+<text x="60" y="136.5" font-size="6" fill="#e4172b" font-weight="800" text-anchor="middle" data-layer-name="Pode">পদে</text>
+<text x="60" y="152" font-size="8" fill="#fff" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="0.56" stroke-linejoin="round" paint-order="stroke" data-layer-name="Servant line 1">আপনাদের সেবক</text>
+<text x="60" y="162" font-size="8" fill="#fff" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="0.56" stroke-linejoin="round" paint-order="stroke" data-layer-name="Servant line 2">হিসেবে</text>
+<rect x="42" y="170" width="36" height="9" rx="2" fill="#27269b" data-layer-name="Ami tag"/>
+<text x="60" y="176.5" font-size="6" fill="#fff" font-weight="700" text-anchor="middle" data-layer-name="Ami">আমি</text>
+<text x="60" y="192" font-size="7" fill="#ffe600" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="0.49" stroke-linejoin="round" paint-order="stroke" data-layer-name="Ward">ওয়ার্ড নং ___</text>
+<circle cx="147" cy="118" r="57" fill="#ffe600" data-layer-name="Yellow ring"/>
+<circle cx="147" cy="118" r="53" fill="#0a7a3c" data-layer-name="Green ring"/>
+<circle cx="147" cy="118" r="49" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="147" y="120" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<circle cx="168" cy="205" r="16" fill="#ffffff" stroke="#e4172b" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="168" y="206.5" font-size="6.08" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="168" y="226" font-size="4.2" fill="#7a0010" font-weight="700" text-anchor="middle" data-layer-name="Symbol label">মার্কা: ____</text>
+<rect x="6" y="230" width="198" height="22" rx="3" fill="#ffe600" stroke="#e4172b" stroke-width="0.8" data-layer-name="Name strip"/>
+<text x="105" y="246" font-size="16" fill="#e4172b" font-weight="800" text-anchor="middle" data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<rect x="0" y="254" width="210" height="16" rx="0" fill="#27269b" data-layer-name="Appeal band"/>
+<text x="105" y="264.5" font-size="8.5" fill="#fff" font-weight="800" text-anchor="middle" data-layer-name="Appeal">আপনাদের দোয়া ও সমর্থন প্রত্যাশী</text>
+<rect x="0" y="270" width="210" height="27" rx="0" fill="#ffe600" data-layer-name="Contact strip"/>
+<text x="105" y="280" font-size="5.6" fill="#e4172b" font-weight="800" text-anchor="middle" data-layer-name="Campaign by">প্রচারে: এলাকার সর্বস্তরের জনগণ।</text>
+<text x="105" y="289" font-size="5" fill="#7a0010" font-weight="700" text-anchor="middle" data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>

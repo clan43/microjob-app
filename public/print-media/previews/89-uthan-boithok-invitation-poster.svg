@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<rect x="0" y="0" width="210" height="297" rx="0" fill="#ffe600" data-layer-name="Background"/>
+<rect x="0" y="0" width="210" height="60" rx="0" fill="#e4172b" data-layer-name="Header"/>
+<circle cx="6" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 1"/>
+<circle cx="18" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 2"/>
+<circle cx="30" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 3"/>
+<circle cx="42" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 4"/>
+<circle cx="54" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 5"/>
+<circle cx="66" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 6"/>
+<circle cx="78" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 7"/>
+<circle cx="90" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 8"/>
+<circle cx="102" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 9"/>
+<circle cx="114" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 10"/>
+<circle cx="126" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 11"/>
+<circle cx="138" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 12"/>
+<circle cx="150" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 13"/>
+<circle cx="162" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 14"/>
+<circle cx="174" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 15"/>
+<circle cx="186" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 16"/>
+<circle cx="198" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 17"/>
+<circle cx="210" cy="60" r="6" fill="#e4172b" data-layer-name="Scallop 18"/>
+<text x="105" y="12" font-size="5.8" fill="#ffffff" font-weight="700" text-anchor="middle" data-layer-name="Election title">ইউনিয়ন পরিষদ নির্বাচন ২০২৬</text>
+<text x="105" y="38" font-size="25" fill="#ffe600" font-weight="800" text-anchor="middle" stroke="#7a0010" stroke-width="1.75" stroke-linejoin="round" paint-order="stroke" data-layer-name="Headline">উঠান বৈঠক</text>
+<text x="105" y="52" font-size="8.2" fill="#ffffff" font-weight="700" text-anchor="middle" data-layer-name="Subheadline">আপনাকে সাদর আমন্ত্রণ</text>
+<rect x="14" y="76" width="182" height="76" rx="6" fill="#ffffff" stroke="#27269b" stroke-width="1.4" data-layer-name="Info card"/>
+<rect x="22" y="84" width="34" height="14" rx="7" fill="#e4172b" data-layer-name="Label pill 1"/>
+<text x="39" y="93.6" font-size="7" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Label 1">তারিখ</text>
+<text x="62" y="93.6" font-size="8" fill="#27269b" font-weight="700" text-anchor="start" data-layer-name="Value 1">__ ডিসেম্বর ২০২৬, __বার</text>
+<line x1="62" y1="97" x2="188" y2="97" stroke="#9ca3af" stroke-width="0.3" stroke-dasharray="1.4 1" data-layer-name="Value line 1"/>
+<rect x="22" y="106" width="34" height="14" rx="7" fill="#0a7a3c" data-layer-name="Label pill 2"/>
+<text x="39" y="115.6" font-size="7" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Label 2">সময়</text>
+<text x="62" y="115.6" font-size="8" fill="#27269b" font-weight="700" text-anchor="start" data-layer-name="Value 2">বিকাল ৪:০০ ঘটিকা</text>
+<line x1="62" y1="119" x2="188" y2="119" stroke="#9ca3af" stroke-width="0.3" stroke-dasharray="1.4 1" data-layer-name="Value line 2"/>
+<rect x="22" y="128" width="34" height="14" rx="7" fill="#c2218f" data-layer-name="Label pill 3"/>
+<text x="39" y="137.6" font-size="7" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Label 3">স্থান</text>
+<text x="62" y="137.6" font-size="8" fill="#27269b" font-weight="700" text-anchor="start" data-layer-name="Value 3">বাড়ির উঠান / এলাকার নাম</text>
+<line x1="62" y1="141" x2="188" y2="141" stroke="#9ca3af" stroke-width="0.3" stroke-dasharray="1.4 1" data-layer-name="Value line 3"/>
+<circle cx="58" cy="200" r="40" fill="#e4172b" data-layer-name="Photo outer ring"/>
+<circle cx="58" cy="200" r="37" fill="#27269b" data-layer-name="Photo ring"/>
+<circle cx="58" cy="200" r="34" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="58" y="201.5" font-size="4" fill="#6b7280" font-weight="500" text-anchor="middle" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি দিন</text>
+<circle cx="154" cy="186" r="21" fill="#ffffff" stroke="#27269b" stroke-width="0.8" stroke-dasharray="2 1.2" id="symbol_placeholder" data-object-type="image" data-layer-name="প্রতীক বৃত্ত"/>
+<text x="154" y="187.5" font-size="7.98" fill="#6b7280" font-weight="500" text-anchor="middle" data-layer-name="প্রতীক hint">প্রতীক</text>
+<text x="154" y="216" font-size="5.6" fill="#27269b" font-weight="700" text-anchor="middle" data-layer-name="Symbol label">মার্কা: ____</text>
+<rect x="110" y="222" width="88" height="13" rx="6.5" fill="#0a7a3c" data-layer-name="Invite pill"/>
+<text x="154" y="231" font-size="6.6" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Invite">সকলের উপস্থিতি কাম্য</text>
+<rect x="0" y="246" width="210" height="26" rx="0" fill="#27269b" data-layer-name="Name block"/>
+<text x="105" y="265" font-size="17" fill="#ffe600" font-weight="800" text-anchor="middle" data-layer-name="Candidate name">প্রার্থীর নাম</text>
+<rect x="0" y="272" width="210" height="25" rx="0" fill="#e4172b" data-layer-name="Contact strip"/>
+<text x="105" y="283" font-size="5.4" fill="#ffffff" font-weight="800" text-anchor="middle" data-layer-name="Appeal">আপনাদের দোয়া ও সমর্থন প্রত্যাশী</text>
+<text x="105" y="291" font-size="5.2" fill="#ffe600" font-weight="700" text-anchor="middle" data-layer-name="Contact">যোগাযোগ: ০১XXX-XXXXXX</text>
+</svg>
