@@ -2577,10 +2577,10 @@ async function runGeminiGenerationInner(options) {
 
       // The upload step timed out BEFORE the message was sent, so no Gemini
       // quota was used. Try the whole job one more time (once per job).
-      // (Skipped when Duck.ai is the backup: it is faster to hand the job over right away.)
+      // (Skipped when another AI comes after Gemini in the chain: it is faster to hand the job over right away.)
       if (
         !transientRetried &&
-        !(DUCKAI_FALLBACK && !DUCKAI_TEST) &&
+        !GEMINI_HAS_BACKUP &&
         /local-images-files-uploader-button|input\[name="Filedata"\]/.test(failMessage)
       ) {
         transientRetried = true;
@@ -2665,7 +2665,7 @@ async function runGeminiGenerationInner(options) {
 }
 
 // --------------------------------------------------
-// TEST ONLY: Duck.ai instead of Gemini (start the bot with DUCKAI_TEST=1)
+// Duck.ai (used when "duckai" is in AI_PROVIDERS)
 //
 // Used by /edit-image (one photo) and by /edit-image-dual + the template route (2-3 photos, uploaded as
 // separate files in order, never stitched). No login is needed.
@@ -2675,7 +2675,72 @@ async function runGeminiGenerationInner(options) {
 // DUCKAI_HEADLESS=1 runs without a visible window (on GitHub use xvfb-run and leave it off).
 // --------------------------------------------------
 
-const DUCKAI_TEST = process.env.DUCKAI_TEST === "1";
+// --------------------------------------------------
+// The provider CHAIN (which AI makes the picture, and in which order)
+//
+// AI_PROVIDERS = a list, the first one is tried first, and if it fails the NEXT one gets the same job:
+//   AI_PROVIDERS=duckai,lovko,gemini   Duck.ai -> Lovko Chat -> Gemini
+//   AI_PROVIDERS=duckai,lovko          Duck.ai -> Lovko Chat (Gemini never used)
+//   AI_PROVIDERS=lovko                 Lovko Chat only, no backup
+// A name that is left out is never used. Names: duckai, lovko, gemini (capital letters and spaces do not matter).
+// If AI_PROVIDERS is not set, the old single AI_PROVIDER (duckai / lovko / gemini) or the old DUCKAI_TEST=1 still works.
+// --------------------------------------------------
+
+const PROVIDER_ALIASES = { duckai: "duckai", duck: "duckai", "duck.ai": "duckai", lovko: "lovko", gemini: "gemini" };
+
+function parseProviderChain() {
+  const wanted = String(process.env.AI_PROVIDERS || "").trim();
+  const legacy = String(process.env.AI_PROVIDER || "").trim();
+  const text = wanted || legacy;
+  let source = wanted ? "AI_PROVIDERS" : legacy ? "AI_PROVIDER" : "";
+
+  if (!text) {
+    // Nothing set (for example the bot is started by hand): the old defaults.
+    if (process.env.DUCKAI_TEST === "1") return { chain: ["duckai"], source: "DUCKAI_TEST=1" };
+    return {
+      chain: process.env.DUCKAI_FALLBACK === "0" ? ["gemini"] : ["gemini", "duckai"],
+      source: "default",
+    };
+  }
+
+  const chain = [];
+  const unknown = [];
+
+  for (const raw of text.toLowerCase().split(/[\s,;]+/)) {
+    if (!raw) continue;
+    const name = PROVIDER_ALIASES[raw];
+    if (!name) unknown.push(raw);
+    else if (!chain.includes(name)) chain.push(name);
+  }
+
+  if (unknown.length) {
+    console.warn(`[providers] ${source} has names that are not known and are ignored: ${unknown.join(", ")} (use duckai, lovko, gemini).`);
+  }
+
+  if (!chain.length) {
+    console.warn(`[providers] ${source}="${text}" has no usable name, using duckai.`);
+    return { chain: ["duckai"], source: `${source} (fixed)` };
+  }
+
+  // Old single AI_PROVIDER=gemini: Duck.ai was its backup unless DUCKAI_FALLBACK=0.
+  if (source === "AI_PROVIDER" && chain.length === 1 && chain[0] === "gemini" && process.env.DUCKAI_FALLBACK !== "0") {
+    chain.push("duckai");
+  }
+
+  return { chain, source };
+}
+
+const PROVIDER_SETUP = parseProviderChain();
+const PROVIDER_CHAIN = PROVIDER_SETUP.chain;
+// "Is this AI somewhere in the chain?" (kept under the old names so the code below stays readable)
+const DUCKAI_TEST = PROVIDER_CHAIN.includes("duckai");
+const LOVKO_MODE = PROVIDER_CHAIN.includes("lovko");
+const GEMINI_IN_CHAIN = PROVIDER_CHAIN.includes("gemini");
+// Duck.ai windows are opened in advance only when Duck.ai is the FIRST one (otherwise they would be wasted).
+const DUCK_WARM_ON = PROVIDER_CHAIN[0] === "duckai";
+// Gemini hands the job over right away (no second upload try) when another AI comes after it.
+const GEMINI_HAS_BACKUP = GEMINI_IN_CHAIN && PROVIDER_CHAIN.indexOf("gemini") < PROVIDER_CHAIN.length - 1;
+console.log(`[providers] AI chain (${PROVIDER_SETUP.source}): ${PROVIDER_CHAIN.join(" -> ")}`);
 const DUCKAI_HEADLESS = process.env.DUCKAI_HEADLESS === "1";
 const DUCKAI_WAIT_MS = readIntEnv("DUCKAI_WAIT_MS", 120_000, 30_000, 280_000);
 // Duck.ai accepts a limited number of characters in ONE message (about 4500 as far as we know).
@@ -2870,7 +2935,7 @@ function closeDuckWarmEntry(entry) {
 
 // A visitor chose a photo: open one window for them (one at a time, never many at the same moment).
 function recordDuckWarmHint(key) {
-  if (!DUCKAI_TEST || DUCKAI_WARM_MAX < 1) {
+  if (!DUCK_WARM_ON || DUCKAI_WARM_MAX < 1) {
     return;
   }
 
@@ -3263,52 +3328,399 @@ async function generateWithDuckAi(imagePath, prompt, outputDir, signal, extraIma
 }
 
 // --------------------------------------------------
-// Gemini first, Duck.ai as the backup
+// Lovko Chat (used when "lovko" is in AI_PROVIDERS)
 //
-// If Gemini fails (upload problem, timeout, refused, out of limit, no session ...), the same
-// job is run once on Duck.ai, so the visitor still gets a picture. Duck.ai needs no login.
-// Switch off with DUCKAI_FALLBACK=0. Not used when the whole bot already runs in Duck.ai mode.
+// Lovko (lovko.chat/chat/) is a chat page that needs no login. Every job opens a brand-new browser
+// profile, so Lovko sees a new guest each time (15 free credits, one picture costs 6).
+// The picture is NOT saved with a button: it is taken from the page's network traffic (Lovko serves it from
+// its "generated-images" address) or, if needed, from the <img> itself.
+// The prompt is typed first, then the photo(s) are attached, then the message is sent. Lovko ignores "send"
+// while a photo is still uploading, so sending is repeated until the text box is empty.
+// With 2-3 photos (dual / template routes) the photos are attached one after the other, in order.
 // --------------------------------------------------
 
-const DUCKAI_FALLBACK = process.env.DUCKAI_FALLBACK !== "0";
-const DUCKAI_FALLBACK_MIN_MS = readIntEnv("DUCKAI_FALLBACK_MIN_MS", 90_000, 0, 600_000);
+const LOVKO_URL = process.env.LOVKO_URL || "https://lovko.chat/chat/";
+const LOVKO_HEADLESS = process.env.LOVKO_HEADLESS === "1";
+const LOVKO_WAIT_MS = readIntEnv("LOVKO_WAIT_MS", 150_000, 30_000, 280_000);
+const LOVKO_SEND_SELECTOR = process.env.LOVKO_SEND_SELECTOR || "";
+const LOVKO_MIN_PICTURE_BYTES = 15_000;
+const LOVKO_INPUT_SELECTOR = 'textarea, [contenteditable="true"], input[type="text"], input:not([type])';
+const lovkoStats = { jobs: 0, ok: 0, failed: 0, lastError: "", lastErrorAt: 0 };
 
-async function geminiWithDuckBackup(geminiWork, duckWork, signal) {
+// Looks at the first bytes: is this really a picture? (the server's content-type can be wrong)
+function lovkoSniff(buf) {
+  if (!buf || buf.length < 12) return "";
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return "png";
+  if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return "jpg";
+  if (buf.slice(0, 4).toString() === "RIFF" && buf.slice(8, 12).toString() === "WEBP") return "webp";
+  if (buf.slice(0, 4).toString() === "GIF8") return "gif";
+  return "";
+}
+
+async function trackLovkoJob(work) {
+  stats.jobs += 1;
+  lovkoStats.jobs += 1;
+  const startedAt = Date.now();
+
+  const record = (ok, message) => {
+    jobLog.push({
+      at: new Date(startedAt).toISOString(),
+      ms: Date.now() - startedAt,
+      ok,
+      attempts: [],
+      error: message ? String(message).replace(/\s+/g, " ").slice(0, 200) : "",
+    });
+    while (jobLog.length > 100) jobLog.shift();
+  };
+
   try {
-    return await geminiWork();
+    const result = await work();
+    stats.jobsOk += 1;
+    stats.totalOkMs += Date.now() - startedAt;
+    lovkoStats.ok += 1;
+    record(true, "");
+    return result;
   } catch (error) {
-    if (!DUCKAI_FALLBACK || DUCKAI_TEST) throw error;
+    if (!(error && error.statusCode === 499)) {
+      const message =
+        error && error.message
+          ? String(error.message).startsWith("Lovko")
+            ? error.message
+            : `Lovko: ${error.message}`
+          : "Lovko: unknown error";
 
-    // Visitor left / job cancelled: nothing to back up.
-    if ((signal && signal.aborted) || (error && error.statusCode === 499)) throw error;
-
-    // Not enough job time left for a Duck.ai try.
-    const deadlineAt = signal && signal.deadlineAt;
-    const remainingMs = deadlineAt ? deadlineAt - Date.now() : Infinity;
-
-    if (remainingMs < DUCKAI_FALLBACK_MIN_MS) {
-      console.log(
-        `[fallback] Gemini failed and only ${Math.round(remainingMs / 1000)}s are left, not trying Duck.ai.`,
-      );
-      throw error;
+      stats.jobsFailed += 1;
+      lovkoStats.failed += 1;
+      lovkoStats.lastError = message;
+      lovkoStats.lastErrorAt = Date.now();
+      record(false, message);
+      if (/no picture/i.test(message)) stats.attemptsTimedOut += 1;
+      else stats.otherErrors += 1;
+      logEvent("job-failed", 0, message);
     }
 
-    console.log(
-      `[fallback] Gemini failed (${String((error && error.message) || error).replace(/\s+/g, " ").slice(0, 160)}). Trying Duck.ai instead ...`,
-    );
+    throw error;
+  }
+}
+
+async function generateWithLovko(imagePath, prompt, outputDir, signal, extraImagePaths = []) {
+  throwIfAborted(signal);
+
+  const allImagePaths = [imagePath, ...extraImagePaths.filter(Boolean)];
+  const started = Date.now();
+  const launchArgs = ["--disable-blink-features=AutomationControlled", "--no-sandbox", "--disable-dev-shm-usage"];
+  let browser;
+
+  try {
+    browser = await chromium.launch({ channel: "chrome", headless: LOVKO_HEADLESS, args: launchArgs });
+  } catch {
+    browser = await chromium.launch({ headless: LOVKO_HEADLESS, args: launchArgs });
+  }
+
+  const onAbort = () => {
+    browser.close().catch(() => {});
+  };
+
+  if (signal) {
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
+
+  try {
+    const context = await browser.newContext({ viewport: { width: 1366, height: 900 }, locale: "en-US" }); // a new guest
+    const page = await context.newPage();
+
+    // Every real picture the page receives, in arrival order.
+    const pictures = [];
+    let counter = 0;
+    const addPicture = (url, ext, body) => {
+      if (!body || body.length < LOVKO_MIN_PICTURE_BYTES) return;
+      const hash = crypto.createHash("sha256").update(body).digest("hex");
+      if (pictures.some((x) => x.hash === hash)) return;
+      counter += 1;
+      pictures.push({ n: counter, url, ext, hash, body });
+    };
+
+    page.on("response", async (res) => {
+      try {
+        const url = res.url();
+        const type = (res.headers()["content-type"] || "").toLowerCase();
+        if (res.status() < 200 || res.status() >= 300 || type.includes("svg")) return;
+        const maybe =
+          type.startsWith("image/") ||
+          type.includes("octet-stream") ||
+          type.includes("binary") ||
+          type === "" ||
+          /\.(png|jpe?g|webp|gif)(\?|#|$)/i.test(url);
+        if (!maybe) return;
+        const body = await res.body().catch(() => null);
+        const ext = lovkoSniff(body);
+        if (ext) addPicture(url, ext, body);
+      } catch {
+        // ignore
+      }
+    });
+
+    console.log("[lovko] opening lovko.chat ...");
+    await page.goto(LOVKO_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
+    await page
+      .waitForFunction(
+        (sel) =>
+          Array.from(document.querySelectorAll(sel)).some((el) => {
+            const r = el.getBoundingClientRect();
+            const st = getComputedStyle(el);
+            return r.width > 0 && r.height > 0 && st.visibility !== "hidden" && st.display !== "none";
+          }),
+        LOVKO_INPUT_SELECTOR,
+        { timeout: 30_000 },
+      )
+      .catch(() => {});
+    throwIfAborted(signal);
+
+    let box = null;
+    for (const handle of await page.locator(LOVKO_INPUT_SELECTOR).all()) {
+      if (await handle.isVisible().catch(() => false)) {
+        box = handle;
+        break;
+      }
+    }
+
+    if (!box) throw new Error("Lovko: the text box was not found.");
+
+    const fileInput = page.locator('input[type="file"]').first();
+
+    if ((await fileInput.count()) === 0) throw new Error("Lovko: the upload control was not found.");
+
+    // The prompt first (instant), then the photo(s).
+    await box.click();
+    await box.fill(prompt);
+
+    for (const filePath of allImagePaths) {
+      const before = counter;
+      await fileInput.setInputFiles(filePath);
+      // Wait until the page shows the preview of the photo (max 5 s).
+      for (let w = 0; w < 33 && counter === before; w += 1) await sleep(150);
+      await sleep(300);
+      throwIfAborted(signal);
+    }
+
+    const uploadedHashes = new Set();
+
+    for (const filePath of allImagePaths) {
+      uploadedHashes.add(crypto.createHash("sha256").update(await fs.readFile(filePath)).digest("hex"));
+    }
+
+    const countBeforeSend = counter; // pictures seen until now are only previews of our own photo(s)
+    const srcsBefore = new Set(await page.evaluate(() => Array.from(document.images).map((i) => i.currentSrc || i.src)));
+
+    // ---- send: repeat until the text box is empty (= the message really left) ----
+    const boxIsEmpty = async () => {
+      const text = await box.inputValue().catch(async () => await box.innerText().catch(() => ""));
+      return String(text).trim() === "";
+    };
+
+    // The send button is the right-most button beside the text box (the microphone is left of it).
+    const clickSendButton = async () => {
+      if (LOVKO_SEND_SELECTOR) {
+        await page.locator(LOVKO_SEND_SELECTOR).first().click({ timeout: 3000 });
+        return;
+      }
+
+      const rect = await box.boundingBox();
+      if (!rect) return;
+
+      const spot = await page.evaluate((r) => {
+        let best = null;
+
+        for (const b of document.querySelectorAll('button, [role="button"]')) {
+          const q = b.getBoundingClientRect();
+          if (q.width < 20 || q.height < 20) continue;
+          const cy = q.top + q.height / 2;
+
+          if (q.left >= r.x + r.width - 4 && cy >= r.y - 20 && cy <= r.y + r.height + 20) {
+            if (!best || q.left > best.left) best = { left: q.left, x: q.left + q.width / 2, y: cy };
+          }
+        }
+
+        return best;
+      }, rect);
+
+      if (spot) await page.mouse.click(spot.x, spot.y);
+    };
+
+    let sent = false;
+
+    for (let attempt = 1; attempt <= 25 && !sent; attempt += 1) {
+      throwIfAborted(signal);
+      if (attempt % 2 === 1) await box.press("Enter").catch(() => {});
+      else await clickSendButton().catch(() => {});
+      await sleep(1200);
+      sent = await boxIsEmpty();
+    }
+
+    if (!sent) throw new Error("Lovko: the message could not be sent.");
+
+    console.log("[lovko] prompt sent, waiting for the picture ...");
+
+    // ---- wait for the picture ----
+    const tried = new Set();
+    const waitStarted = Date.now();
+    let lastChange = Date.now();
+    let seen = 0;
+    let readyAt = 0;
+
+    while (Date.now() - waitStarted < LOVKO_WAIT_MS) {
+      await sleep(700);
+      throwIfAborted(signal);
+
+      // Pictures shown in the page that were not there before: read their bytes.
+      const domImgs = await page
+        .evaluate(() =>
+          Array.from(document.images)
+            .map((i) => ({ src: i.currentSrc || i.src, w: i.naturalWidth, h: i.naturalHeight }))
+            .filter((i) => i.src && i.w >= 300 && i.h >= 300),
+        )
+        .catch(() => []);
+
+      for (const item of domImgs) {
+        if (srcsBefore.has(item.src) || tried.has(item.src)) continue;
+        tried.add(item.src);
+        let bytes = null;
+
+        try {
+          if (/^https?:/i.test(item.src)) {
+            bytes = await (await context.request.get(item.src, { timeout: 30_000 })).body();
+          } else {
+            const b64 = await page.evaluate(async (src) => {
+              const r = await fetch(src);
+              const buf = new Uint8Array(await r.arrayBuffer());
+              let text = "";
+              for (let i = 0; i < buf.length; i += 0x8000) text += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000));
+              return btoa(text);
+            }, item.src);
+            bytes = Buffer.from(b64, "base64");
+          }
+        } catch {
+          // try the next one
+        }
+
+        const ext = lovkoSniff(bytes);
+        if (ext) addPicture(item.src, ext, bytes);
+      }
+
+      const fresh = pictures.filter((x) => x.n > countBeforeSend && !uploadedHashes.has(x.hash));
+      if (fresh.length !== seen) {
+        seen = fresh.length;
+        lastChange = Date.now();
+      }
+
+      const pageText = (await page.evaluate(() => document.body.innerText).catch(() => "")).toLowerCase();
+
+      if (!readyAt && /image ready/.test(pageText)) {
+        readyAt = Date.now();
+      }
+
+      if (Date.now() - waitStarted > 5000 && /not enough credits|insufficient credits|out of credits|run out of credits/.test(pageText)) {
+        throw new Error("Lovko: this guest has no credits left.");
+      }
+
+      // The finished picture comes from Lovko's "generated-images" address: stop as soon as it has arrived.
+      if (fresh.some((x) => /generated-images/i.test(x.url)) && Date.now() - lastChange > 800) break;
+      if (readyAt && seen > 0 && Date.now() - Math.max(readyAt, lastChange) > 1500) break;
+      if (!readyAt && seen > 0 && Date.now() - lastChange > 12_000) break;
+      if (readyAt && seen === 0 && Date.now() - readyAt > 10_000) break;
+    }
+
+    // The LAST new picture is the result (the first ones are previews of our own photo).
+    const fresh = pictures.filter((x) => x.n > countBeforeSend && !uploadedHashes.has(x.hash));
+
+    if (!fresh.length) {
+      throw new Error("Lovko: no picture appeared in time.");
+    }
+
+    const best = fresh.filter((x) => /generated-images/i.test(x.url)).pop() || fresh[fresh.length - 1];
+    const outExt = `.${best.ext}`;
+    const outPath = path.join(outputDir, `lovko-result${outExt}`);
+    await fs.writeFile(outPath, best.body);
+
+    console.log(`[lovko] done in ${Math.round((Date.now() - started) / 1000)}s (${Math.round(best.body.length / 1024)} KB).`);
+
+    return { buffer: best.body, mimeType: getMimeType(outExt) };
+  } catch (error) {
+    if (signal && signal.aborted) {
+      throw abortReason(signal);
+    }
+
+    console.error(`[lovko] failed: ${error && error.message ? error.message : error}`);
+    throw error;
+  } finally {
+    if (signal) {
+      signal.removeEventListener("abort", onAbort);
+    }
+
+    await browser.close().catch(() => {});
+  }
+}
+
+// --------------------------------------------------
+// Provider chain runner (AI_PROVIDERS, see "The provider CHAIN" above)
+//
+// The first AI in the list gets the job. If it fails (upload problem, timeout, refused, out of limit,
+// no session ...), the SAME job goes to the next AI in the list, and so on. Nothing is tried again
+// when the visitor left, or when too little job time is left for another try.
+// The visitor sees the error of the FIRST AI (the main one), not of the backups.
+// --------------------------------------------------
+
+const DUCKAI_FALLBACK_MIN_MS = readIntEnv("DUCKAI_FALLBACK_MIN_MS", 90_000, 0, 600_000);
+const PROVIDER_LABELS = { duckai: "Duck.ai", lovko: "Lovko", gemini: "Gemini" };
+
+function shortError(error) {
+  return String((error && error.message) || error).replace(/\s+/g, " ").slice(0, 160);
+}
+
+async function runProviderChain(runners, signal) {
+  let firstError = null;
+
+  for (let i = 0; i < PROVIDER_CHAIN.length; i += 1) {
+    const name = PROVIDER_CHAIN[i];
+    const label = PROVIDER_LABELS[name] || name;
+    const run = runners[name];
+
+    if (!run) continue;
 
     try {
-      const result = await trackDuckAiJob(duckWork);
-      console.log("[fallback] Duck.ai made the picture.");
+      const result = await run();
+
+      if (i > 0) {
+        console.log(`[chain] ${label} made the picture (after ${PROVIDER_CHAIN.slice(0, i).map((n) => PROVIDER_LABELS[n] || n).join(", ")} failed).`);
+      }
+
       return result;
-    } catch (duckError) {
-      console.log(
-        `[fallback] Duck.ai failed too (${String((duckError && duckError.message) || duckError).replace(/\s+/g, " ").slice(0, 160)}).`,
-      );
-      // Show the visitor the Gemini error (the main provider), not the backup's.
-      throw error;
+    } catch (error) {
+      // Visitor left / job cancelled: nothing to back up.
+      if ((signal && signal.aborted) || (error && error.statusCode === 499)) throw error;
+
+      if (!firstError) firstError = error;
+
+      const next = PROVIDER_CHAIN.slice(i + 1).find((n) => runners[n]);
+
+      if (!next) break;
+
+      const nextLabel = PROVIDER_LABELS[next] || next;
+
+      // Not enough job time left for another try.
+      const deadlineAt = signal && signal.deadlineAt;
+      const remainingMs = deadlineAt ? deadlineAt - Date.now() : Infinity;
+
+      if (remainingMs < DUCKAI_FALLBACK_MIN_MS) {
+        console.log(`[chain] ${label} failed (${shortError(error)}) and only ${Math.round(remainingMs / 1000)}s are left, not trying ${nextLabel}.`);
+        break;
+      }
+
+      console.log(`[chain] ${label} failed (${shortError(error)}). Trying ${nextLabel} instead ...`);
     }
   }
+
+  throw firstError || new HttpError("No AI is switched on (check AI_PROVIDERS).", 500);
 }
 
 // --------------------------------------------------
@@ -3316,23 +3728,22 @@ async function geminiWithDuckBackup(geminiWork, duckWork, signal) {
 // --------------------------------------------------
 
 function generateWithGemini(imagePath, prompt, outputDir, signal, forceSlot = 0) {
-  // TEST ONLY: with DUCKAI_TEST=1 the one-image /edit-image route uses Duck.ai instead of Gemini.
-  if (DUCKAI_TEST) {
-    return trackDuckAiJob(() => generateWithDuckAi(imagePath, prompt, outputDir, signal));
-  }
-
-  return geminiWithDuckBackup(
-    () =>
-      runGeminiGeneration({
-        forceSlot,
-        imagePaths: [imagePath],
-        prompt,
-        outputDir,
-        settleMs: 3000,
-        defaultFilename: "gemini-generated-image.png",
-        signal,
-      }),
-    () => generateWithDuckAi(imagePath, prompt, outputDir, signal),
+  // The AI order comes from AI_PROVIDERS (Duck.ai / Lovko / Gemini), see runProviderChain.
+  return runProviderChain(
+    {
+      duckai: () => trackDuckAiJob(() => generateWithDuckAi(imagePath, prompt, outputDir, signal)),
+      lovko: () => trackLovkoJob(() => generateWithLovko(imagePath, prompt, outputDir, signal)),
+      gemini: () =>
+        runGeminiGeneration({
+          forceSlot,
+          imagePaths: [imagePath],
+          prompt,
+          outputDir,
+          settleMs: 3000,
+          defaultFilename: "gemini-generated-image.png",
+          signal,
+        }),
+    },
     signal,
   );
 }
@@ -3354,25 +3765,28 @@ function generateTemplateWithGemini(
     ? [templateImagePath, userImagePath, secondUserImagePath]
     : [templateImagePath, userImagePath];
 
-  // With DUCKAI_TEST=1 the two/three-image routes (/edit-image-dual and the template route) also
-  // use Duck.ai. The photos are uploaded as separate files in the same order Gemini gets them.
-  if (DUCKAI_TEST) {
-    return trackDuckAiJob(() =>
-      generateWithDuckAi(imagePaths[0], prompt, outputDir, signal, imagePaths.slice(1)),
-    );
-  }
-
-  return geminiWithDuckBackup(
-    () =>
-      runGeminiGeneration({
-        imagePaths,
-        prompt,
-        outputDir,
-        settleMs: secondUserImagePath ? 6000 : 4000,
-        defaultFilename: "gemini-template-generated-image.png",
-        signal,
-      }),
-    () => generateWithDuckAi(imagePaths[0], prompt, outputDir, signal, imagePaths.slice(1)),
+  // The AI order comes from AI_PROVIDERS (Duck.ai / Lovko / Gemini), see runProviderChain.
+  // Duck.ai and Lovko get the photos as separate files in the same order Gemini gets them.
+  return runProviderChain(
+    {
+      duckai: () =>
+        trackDuckAiJob(() =>
+          generateWithDuckAi(imagePaths[0], prompt, outputDir, signal, imagePaths.slice(1)),
+        ),
+      lovko: () =>
+        trackLovkoJob(() =>
+          generateWithLovko(imagePaths[0], prompt, outputDir, signal, imagePaths.slice(1)),
+        ),
+      gemini: () =>
+        runGeminiGeneration({
+          imagePaths,
+          prompt,
+          outputDir,
+          settleMs: secondUserImagePath ? 6000 : 4000,
+          defaultFilename: "gemini-template-generated-image.png",
+          signal,
+        }),
+    },
     signal,
   );
 }
@@ -3456,6 +3870,7 @@ function healthPayload() {
   return {
     success: true,
     status: "healthy",
+    providers: { chain: PROVIDER_CHAIN, source: PROVIDER_SETUP.source },
     generation: {
       active: activeJobs,
       waiting: waitingJobs.length,
@@ -3486,6 +3901,17 @@ function healthPayload() {
               ready: Boolean(e.session),
               closesInSeconds: Math.max(0, Math.round((e.expiresAt - Date.now()) / 1000)),
             })),
+        }
+      : { enabled: false },
+    lovko: LOVKO_MODE
+      ? {
+          enabled: true,
+          jobs: lovkoStats.jobs,
+          ok: lovkoStats.ok,
+          failed: lovkoStats.failed,
+          lastError: lovkoStats.lastError,
+          lastErrorAt: lovkoStats.lastErrorAt ? new Date(lovkoStats.lastErrorAt).toISOString() : "",
+          waitSeconds: Math.round(LOVKO_WAIT_MS / 1000),
         }
       : { enabled: false },
     warmPool: warmStatus(),
@@ -3521,8 +3947,8 @@ function healthPayload() {
 // The website calls this when a visitor opens the AI editor (weak) or has chosen
 // a photo (strong). Needs the same x-api-key as the image routes (ASK_KEY).
 app.post("/warm-hint", requireApiKey, (req, res) => {
-  // Duck.ai test: only a "strong" hint (the visitor has chosen a photo) opens a window in advance.
-  if (DUCKAI_TEST) {
+  // Duck.ai first in the chain: only a "strong" hint (the visitor has chosen a photo) opens a window in advance.
+  if (DUCK_WARM_ON) {
     const duckKey = String((req.body && req.body.key) || "").slice(0, 80);
 
     if (!duckKey) {

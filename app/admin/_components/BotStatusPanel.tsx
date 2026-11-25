@@ -8,6 +8,8 @@ const PANEL = "rounded-3xl border border-[#E6DAB9] bg-[#FFFCF3] shadow-[0_18px_4
 
 type Problem = { level: "error" | "warn" | "info"; title: string; cause?: string; advice?: string };
 
+type AiCounts = { ok: number; failed: number; limitHits: number };
+
 type BotStatus = {
   online: boolean;
   detailed?: boolean;
@@ -29,6 +31,8 @@ type BotStatus = {
     maxPages: number; pageTtlSeconds: number; waitSeconds: number;
     pages: Array<{ ready: boolean; closesInSeconds: number }>;
   } | null;
+  lovko?: { enabled: boolean; jobs: number; ok: number; failed: number; lastError: string; lastErrorAt: string; waitSeconds: number } | null;
+  providers?: { chain: string[]; source: string; ai: Record<string, AiCounts> };
   stats?: {
     jobs: number; jobsOk: number; jobsFailed: number; retries: number; attemptsRefused: number;
     attemptsTimedOut: number; limitHits: number; loggedOutSessions: number; otherErrors: number;
@@ -49,6 +53,7 @@ type BotStatus = {
     nodes: Array<{
       id: string; slot: number; online: boolean; answered: boolean; seenSecondsAgo: number; uptimeSeconds: number;
       ok: number; failed: number; readyPages: number; active: number; waiting: number;
+      chain: string[]; chainFrom: "bot" | "database" | "unknown"; ai: Record<string, AiCounts>;
     }>;
   } | null;
 };
@@ -62,10 +67,18 @@ function maskAi<T>(value: T): T {
   if (Array.isArray(value)) return value.map((v) => maskAi(v)) as unknown as T;
   if (value && typeof value === "object") {
     const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = maskAi(v);
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = k === "chain" ? v : maskAi(v);
     return out as T;
   }
   return value;
+}
+
+// Names shown for each AI of the chain (the Duck.ai name stays hidden, same as everywhere in this panel).
+const AI_NAME: Record<string, string> = { duckai: AI_LABEL, lovko: "Lovko", gemini: "Gemini" };
+const STEP_WORD = ["প্রথমে", "না পারলে", "তারপরেও না পারলে"];
+
+function chainText(chain: string[]): string {
+  return chain.map((n) => AI_NAME[n] ?? n).join(" → ");
 }
 
 // Bangladesh time (Asia/Dhaka), 12-hour with AM/PM, e.g. "11:50:01 PM".
@@ -242,6 +255,8 @@ export default function BotStatusPanel() {
   const duckRate = duckDone ? Math.round((duck!.ok / duckDone) * 100) : 100;
   const duckPages = duck ? duck.readyPages + duck.openingPages : 0;
   const warnCount = problems.filter((p) => p.level === "warn").length;
+  const chain = data?.providers?.chain ?? [];
+  const aiCounts = data?.providers?.ai ?? {};
 
   const offline = !!data && !data.online;
   const allDown = !duck && sessions.length > 0 && upSessions === 0;
@@ -289,7 +304,7 @@ export default function BotStatusPanel() {
               </span>
             )}
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-[#CDBFA3]">{duck ? "Image bot (সৃজন এআই)" : "Image bot (Gemini)"}</p>
+              <p className="text-sm font-semibold text-[#CDBFA3]">{chain.length > 0 ? `Image bot (${chainText(chain)})` : duck ? "Image bot (সৃজন এআই)" : "Image bot (Gemini)"}</p>
               <h2 className="text-2xl font-bold leading-snug sm:text-3xl">{data ? title : "বটের অবস্থা দেখুন"}</h2>
               <p className="mt-1 max-w-xl text-base leading-relaxed text-[#E6DAB9]">
                 {data ? sub : "বাটন চাপলে বট চালু আছে কিনা, সেশনগুলো ঠিক আছে কিনা আর কতগুলো ছবি বানানো হয়েছে, সব এক জায়গায় দেখা যাবে।"}
@@ -335,6 +350,44 @@ export default function BotStatusPanel() {
         )}
       </section>
 
+      {/* Which AI mode the bot runs in right now (the order comes from the bot itself) */}
+      {data?.online && chain.length > 0 && (
+        <section className={`${PANEL} p-5 sm:p-7`}>
+          <SectionTitle
+            title="এখন কোন মোডে চলছে"
+            hint={chain.length > 1 ? "প্রথম AI ফেল করলে একই ছবি পরের AI-তে যায়।" : "শুধু একটা AI দিয়ে ছবি বানানো হচ্ছে, ব্যাকআপ নেই।"}
+          />
+          <p className="mt-3 text-base font-bold text-[#2B2116]">{chainText(chain)}</p>
+          <ol className="mt-4 grid gap-3 sm:grid-cols-3">
+            {chain.map((name, i) => {
+              const c = aiCounts[name];
+              const err = name === "duckai" ? data.duck : name === "lovko" ? data.lovko : null;
+              const gemUp = name === "gemini" ? sessions.filter((x) => x.usable && x.healthy).length : 0;
+              const bad = !!c && c.ok + c.failed >= 3 && c.failed / (c.ok + c.failed) >= 0.5;
+              return (
+                <li key={name} className={`rounded-2xl border p-4 ${bad ? "border-amber-200 bg-amber-50" : "border-[#EADFC4] bg-[#FBF5E4]"}`}>
+                  <p className="text-xs font-bold text-[#7A6A50]">{i + 1}. {STEP_WORD[i] ?? "তারপর"}</p>
+                  <p className="mt-1 text-lg font-bold text-[#2B2116]">{AI_NAME[name] ?? name}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-[#3B2F1E]">
+                    {c ? `বানিয়েছে ${c.ok}টা · ফেল ${c.failed}টা` : "এখনো কোনো কাজ আসেনি"}
+                    {name === "duckai" && c && c.limitHits > 0 ? ` · লিমিট ধরেছে ${c.limitHits} বার` : ""}
+                    {name === "gemini" && sessions.length > 0 ? ` · সেশন ${gemUp}/${sessions.length} ঠিক` : ""}
+                  </p>
+                  {err && err.lastError && (
+                    <p className="mt-2 text-xs leading-relaxed text-[#7A6A50]">
+                      শেষ সমস্যা{err.lastErrorAt ? ` (${dhaka(err.lastErrorAt)})` : ""}: {err.lastError}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+          <p className="mt-3 text-xs text-[#7A6A50]">
+            ফেল মানে ওই AI-তে চেষ্টা ফেল হয়েছে। পরের AI-তে গিয়ে ছবিটা হয়ে যেতে পারে। সংখ্যাগুলো বট শেষবার চালু হওয়ার পর থেকে।
+          </p>
+        </section>
+      )}
+
       {/* All bots (from the database): works with many GitHub accounts, equal slot numbers are fine */}
       {data?.pool && data.pool.nodes.length > 0 && (
         <section className={`${PANEL} p-5 sm:p-7`}>
@@ -358,10 +411,23 @@ export default function BotStatusPanel() {
                       {!b.online ? "বন্ধ" : b.answered ? "চালু" : "সাড়া দিচ্ছে না"}
                     </span>
                   </div>
-                  {b.online && b.answered ? (
-                    <p className="mt-2 text-sm leading-relaxed text-[#3B2F1E]">
-                      ছবি বানিয়েছে {b.ok}টা · ফেল {b.failed}টা · রেডি পেজ {b.readyPages}টা · এখন চলছে {b.active + b.waiting}টা · চালু আছে {bnDuration(b.uptimeSeconds)}
+                  {b.chain.length > 0 && (
+                    <p className="mt-2 text-sm font-semibold text-[#6B5A40]">
+                      মোড: {chainText(b.chain)}
+                      {b.chainFrom === "database" ? " (ডাটাবেসে শেষবার যা জানিয়েছিল)" : ""}
                     </p>
+                  )}
+                  {b.online && b.answered ? (
+                    <>
+                      <p className="mt-2 text-sm leading-relaxed text-[#3B2F1E]">
+                        ছবি বানিয়েছে {b.ok}টা · ফেল {b.failed}টা · রেডি পেজ {b.readyPages}টা · এখন চলছে {b.active + b.waiting}টা · চালু আছে {bnDuration(b.uptimeSeconds)}
+                      </p>
+                      {b.chain.length > 1 && (
+                        <p className="mt-1 text-xs leading-relaxed text-[#7A6A50]">
+                          {b.chain.map((n) => `${AI_NAME[n] ?? n} ${b.ai[n]?.ok ?? 0}/${b.ai[n]?.failed ?? 0}`).join(" · ")} (বানিয়েছে/ফেল)
+                        </p>
+                      )}
+                    </>
                   ) : (
                     <p className="mt-2 text-sm leading-relaxed text-[#3B2F1E]">
                       {b.online ? "ডাটাবেসে আছে কিন্তু তথ্য দিচ্ছে না।" : `${bnDuration(b.seenSecondsAgo)} আগে শেষবার সাড়া দিয়েছিল।`}

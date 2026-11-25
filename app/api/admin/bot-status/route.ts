@@ -111,6 +111,64 @@ function cleanDuck(value: any): Duck | null {
   };
 }
 
+// Lovko Chat (second AI of the chain, when it is switched on).
+type Lovko = { enabled: boolean; jobs: number; ok: number; failed: number; lastError: string; lastErrorAt: string; waitSeconds: number };
+
+function cleanLovko(value: any): Lovko | null {
+  if (!value || typeof value !== "object" || value.enabled !== true) return null;
+  return {
+    enabled: true,
+    jobs: num(value.jobs),
+    ok: num(value.ok),
+    failed: num(value.failed),
+    lastError: text(value.lastError, 260),
+    lastErrorAt: text(value.lastErrorAt, 40),
+    waitSeconds: num(value.waitSeconds),
+  };
+}
+
+const AI_NAMES = ["duckai", "lovko", "gemini"];
+
+// The AI order, only known names, no repeats.
+function cleanChain(value: unknown): string[] {
+  const raw = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[\s,;]+/) : [];
+  const out: string[] = [];
+  for (const item of raw) {
+    let name = String(item).trim().toLowerCase();
+    if (name === "duck") name = "duckai";
+    if (AI_NAMES.includes(name) && !out.includes(name)) out.push(name);
+  }
+  return out;
+}
+
+// What the bot says about itself -> its AI order. Old bots (no "providers") only know Duck.ai or Gemini.
+function chainFromReport(data: any): string[] {
+  const live = cleanChain(data?.providers?.chain);
+  if (live.length > 0) return live;
+  return data?.duckai && data.duckai.enabled === true ? ["duckai"] : ["gemini"];
+}
+
+// Numbers per AI. Gemini has no counter of its own: it is the total minus Duck.ai and Lovko.
+type AiCounts = { ok: number; failed: number; limitHits: number };
+
+function countsByAi(data: any, chain: string[]): Record<string, AiCounts> {
+  const duck = data?.duckai && data.duckai.enabled === true ? data.duckai : null;
+  const lovko = data?.lovko && data.lovko.enabled === true ? data.lovko : null;
+  const totalOk = num(data?.stats?.jobsOk);
+  const totalFailed = num(data?.stats?.jobsFailed);
+  const out: Record<string, AiCounts> = {};
+  if (duck) out.duckai = { ok: num(duck.ok), failed: num(duck.failed), limitHits: num(duck.limitHits) };
+  if (lovko) out.lovko = { ok: num(lovko.ok), failed: num(lovko.failed), limitHits: 0 };
+  if (chain.includes("gemini")) {
+    out.gemini = {
+      ok: Math.max(0, totalOk - (out.duckai?.ok ?? 0) - (out.lovko?.ok ?? 0)),
+      failed: Math.max(0, totalFailed - (out.duckai?.failed ?? 0) - (out.lovko?.failed ?? 0)),
+      limitHits: 0,
+    };
+  }
+  return out;
+}
+
 function cleanWarm(value: any): Warm | null {
   if (!value || typeof value !== "object") return null;
   const sessions = value.sessions && typeof value.sessions === "object" ? value.sessions : {};
@@ -148,7 +206,7 @@ function dhakaTime(iso: string): string {
 }
 
 // Turns the raw numbers into a short list: what is wrong, why, and what to do.
-function buildProblems(report: any, runs: Run[] | null, detailed: boolean, warm: Warm | null, duck: Duck | null = null): Problem[] {
+function buildProblems(report: any, runs: Run[] | null, detailed: boolean, warm: Warm | null, duck: Duck | null = null, lovko: Lovko | null = null): Problem[] {
   const out: Problem[] = [];
 
   // Duck.ai mode: the Google/Gemini sessions are not used, so their problems are left out.
@@ -176,6 +234,17 @@ function buildProblems(report: any, runs: Run[] | null, detailed: boolean, warm:
         cause: duck.lastError,
         advice: "The visitor can press Generate again. See the [duckai] lines in the bot log if it repeats.",
       });
+    }
+    if (lovko) {
+      const lovkoDone = lovko.ok + lovko.failed;
+      if (lovkoDone >= 3 && lovko.failed / lovkoDone >= 0.2) {
+        out.push({
+          level: "warn",
+          title: `${lovko.failed} of ${lovkoDone} Lovko images failed in this run`,
+          cause: lovko.lastError || "Lovko did not make the picture.",
+          advice: "Lovko is the next AI after Duck.ai. If it fails too, the picture goes on to the next AI in the chain (if any).",
+        });
+      }
     }
     if (runs && runs.length > 0) {
       const running = runs.find((r) => r.status === "in_progress" || r.status === "queued");
@@ -320,6 +389,9 @@ type PoolNodeView = {
   readyPages: number;
   active: number;
   waiting: number;
+  chain: string[]; // AI order: from the bot itself when it answers, else the one saved in the database
+  chainFrom: "bot" | "database" | "unknown";
+  ai: Record<string, AiCounts>;
 };
 
 type PoolView = { alive: number; total: number; ok: number; failed: number; active: number; nodes: PoolNodeView[] };
@@ -367,15 +439,22 @@ async function loadPoolView(): Promise<PoolView | null> {
         readyPages: 0,
         active: 0,
         waiting: 0,
+        chain: cleanChain(n.chain),
+        chainFrom: n.chain.length > 0 ? "database" : "unknown",
+        ai: {},
       };
       if (!online) return view;
       const data = await readNode(n.url, key);
       if (!data) return view;
       const duck = data.duckai && data.duckai.enabled === true ? data.duckai : null;
       view.answered = true;
+      view.chain = chainFromReport(data);
+      view.chainFrom = "bot";
+      view.ai = countsByAi(data, view.chain);
       view.uptimeSeconds = num(data.uptimeSeconds);
-      view.ok = duck ? num(duck.ok) : num(data.stats?.jobsOk);
-      view.failed = duck ? num(duck.failed) : num(data.stats?.jobsFailed);
+      // Pictures made = every AI together (the chain may hand a picture to the next AI).
+      view.ok = num(data.stats?.jobsOk);
+      view.failed = num(data.stats?.jobsFailed);
       view.readyPages = duck ? num(duck.readyPages) : 0;
       view.active = num(data.generation?.active);
       view.waiting = num(data.generation?.waiting);
@@ -499,6 +578,9 @@ export async function GET(request: Request) {
   const pool = await poolPromise;
   const warm = cleanWarm(data.warmPool);
   const duck = cleanDuck(data.duckai);
+  const lovko = cleanLovko(data.lovko);
+  const chain = chainFromReport(data);
+  const ai = countsByAi(data, chain);
 
   return NextResponse.json(
     {
@@ -519,6 +601,8 @@ export async function GET(request: Request) {
       maxJobRetries: num(data.maxJobRetries),
       warm,
       duck,
+      lovko,
+      providers: { chain, source: text(data.providers?.source, 60), ai },
       ...report,
       recentErrors: (Array.isArray(data.recentErrors) ? data.recentErrors : []).slice(-8).map((e: any) => ({
         at: text(e?.at, 40),
@@ -551,7 +635,7 @@ export async function GET(request: Request) {
       })),
       runs,
       pool,
-      problems: buildProblems(report, runs, detailed, warm, duck),
+      problems: buildProblems(report, runs, detailed, warm, duck, lovko),
     },
     { headers: NO_STORE },
   );

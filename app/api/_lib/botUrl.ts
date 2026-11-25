@@ -75,7 +75,7 @@ async function loadPool(): Promise<PoolNode[]> {
 }
 
 /** Admin panel: every bot seen in the last 10 minutes (alive or just stopped), straight from MongoDB. */
-export type BotNodeInfo = { url: string; slot: number; lastSeen: number };
+export type BotNodeInfo = { url: string; slot: number; lastSeen: number; chain: string[] };
 
 export async function listBotNodes(): Promise<BotNodeInfo[]> {
   await connectDB();
@@ -88,6 +88,8 @@ export async function listBotNodes(): Promise<BotNodeInfo[]> {
       url: typeof doc.url === "string" ? doc.url.trim().replace(/\/+$/, "") : "",
       slot: Number(doc.slot) || 0,
       lastSeen: doc.lastSeen instanceof Date ? doc.lastSeen.getTime() : 0,
+      // The AI order (AI_PROVIDERS) the bot last told the website, e.g. ["duckai", "lovko", "gemini"].
+      chain: Array.isArray(doc.chain) ? doc.chain.filter((n): n is string => typeof n === "string").slice(0, 3) : [],
     }))
     .filter((node: BotNodeInfo) => /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/.test(node.url) && node.lastSeen > 0)
     .sort((a: BotNodeInfo, b: BotNodeInfo) => a.slot - b.slot || (a.url < b.url ? -1 : 1));

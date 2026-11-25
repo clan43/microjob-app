@@ -39,6 +39,20 @@ const POOL_COLLECTION = "botnodes";
 const POOL_URL_REGEX = /^https:\/\/[a-z0-9-]+\.trycloudflare\.com$/;
 let poolIndexesReady = false;
 
+const POOL_AI_NAMES = ["duckai", "lovko", "gemini"];
+
+// "duckai lovko gemini" / ["duckai","lovko"] -> only the known names, in the same order, no repeats.
+function cleanChain(value: unknown): string[] {
+  const raw = Array.isArray(value) ? value.map(String) : typeof value === "string" ? value.split(/[\s,;]+/) : [];
+  const out: string[] = [];
+  for (const item of raw) {
+    let name = item.trim().toLowerCase();
+    if (name === "duck") name = "duckai"; // "duck.ai" arrives as "duck ai"
+    if (POOL_AI_NAMES.includes(name) && !out.includes(name)) out.push(name);
+  }
+  return out;
+}
+
 async function handlePool(pool: unknown): Promise<NextResponse> {
   const data = (pool && typeof pool === "object" ? pool : {}) as Record<string, unknown>;
   const action = typeof data.action === "string" ? data.action : "";
@@ -67,7 +81,11 @@ async function handlePool(pool: unknown): Promise<NextResponse> {
     if (action === "unregister") {
       await collection.deleteOne({ url });
     } else {
-      await collection.updateOne({ url }, { $set: { slot, lastSeen: new Date() } }, { upsert: true });
+      const chain = cleanChain(data.chain);
+      const set: Record<string, unknown> = { slot, lastSeen: new Date() };
+      // Old bots do not send the AI order: keep what is already stored for them.
+      if (chain.length > 0) set.chain = chain;
+      await collection.updateOne({ url }, { $set: set }, { upsert: true });
     }
 
     return NextResponse.json({ success: true });
