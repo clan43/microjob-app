@@ -1028,6 +1028,28 @@ export default function PhotoEditorPage() {
     const [isRecentDragOver, setIsRecentDragOver] = useState(false);
     const recentDragDepth = useRef(0);
     const isRecentDrag = (event: React.DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes(RECENT_PHOTO_DRAG_TYPE);
+    const findRecentItem = (payload: { url?: string; id?: string | number }) => (recentList.find((entry: any) => (payload?.id !== undefined && payload?.id !== null && String(entry.id) === String(payload.id)) || entry.url === payload?.url) as any) || null;
+    const isDualRecentItem = (payload: { url?: string; id?: string | number }) => findRecentItem(payload)?.side === "dual";
+    // Dual mode: a photo from "Recent generations" dropped on the left/right slot goes into exactly that slot.
+    const handleDropRecentToSlot = (target: "left" | "right", url: string, payload?: { url?: string; id?: string | number }) => {
+        if (isGenerating || !url)
+            return;
+        const item = findRecentItem(payload || { url });
+        if (item?.side === "dual")
+            return; // a combined dual picture cannot be one person's slot
+        const source: string = item?.originalUrl || url;
+        setErrorMessage(null);
+        setDualResultImage(null);
+        setIsDualPreviewActive(false);
+        if (target === "left") {
+            setLeftImage(url);
+            setOriginalLeftImage(source);
+        }
+        else {
+            setRightImage(url);
+            setOriginalRightImage(source);
+        }
+    };
     const recentDropProps = {
         onDragEnter: (event: React.DragEvent) => {
             if (!isRecentDrag(event))
@@ -1058,6 +1080,10 @@ export default function PhotoEditorPage() {
             setIsRecentDragOver(false);
             try {
                 const payload = JSON.parse(event.dataTransfer.getData(RECENT_PHOTO_DRAG_TYPE) || "{}") as { url?: string; id?: string | number };
+                // Dual mode: a single photo must only land in the left/right slot it is dropped on
+                // (handled by the slots). Dropping it anywhere else must not throw the user out of dual mode.
+                if (isDualMode && !isDualRecentItem(payload))
+                    return;
                 showRecentInEditor(payload);
             }
             catch { /* ignore a malformed drag payload */ }
@@ -2427,7 +2453,7 @@ export default function PhotoEditorPage() {
       <ImagePreviewModal image={previewModalImage} onClose={() => { setPreviewModalImage(null); setPreviewStartWithEdit(false); }} onDelete={handleDeleteImage} onRegenerate={handleRegenerateFromModal} onSaveImage={handleSaveEditedImage} startWithEdit={previewStartWithEdit}/>
 
       <div {...recentDropProps} className="ai-main relative flex-1 flex flex-col items-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-4 xl:min-h-0 xl:overflow-hidden xl:px-4 xl:py-3 min-w-0">
-        {isRecentDragOver && (<div className="pointer-events-none absolute inset-2 z-50 flex items-center justify-center rounded-2xl border-4 border-dashed border-[#DC2626]/70 bg-[#F6D9A8]/70 backdrop-blur-[1px]">
+        {isRecentDragOver && !isDualMode && (<div className="pointer-events-none absolute inset-2 z-50 flex items-center justify-center rounded-2xl border-4 border-dashed border-[#DC2626]/70 bg-[#F6D9A8]/70 backdrop-blur-[1px]">
             <span className="rounded-xl bg-[#DC2626] px-5 py-2.5 text-base font-semibold text-white shadow-lg"><AiT>{"Drop the photo here to edit it"}</AiT></span>
           </div>)}
         {/* xl: 3-column grid. Left = full-height settings panel (no inner scrollbar, the page itself scrolls).
@@ -2441,7 +2467,7 @@ export default function PhotoEditorPage() {
             <div className="flex flex-col xl:flex-row gap-3 xl:min-h-0 min-w-0">
               {/* Photo preview (kept mounted, hidden while the print section is open) */}
               <div className="flex flex-col flex-1 min-w-0 xl:min-h-0 [&>*]:flex-1 xl:[&>*]:min-h-0">
-                <PhotoPreviewArea onDropFile={handleDropFile} isDualMode={isDualMode} uploadedImage={uploadedImage} setUploadedImage={setUploadedImage} leftImage={leftImage} setLeftImage={setLeftImage} rightImage={rightImage} setRightImage={setRightImage} triggerUpload={triggerUpload} enableDualMode={enableDualMode} exitDualMode={exitDualMode} activeBoxInfo={getCurrentBoxDimensions()} currentBgColorValue={getSelectedBgColorValue()} isGenerating={isGenerating} isDeleting={isDeleting} originalImageForDual={originalImageForDual} setOriginalImageForDual={setOriginalImageForDual} isDualPreviewActive={isDualPreviewActive} setIsDualPreviewActive={setIsDualPreviewActive} dualResultImage={dualResultImage} setDualResultImage={setDualResultImage} resultFilter={liveResultFilter} resultInfo={resultInfo}/>
+                <PhotoPreviewArea onDropFile={handleDropFile} onDropRecent={(target, url, payload) => { if (target === "left" || target === "right") handleDropRecentToSlot(target, url, payload); }} isDualMode={isDualMode} uploadedImage={uploadedImage} setUploadedImage={setUploadedImage} leftImage={leftImage} setLeftImage={setLeftImage} rightImage={rightImage} setRightImage={setRightImage} triggerUpload={triggerUpload} enableDualMode={enableDualMode} exitDualMode={exitDualMode} activeBoxInfo={getCurrentBoxDimensions()} currentBgColorValue={getSelectedBgColorValue()} isGenerating={isGenerating} isDeleting={isDeleting} originalImageForDual={originalImageForDual} setOriginalImageForDual={setOriginalImageForDual} isDualPreviewActive={isDualPreviewActive} setIsDualPreviewActive={setIsDualPreviewActive} dualResultImage={dualResultImage} setDualResultImage={setDualResultImage} resultFilter={liveResultFilter} resultInfo={resultInfo}/>
               </div>
               {/* Options appear right beside the generated photo */}
               {resultItem && !printSession && !bulkPrintSources && (<div className="flex justify-center xl:block xl:shrink-0">

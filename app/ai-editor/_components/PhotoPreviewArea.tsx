@@ -24,7 +24,7 @@ interface PhotoPreviewAreaProps {
     /** A photo file was dropped onto an empty upload box (drag and drop). */
     onDropFile?: (target: "single" | "left" | "right", file: File) => void;
     /** A photo from "Recent generations" was dragged onto an empty upload box. */
-    onDropRecent?: (target: "single" | "left" | "right", url: string) => void;
+    onDropRecent?: (target: "single" | "left" | "right", url: string, payload?: { url?: string; id?: string | number }) => void;
     enableDualMode: () => void;
     exitDualMode: () => void;
     activeBoxInfo: BoxInfo;
@@ -457,6 +457,44 @@ function FitFrame({ info, imageSrc, className = "", style, children, }: {
       </div>
     </div>);
 }
+/** Lets a photo dragged from "Recent generations" be dropped onto a slot that already holds a photo (replaces it). */
+function SlotRecentDrop({ onRecent, children }: {
+    onRecent?: (url: string, payload?: { url?: string; id?: string | number }) => void;
+    children: React.ReactNode;
+}) {
+    const { t } = useAiEditorText();
+    const [dragging, setDragging] = React.useState(false);
+    const depth = React.useRef(0);
+    const isRecent = (e: React.DragEvent) => !!onRecent && Array.from(e.dataTransfer?.types ?? []).includes(RECENT_PHOTO_DRAG_TYPE);
+    React.useEffect(() => {
+        const reset = () => { depth.current = 0; setDragging(false); };
+        window.addEventListener("dragend", reset);
+        window.addEventListener("drop", reset);
+        return () => { window.removeEventListener("dragend", reset); window.removeEventListener("drop", reset); };
+    }, []);
+    if (!onRecent) return <>{children}</>;
+    return (<div className="relative h-full w-full"
+      onDragEnter={(e) => { if (!isRecent(e)) return; e.preventDefault(); depth.current += 1; setDragging(true); }}
+      onDragOver={(e) => { if (!isRecent(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
+      onDragLeave={(e) => { if (!isRecent(e)) return; depth.current = Math.max(0, depth.current - 1); if (depth.current === 0) setDragging(false); }}
+      onDrop={(e) => {
+        if (!isRecent(e)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        depth.current = 0;
+        setDragging(false);
+        try {
+            const payload = JSON.parse(e.dataTransfer.getData(RECENT_PHOTO_DRAG_TYPE) || "{}") as { url?: string; id?: string | number };
+            if (payload.url) onRecent(payload.url, payload);
+        }
+        catch { /* ignore a malformed drag payload */ }
+      }}>
+      {children}
+      {dragging && (<div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-[#F6D9A8]/80 ring-4 ring-inset ring-[#DC2626]/60">
+          <span className="rounded-lg bg-[#DC2626] px-3 py-1.5 text-sm font-semibold text-white shadow-lg">{t("Drop the photo here")}</span>
+        </div>)}
+    </div>);
+}
 function EmptyUploadBox({ title, subtitle, onUpload, onFile, onRecent, }: {
     title: string;
     subtitle?: string;
@@ -464,7 +502,7 @@ function EmptyUploadBox({ title, subtitle, onUpload, onFile, onRecent, }: {
     /** When given, a photo file can be dragged and dropped onto the box. */
     onFile?: (file: File) => void;
     /** When given, a photo dragged from "Recent generations" can be dropped onto the box. */
-    onRecent?: (url: string) => void;
+    onRecent?: (url: string, payload?: { url?: string; id?: string | number }) => void;
 }) {
     const { t } = useAiEditorText();
     const [dragging, setDragging] = React.useState(false);
@@ -497,9 +535,11 @@ function EmptyUploadBox({ title, subtitle, onUpload, onFile, onRecent, }: {
                 setDragging(false);
                 const recent = e.dataTransfer.getData(RECENT_PHOTO_DRAG_TYPE);
                 if (recent) {
+                    // The slot handled it: do not let the page-level drop handler also react to the same drop.
+                    e.stopPropagation();
                     try {
-                        const { url } = JSON.parse(recent) as { url?: string };
-                        if (url && onRecent) onRecent(url);
+                        const payload = JSON.parse(recent) as { url?: string; id?: string | number };
+                        if (payload.url && onRecent) onRecent(payload.url, payload);
                     }
                     catch { /* ignore a malformed drag payload */ }
                     return;
@@ -630,7 +670,7 @@ export default function PhotoPreviewArea({
                   <div className="pointer-events-none absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full bg-[#3B2F1E]/70 px-2 py-0.5 text-[11px] text-white backdrop-blur-sm">
                     {activeBoxInfo.text}
                   </div>
-                </div>) : (<EmptyUploadBox title="Upload a Photo" subtitle={`Click or scan QR code to upload (${activeBoxInfo.text})`} onUpload={() => triggerUpload("single")} onFile={onDropFile && !isGenerating ? (file) => onDropFile("single", file) : undefined} onRecent={onDropRecent && !isGenerating ? (url) => onDropRecent("single", url) : undefined}/>)}
+                </div>) : (<EmptyUploadBox title="Upload a Photo" subtitle={`Click or scan QR code to upload (${activeBoxInfo.text})`} onUpload={() => triggerUpload("single")} onFile={onDropFile && !isGenerating ? (file) => onDropFile("single", file) : undefined} />)}
 
               <GateOverlay active={isGenerating} image={uploadedImage} background={currentBgColorValue}/>
             </FitFrame>)}
@@ -682,13 +722,13 @@ export default function PhotoPreviewArea({
               <span className="shrink-0 text-center text-sm font-semibold uppercase tracking-wider text-[#3B2F1E]"><AiT>{"Left Person\n              "}</AiT></span>
 
               <FitFrame info={activeBoxInfo} imageSrc={leftImage} className="overflow-hidden rounded-2xl border-2 border-[#E3D6B8] shadow-xl">
-                {leftImage ? (<div className="group relative h-full w-full" style={getBackgroundStyle(currentBgColorValue)}>
+                {leftImage ? (<SlotRecentDrop onRecent={onDropRecent && !isGenerating ? (url, payload) => onDropRecent("left", url, payload) : undefined}><div className="group relative h-full w-full" style={getBackgroundStyle(currentBgColorValue)}>
                     <img src={leftImage} alt="Left person" className="h-full w-full object-contain"/>
 
                     <button type="button" onClick={() => setLeftImage(null)} className="absolute right-2 top-2 z-10 cursor-pointer rounded-full bg-red-600 p-1.5 text-white opacity-0 transition group-hover:opacity-100" aria-label={t("Remove left photo")}>
                       <X size={14}/>
                     </button>
-                  </div>) : (<EmptyUploadBox title="Upload left photo" onUpload={() => triggerUpload("left")} onFile={onDropFile && !isGenerating ? (file) => onDropFile("left", file) : undefined} onRecent={onDropRecent && !isGenerating ? (url) => onDropRecent("left", url) : undefined}/>)}
+                  </div></SlotRecentDrop>) : (<EmptyUploadBox title="Upload left photo" onUpload={() => triggerUpload("left")} onFile={onDropFile && !isGenerating ? (file) => onDropFile("left", file) : undefined} onRecent={onDropRecent && !isGenerating ? (url, payload) => onDropRecent("left", url, payload) : undefined}/>)}
 
                 <GateOverlay active={isGenerating && !!leftImage} image={leftImage} background={currentBgColorValue}/>
               </FitFrame>
@@ -698,13 +738,13 @@ export default function PhotoPreviewArea({
               <span className="shrink-0 text-center text-sm font-semibold uppercase tracking-wider text-[#3B2F1E]"><AiT>{"Right Person\n              "}</AiT></span>
 
               <FitFrame info={activeBoxInfo} imageSrc={rightImage} className="overflow-hidden rounded-2xl border-2 border-[#E3D6B8] shadow-xl">
-                {rightImage ? (<div className="group relative h-full w-full" style={getBackgroundStyle(currentBgColorValue)}>
+                {rightImage ? (<SlotRecentDrop onRecent={onDropRecent && !isGenerating ? (url, payload) => onDropRecent("right", url, payload) : undefined}><div className="group relative h-full w-full" style={getBackgroundStyle(currentBgColorValue)}>
                     <img src={rightImage} alt="Right person" className="h-full w-full object-contain"/>
 
                     <button type="button" onClick={() => setRightImage(null)} className="absolute right-2 top-2 z-10 cursor-pointer rounded-full bg-red-600 p-1.5 text-white opacity-0 transition group-hover:opacity-100" aria-label={t("Remove right photo")}>
                       <X size={14}/>
                     </button>
-                  </div>) : (<EmptyUploadBox title="Upload right photo" onUpload={() => triggerUpload("right")} onFile={onDropFile && !isGenerating ? (file) => onDropFile("right", file) : undefined} onRecent={onDropRecent && !isGenerating ? (url) => onDropRecent("right", url) : undefined}/>)}
+                  </div></SlotRecentDrop>) : (<EmptyUploadBox title="Upload right photo" onUpload={() => triggerUpload("right")} onFile={onDropFile && !isGenerating ? (file) => onDropFile("right", file) : undefined} onRecent={onDropRecent && !isGenerating ? (url, payload) => onDropRecent("right", url, payload) : undefined}/>)}
 
                 <GateOverlay active={isGenerating && !!rightImage} image={rightImage} background={currentBgColorValue}/>
               </FitFrame>
