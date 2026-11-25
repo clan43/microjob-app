@@ -61,32 +61,6 @@ const FALLBACK_CATEGORIES = [
   "Family photo",
 ];
 
-export const HASHTAGS = [
-  "#3d character",
-  "#3d illusion",
-  "#3d typography",
-  "#3rd birthday",
-  "#80s",
-  "#80s fashion",
-  "#90s",
-  "#abduction",
-  "#abstract art",
-  "#action",
-  "#action portrait",
-  "#adventure",
-  "#advertisement",
-  "#advertising",
-  "#aesthetic",
-  "#age",
-  "#ai video",
-  "#airplane",
-  "#airport",
-  "#alley",
-  "#art",
-  "#baby",
-  "#bangladesh",
-];
-
 /* -------------------------------------------------------------------------- */
 /*  Template metadata                                                         */
 /* -------------------------------------------------------------------------- */
@@ -525,6 +499,33 @@ export const CATEGORY_OPTIONS: string[] = [
   ),
 ];
 
+/**
+ * Hashtag chips come from the tags of the templates we actually have
+ * (most used first), never from a hand-written list.
+ */
+export const HASHTAGS: string[] = (() => {
+  const counts = new Map<string, number>();
+  templates.forEach((template) => {
+    new Set(template.tags).forEach((tag) => {
+      if (tag === "portrait") return; // every template has it, so it filters nothing
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    });
+  });
+  return [...counts.entries()]
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 30)
+    .map(([tag]) => `#${tag}`);
+})();
+
+/** Filter values that at least one template really has (sidebar shows only these). */
+export const AVAILABLE_GENDERS: Gender[] = (["Male", "Female", "Children", "Product"] as Gender[]).filter(
+  (value) => templates.some((template) => template.gender === value),
+);
+export const AVAILABLE_ORIENTATIONS: Orientation[] = (["Portrait", "Landscape", "Square"] as Orientation[]).filter(
+  (value) => templates.some((template) => template.orientation === value),
+);
+
 /* -------------------------------------------------------------------------- */
 /*  Filtering + sorting pipeline (single source of truth)                     */
 /* -------------------------------------------------------------------------- */
@@ -619,7 +620,7 @@ export function sortTemplates(list: readonly Template[], sortType: SortType) {
   }
 }
 
-export const COLOR_OPTIONS: ReadonlyArray<{
+const ALL_COLOR_OPTIONS: ReadonlyArray<{
   value: ColorFilter;
   label: string;
   background: string;
@@ -666,7 +667,7 @@ export const COLOR_OPTIONS: ReadonlyArray<{
   },
 ];
 
-export const IMAGE_COUNT_OPTIONS: ReadonlyArray<{
+const ALL_IMAGE_COUNT_OPTIONS: ReadonlyArray<{
   value: ImageCountFilter;
   label: string;
   hint: string;
@@ -692,6 +693,16 @@ export const IMAGE_COUNT_OPTIONS: ReadonlyArray<{
     hint: "Group / more than 2 people",
   },
 ];
+
+export const COLOR_OPTIONS = ALL_COLOR_OPTIONS.filter(
+  (option) => option.value === "All" || templates.some((template) => template.colors.includes(option.value as ColorKey)),
+);
+
+export const IMAGE_COUNT_OPTIONS = ALL_IMAGE_COUNT_OPTIONS.filter(
+  (option) =>
+    option.value === "All" ||
+    templates.some((template) => (option.value === 3 ? template.imageCount >= 3 : template.imageCount === option.value)),
+);
 
 export const SIDE_SORT_OPTIONS: ReadonlyArray<{
   label: string;

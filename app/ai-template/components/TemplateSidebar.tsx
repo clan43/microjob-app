@@ -2,7 +2,7 @@
 import { useAiTemplateText } from "./aiTemplateI18n";
 import React from "react";
 import { ChevronDown, RotateCcw, UserRound, VenusAndMars, Baby, Package, } from "lucide-react";
-import { CATEGORY_COUNTS, CATEGORY_OPTIONS, COLOR_OPTIONS, IMAGE_COUNT_OPTIONS, SIDE_SORT_OPTIONS, } from "./templateData";
+import { AVAILABLE_GENDERS, AVAILABLE_ORIENTATIONS, CATEGORY_COUNTS, CATEGORY_OPTIONS, COLOR_OPTIONS, IMAGE_COUNT_OPTIONS, SIDE_SORT_OPTIONS, } from "./templateData";
 import type { Gender, ImageCountFilter, OrientationFilter, ColorFilter, SortType } from "./templateData";
 type Props = {
     category: string;
@@ -54,7 +54,7 @@ export function TemplateSidebar(props: Props) {
         ] as Array<[
             Gender,
             React.ReactNode
-        ]>).map(([item, icon]) => (<button type="button" key={item} className={`gender-card ${gender === item ? "active" : ""}`} onClick={() => setGender(item)}>
+        ]>).filter(([item]) => item === "All" || AVAILABLE_GENDERS.includes(item)).map(([item, icon]) => (<button type="button" key={item} className={`gender-card ${gender === item ? "active" : ""}`} onClick={() => setGender(item)}>
               {icon}<span>{t(item)}</span>
             </button>))}
         </div>
@@ -70,15 +70,17 @@ export function TemplateSidebar(props: Props) {
         </div>
       </div>
 
+      {AVAILABLE_ORIENTATIONS.length > 1 && (
       <div className="filter-group">
         <div className="filter-section-title">{t("ORIENTATION")}</div>
         <div className="orientation-grid">
-          {(["All", "Portrait", "Landscape", "Square"] as OrientationFilter[]).map((item) => (<button type="button" key={item} className={`orientation-card ${orientation === item ? "active" : ""}`} onClick={() => setOrientation(item)}>
+          {(["All", ...AVAILABLE_ORIENTATIONS] as OrientationFilter[]).map((item) => (<button type="button" key={item} className={`orientation-card ${orientation === item ? "active" : ""}`} onClick={() => setOrientation(item)}>
               <span className={`orientation-icon orientation-${item.toLowerCase()}`}/>
               {t(item)}
             </button>))}
         </div>
       </div>
+      )}
 
       <div className="filter-group">
         <div className="filter-section-title">{t("COLOR")}</div>

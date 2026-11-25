@@ -278,6 +278,319 @@ function findSvgElement(doc: Document, id: string): Element | null {
   return Array.from(doc.documentElement.querySelectorAll("[id]")).find((element) => element.getAttribute("id") === id) ?? null;
 }
 
+
+const EXPORT_FONT_CSS_URL = "https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@400;500;600;700;800&family=Baloo+Da+2:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Bengali:wght@400;500;600;700;800&family=Noto+Serif+Bengali:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Tiro+Bangla&display=swap";
+
+type FontFaceRule = { family: string; weightMin: number; weightMax: number; ranges: Array<[number, number]>; url: string };
+let fontRulesPromise: Promise<FontFaceRule[]> | null = null;
+const fontDataCache = new Map<string, Promise<string>>();
+
+function parseUnicodeRange(value: string): Array<[number, number]> {
+  if (!value) return [[0, 0x10ffff]];
+  return value.split(",").map((part) => {
+    const match = part.trim().match(/^U\+([0-9A-Fa-f?]+)(?:-([0-9A-Fa-f]+))?$/);
+    if (!match) return [0, 0] as [number, number];
+    if (match[1].includes("?")) return [parseInt(match[1].replace(/\?/g, "0"), 16), parseInt(match[1].replace(/\?/g, "F"), 16)] as [number, number];
+    const start = parseInt(match[1], 16);
+    return [start, match[2] ? parseInt(match[2], 16) : start] as [number, number];
+  });
+}
+
+function loadFontRules(): Promise<FontFaceRule[]> {
+  if (!fontRulesPromise) {
+    fontRulesPromise = (async () => {
+      const css = await (await fetch(EXPORT_FONT_CSS_URL)).text();
+      const rules: FontFaceRule[] = [];
+      for (const block of css.match(/@font-face\s*{[^}]*}/g) ?? []) {
+        const family = block.match(/font-family:\s*['"]?([^;'"]+)['"]?\s*;/)?.[1]?.trim();
+        const weight = block.match(/font-weight:\s*(\d+)(?:\s+(\d+))?/);
+        const url = block.match(/url\(([^)]+)\)/)?.[1]?.replace(/['"]/g, "");
+        const range = block.match(/unicode-range:\s*([^;]+);/)?.[1] ?? "";
+        if (!family || !url) continue;
+        const min = weight ? Number(weight[1]) : 400;
+        rules.push({ family, weightMin: min, weightMax: weight?.[2] ? Number(weight[2]) : min, ranges: parseUnicodeRange(range), url });
+      }
+      return rules;
+    })().catch((fontError) => {
+      fontRulesPromise = null;
+      throw fontError;
+    });
+  }
+  return fontRulesPromise;
+}
+
+function fontToDataUri(url: string): Promise<string> {
+  let cached = fontDataCache.get(url);
+  if (!cached) {
+    cached = (async () => {
+      const blob = await (await fetch(url)).blob();
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+      });
+    })();
+    fontDataCache.set(url, cached);
+    cached.catch(() => fontDataCache.delete(url));
+  }
+  return cached;
+}
+
+// An SVG drawn through <img>/canvas cannot see the page's web fonts, so Bangla text silently falls back to a
+// wider system font (names get clipped, text leaves its badge). Embedding the exact font files that the design
+// uses makes PNG / PDF identical to what the editor shows.
+async function embedFontsIntoSvg(markup: string): Promise<string> {
+  try {
+    const doc = parseSvg(markup);
+    const root = doc.documentElement;
+    const families = new Set<string>();
+    const weights = new Set<number>([400]);
+    const codePoints = new Set<number>();
+    const addFamilies = (value: string | null) => {
+      (value || "").split(",").forEach((item) => {
+        const name = item.replace(/['"]|&quot;/g, "").trim();
+        if (name) families.add(name.toLowerCase());
+      });
+    };
+    addFamilies(root.getAttribute("font-family"));
+    root.querySelectorAll("*").forEach((element) => {
+      addFamilies(element.getAttribute("font-family"));
+      const styleFamily = (element.getAttribute("style") || "").match(/font-family:\s*([^;]+)/)?.[1];
+      if (styleFamily) addFamilies(styleFamily);
+      const weight = element.getAttribute("font-weight") || (element.getAttribute("style") || "").match(/font-weight:\s*([^;]+)/)?.[1];
+      if (weight) {
+        const numeric = /bold/i.test(weight) ? 700 : Number(weight);
+        if (Number.isFinite(numeric) && numeric > 0) weights.add(numeric);
+      }
+    });
+    root.querySelectorAll("text").forEach((element) => {
+      for (const char of element.textContent || "") codePoints.add(char.codePointAt(0) || 0);
+    });
+    if (codePoints.size === 0) return markup;
+    // Joiners are needed to shape Bangla conjuncts, whichever subset the letters themselves come from.
+    codePoints.add(0x200c);
+    codePoints.add(0x200d);
+
+    const rules = await loadFontRules();
+    const wanted = rules.filter(
+      (rule) =>
+        families.has(rule.family.toLowerCase()) &&
+        Array.from(weights).some((weight) => weight >= rule.weightMin && weight <= rule.weightMax) &&
+        rule.ranges.some(([start, end]) => Array.from(codePoints).some((point) => point >= start && point <= end)),
+    );
+    if (wanted.length === 0) return markup;
+
+    const faces = await Promise.all(
+      wanted.map(async (rule) => {
+        const data = await fontToDataUri(rule.url);
+        const range = rule.ranges.map(([start, end]) => (start === end ? `U+${start.toString(16)}` : `U+${start.toString(16)}-${end.toString(16)}`)).join(",");
+        return `@font-face{font-family:"${rule.family}";font-style:normal;font-weight:${rule.weightMin} ${rule.weightMax};src:url(${data}) format("woff2");unicode-range:${range};}`;
+      }),
+    );
+    const style = doc.createElementNS(SVG_NS, "style");
+    style.textContent = faces.join("\n");
+    root.insertBefore(style, root.firstChild);
+    return serializeSvg(doc);
+  } catch (fontError) {
+    console.warn("Could not embed fonts into the export; using the browser fonts instead.", fontError);
+    return markup;
+  }
+}
+
+// Outlined text (white/yellow text with a dark edge): draw the outline underneath the letters with round joins.
+// Without this, letters whose glyph contours overlap show inner outline lines and the edge looks doubled/heavy.
+function applyTextStrokeDefaults(doc: Document) {
+  doc.querySelectorAll("text").forEach((element) => {
+    const stroke = element.getAttribute("stroke") || (element.getAttribute("style") || "").match(/(?:^|;)\s*stroke:\s*([^;]+)/)?.[1] || "";
+    if (!stroke || stroke.trim() === "none") return;
+    const style = element.getAttribute("style") || "";
+    if (!element.hasAttribute("paint-order") && !/paint-order/.test(style)) element.setAttribute("paint-order", "stroke fill");
+    if (!element.hasAttribute("stroke-linejoin") && !/stroke-linejoin/.test(style)) element.setAttribute("stroke-linejoin", "round");
+    if (!element.hasAttribute("stroke-linecap") && !/stroke-linecap/.test(style)) element.setAttribute("stroke-linecap", "round");
+  });
+}
+
+
+// ---- Auto-fit text -------------------------------------------------------------------------------------------
+// Every template text remembers how wide it was in the original design (data-pm-maxw) and its original font size
+// (data-pm-fs). When someone types a longer name the font size shrinks just enough to keep the text inside its
+// original width, so it never runs out of its bar / badge / circle. Short text goes back to the original size.
+const AUTOFIT_MIN_SCALE = 0.4;
+
+function measureHost(markup: string): { host: HTMLDivElement; texts: SVGTextElement[] } | null {
+  if (typeof document === "undefined") return null;
+  const host = document.createElement("div");
+  host.setAttribute("aria-hidden", "true");
+  host.style.cssText = "position:fixed;left:-100000px;top:0;width:2400px;height:2400px;visibility:hidden;pointer-events:none;overflow:hidden;";
+  host.innerHTML = `<style>svg text,svg tspan{text-rendering:geometricPrecision;font-kerning:normal;font-variant-ligatures:normal;}</style>${markup}`;
+  document.body.appendChild(host);
+  return { host, texts: Array.from(host.querySelectorAll("text")) as unknown as SVGTextElement[] };
+}
+
+function setLiveFontSize(element: SVGTextElement, size: number) {
+  element.setAttribute("font-size", String(size));
+  if (element.style && element.style.fontSize) element.style.fontSize = `${size}px`;
+}
+
+// mode "init": record the original width + size of every text that has none yet.
+// mode "fit": shrink (or restore) the font size of texts that have a recorded width. onlyId limits it to one element.
+function autoFitText(markup: string, mode: "init" | "fit", onlyId?: string): string {
+  let measured: ReturnType<typeof measureHost> = null;
+  try {
+    measured = measureHost(markup);
+    if (!measured) return markup;
+    const doc = parseSvg(markup);
+    const targets = Array.from(doc.querySelectorAll("text"));
+    let changed = false;
+    measured.texts.forEach((live, index) => {
+      const target = targets[index];
+      if (!target) return;
+      if (onlyId && live.getAttribute("id") !== onlyId) return;
+      if (!(live.textContent || "").trim()) return;
+      if (mode === "init") {
+        if (target.hasAttribute("data-pm-maxw")) return;
+        const width = live.getBBox().width;
+        const size = parseFloat(window.getComputedStyle(live).fontSize) || 0;
+        if (!(width > 0) || !(size > 0)) return;
+        target.setAttribute("data-pm-maxw", width.toFixed(2));
+        target.setAttribute("data-pm-fs", String(size));
+        changed = true;
+        return;
+      }
+      const maxWidth = parseFloat(target.getAttribute("data-pm-maxw") || "");
+      const baseSize = parseFloat(target.getAttribute("data-pm-fs") || "");
+      if (!(maxWidth > 0) || !(baseSize > 0)) return;
+      let size = baseSize;
+      setLiveFontSize(live, size);
+      for (let pass = 0; pass < 3; pass += 1) {
+        const width = live.getBBox().width;
+        if (!(width > maxWidth * 1.003)) break;
+        size = Math.max(baseSize * AUTOFIT_MIN_SCALE, size * (maxWidth / width));
+        setLiveFontSize(live, size);
+      }
+      size = Math.round(size * 100) / 100;
+      if (target.getAttribute("font-size") !== String(size)) {
+        target.setAttribute("font-size", String(size));
+        const inline = target.getAttribute("style") || "";
+        if (/font-size\s*:/.test(inline)) target.setAttribute("style", inline.replace(/font-size\s*:\s*[^;]+/, `font-size:${size}px`));
+        changed = true;
+      }
+    });
+    return changed ? serializeSvg(doc) : markup;
+  } catch (fitError) {
+    console.warn("Auto-fit text skipped.", fitError);
+    return markup;
+  } finally {
+    measured?.host.remove();
+  }
+}
+
+
+// The editor page must load the SAME web fonts that PNG / PDF export embeds. (A CSS @import placed after another
+// rule is ignored by browsers, so the fonts are added with a real <link> instead.) Without this the preview
+// silently used a fallback font and looked narrower than the download.
+let editorFontsPromise: Promise<void> | null = null;
+function ensureEditorFonts(): Promise<void> {
+  if (typeof document === "undefined") return Promise.resolve();
+  if (!editorFontsPromise) {
+    editorFontsPromise = new Promise<void>((resolve) => {
+      const existing = document.getElementById("pm-editor-fonts") as HTMLLinkElement | null;
+      if (existing?.sheet) {
+        resolve();
+        return;
+      }
+      const link = existing ?? document.createElement("link");
+      if (!existing) {
+        link.id = "pm-editor-fonts";
+        link.rel = "stylesheet";
+        link.href = EXPORT_FONT_CSS_URL;
+      }
+      link.addEventListener("load", () => resolve(), { once: true });
+      link.addEventListener("error", () => resolve(), { once: true });
+      if (!existing) document.head.appendChild(link);
+      window.setTimeout(resolve, 6000);
+    });
+  }
+  return editorFontsPromise;
+}
+
+async function waitForTemplateFonts(markup: string) {
+  try {
+    await ensureEditorFonts();
+    if (typeof document === "undefined" || !document.fonts) return;
+    const doc = parseSvg(markup);
+    const jobs = new Map<string, { family: string; weight: string; sample: string }>();
+    doc.querySelectorAll("text").forEach((element) => {
+      const sample = (element.textContent || "").trim();
+      if (!sample) return;
+      const family = element.closest("[font-family]")?.getAttribute("font-family") || "sans-serif";
+      const weight = element.closest("[font-weight]")?.getAttribute("font-weight") || "400";
+      const key = `${weight}|${family}`;
+      jobs.set(key, { family, weight, sample: `${jobs.get(key)?.sample ?? ""}${sample}`.slice(0, 2000) });
+    });
+    await Promise.race([
+      Promise.all(Array.from(jobs.values()).map((job) => document.fonts.load(`${job.weight} 32px ${job.family}`, job.sample).catch(() => []))).then(() => document.fonts.ready),
+      new Promise((resolve) => window.setTimeout(resolve, 5000)),
+    ]);
+  } catch {
+    // best effort
+  }
+}
+
+
+// The empty photo frame is only a guide (grey fill + dashed border). Once a photo sits in it the guide must disappear,
+// otherwise a dashed box shows around the photo on screen and in the PNG / PDF. The original look is remembered so
+// the frame comes back if the photo is deleted.
+function hideFrameGuide(frame: Element) {
+  if (!frame.hasAttribute("data-pm-orig-guide")) {
+    frame.setAttribute(
+      "data-pm-orig-guide",
+      JSON.stringify({ fill: frame.getAttribute("fill"), stroke: frame.getAttribute("stroke"), dash: frame.getAttribute("stroke-dasharray"), width: frame.getAttribute("stroke-width"), style: frame.getAttribute("style") }),
+    );
+  }
+  frame.setAttribute("fill", "none");
+  frame.setAttribute("stroke", "none");
+  frame.removeAttribute("stroke-dasharray");
+  const style = frame.getAttribute("style");
+  if (style) {
+    const cleaned = style.replace(/(?:^|;)\s*(?:fill|stroke|stroke-dasharray|stroke-width)\s*:[^;]*/g, "").replace(/^;/, "");
+    if (cleaned.trim()) frame.setAttribute("style", cleaned);
+    else frame.removeAttribute("style");
+  }
+}
+
+function restoreFrameGuide(frame: Element) {
+  const raw = frame.getAttribute("data-pm-orig-guide");
+  if (!raw) return;
+  try {
+    const original = JSON.parse(raw) as Record<string, string | null>;
+    const apply = (name: string, value: string | null | undefined) => {
+      if (value === null || value === undefined) frame.removeAttribute(name);
+      else frame.setAttribute(name, value);
+    };
+    apply("fill", original.fill);
+    apply("stroke", original.stroke);
+    apply("stroke-dasharray", original.dash);
+    apply("stroke-width", original.width);
+    apply("style", original.style);
+  } catch {
+    // keep the frame as it is
+  }
+  frame.removeAttribute("data-pm-orig-guide");
+}
+
+// Designs saved before this fix (or a photo that sits right before its frame): hide the guide of every filled frame.
+function hideGuidesOfFilledFrames(doc: Document) {
+  doc.querySelectorAll('[data-object-type="image"]').forEach((frame) => {
+    if (frame.localName === "image") return;
+    const previous = frame.previousElementSibling;
+    if (previous && previous.localName === "image" && (previous.getAttribute("data-layer-name") || "").startsWith("Uploaded image for")) {
+      hideFrameGuide(frame);
+    }
+  });
+}
+
 function sanitizeSvg(markup: string): string {
   const doc = parseSvg(markup);
   doc.querySelectorAll("script, foreignObject, iframe, object, embed").forEach((node) => node.remove());
@@ -298,7 +611,7 @@ function applyTypographyDefaults(markup: string): string {
   const doc = parseSvg(markup);
   const root = doc.documentElement;
   root.setAttribute("font-family", '\"Hind Siliguri\", \"Noto Sans Bengali\", \"Nirmala UI\", sans-serif');
-  root.setAttribute("text-rendering", "optimizeLegibility");
+  root.setAttribute("text-rendering", "geometricPrecision");
   root.setAttribute("font-kerning", "normal");
   root.setAttribute("lang", "bn");
   root.setAttributeNS(XML_NS, "xml:lang", "bn");
@@ -308,6 +621,9 @@ function applyTypographyDefaults(markup: string): string {
     "Noto Sans Bengali,Hind Siliguri,sans-serif",
     "'Noto Sans Bengali','Hind Siliguri','Noto Sans',sans-serif",
   ]);
+
+  applyTextStrokeDefaults(doc);
+  hideGuidesOfFilledFrames(doc);
 
   doc.querySelectorAll("text").forEach((element) => {
     const currentFamily = element.getAttribute("font-family")?.trim() || "";
@@ -415,7 +731,12 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
   const [zoom, setZoom] = useState(100);
   const [textDraft, setTextDraft] = useState("");
   const composingRef = useRef(false);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
+  const syncedLayerIdRef = useRef<string | null>(null);
   const printingRef = useRef(false);
+  useEffect(() => {
+    void ensureEditorFonts();
+  }, []);
   const suppressClickRef = useRef(false);
   const nudgeRef = useRef<(dx: number, dy: number) => void>(() => {});
   const printDesignRef = useRef<() => Promise<void>>(async () => {});
@@ -504,6 +825,11 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
         setTemplate(templateFromCatalog);
         setManifest(rawManifest);
         setZoom(calculateFitZoom(rawManifest));
+        await waitForTemplateFonts(initialSvg);
+        initialSvg = autoFitText(initialSvg, "init");
+        // Templates can ship their own box widths (data-pm-maxw): make sure the starting text already fits them.
+        initialSvg = autoFitText(initialSvg, "fit");
+        if (!active) return;
         setSvgMarkup(initialSvg);
         setHistory([initialSvg]);
         setHistoryIndex(0);
@@ -535,6 +861,13 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
   // but never overwrite what the person is typing/composing (that was dropping Bangla characters).
   useEffect(() => {
     if (composingRef.current) return;
+    const layerId = selectedLayer?.id ?? null;
+    const layerChanged = syncedLayerIdRef.current !== layerId;
+    syncedLayerIdRef.current = layerId;
+    // While the person is typing in the box, never pull the text back from the SVG: Bangla keyboards
+    // such as Avro send many quick key events, and a late sync would put an older value over the newer one
+    // (that is what produced wrong/extra letters like "ডরবিউল" instead of "রবিউল").
+    if (!layerChanged && textAreaRef.current && document.activeElement === textAreaRef.current) return;
     const next = selectedLayer?.text ?? "";
     setTextDraft((current) => (cleanBanglaText(current) === cleanBanglaText(next) ? current : next));
   }, [selectedLayer?.id, selectedLayer?.text]);
@@ -631,9 +964,20 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
       } else if (attribute === "fill" || attribute === "stroke" || attribute === "opacity" || attribute === "stroke-width") {
         applyPaint(element, attribute, value);
       } else {
+        if (attribute === "font-size") {
+          // The person chose a size on purpose: stop auto-fitting this text.
+          element.removeAttribute("data-pm-maxw");
+          element.removeAttribute("data-pm-fs");
+          const inline = element.getAttribute("style") || "";
+          if (/font-size\s*:/.test(inline)) element.setAttribute("style", inline.replace(/font-size\s*:\s*[^;]+/, `font-size:${value}px`));
+        }
         element.setAttribute(attribute, value);
       }
-      commitSvg(serializeSvg(doc));
+      let nextMarkup = serializeSvg(doc);
+      if (attribute === "textContent" || attribute === "font-family" || attribute === "font-weight") {
+        nextMarkup = autoFitText(nextMarkup, "fit", selectedId);
+      }
+      commitSvg(nextMarkup);
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : "Could not update this element.");
     }
@@ -886,7 +1230,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
         image.setAttribute("preserveAspectRatio", "xMidYMid slice");
         image.setAttribute("clip-path", `url(#${clipId})`);
         frame.parentNode?.insertBefore(image, frame);
-        frame.setAttribute("fill", "none");
+        hideFrameGuide(frame);
 
         const hint = findSvgElement(doc, `${selectedId}_hint`);
         hint?.setAttribute("display", "none");
@@ -909,6 +1253,14 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
       const doc = parseSvg(svgMarkup);
       const element = findSvgElement(doc, selectedId);
       if (!element || element.id === "background") return;
+      if (element.localName === "image" && (element.getAttribute("data-layer-name") || "").startsWith("Uploaded image for")) {
+        const next = element.nextElementSibling;
+        if (next && next.hasAttribute("data-pm-orig-guide")) {
+          restoreFrameGuide(next);
+          const hintId = `${next.getAttribute("id")}_hint`;
+          findSvgElement(doc, hintId)?.removeAttribute("display");
+        }
+      }
       element.remove();
       commitSvg(serializeSvg(doc));
       setSelectedId("");
@@ -1041,45 +1393,50 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     findSvgElement(doc, "print_guides")?.remove();
     doc.querySelectorAll('[data-print="false"]').forEach((node) => node.remove());
     doc.querySelectorAll("[data-editor-selected]").forEach((node) => node.removeAttribute("data-editor-selected"));
+    hideGuidesOfFilledFrames(doc);
     doc.documentElement.setAttribute("xmlns", SVG_NS);
     return serializeSvg(doc);
   };
 
   // Renders the current design to a PNG. Used for the PNG download and for the My Files preview.
-  const renderPngBlob = (targetPixelsPerMm: number, maxPixelEdge: number) =>
-    new Promise<Blob>((resolve, reject) => {
-      if (!manifest) {
-        reject(new Error("Template is not ready."));
-        return;
-      }
-      const url = URL.createObjectURL(new Blob([cleanSvgForExport()], { type: "image/svg+xml;charset=utf-8" }));
+  const renderPngBlob = async (targetPixelsPerMm: number, maxPixelEdge: number): Promise<Blob> => {
+    if (!manifest) throw new Error("Template is not ready.");
+    const exportMarkup = await embedFontsIntoSvg(cleanSvgForExport());
+    const url = URL.createObjectURL(new Blob([exportMarkup], { type: "image/svg+xml;charset=utf-8" }));
+    try {
       const image = new Image();
-      image.onload = () => {
-        const dimensions = getCanvasDimensions(manifest);
-        const scale = Math.min(targetPixelsPerMm, maxPixelEdge / Math.max(dimensions.width, dimensions.height));
-        const canvas = document.createElement("canvas");
-        canvas.width = Math.max(1, Math.ceil(dimensions.width * scale));
-        canvas.height = Math.max(1, Math.ceil(dimensions.height * scale));
-        const context = canvas.getContext("2d");
-        if (!context) {
-          URL.revokeObjectURL(url);
-          reject(new Error("Your browser does not support PNG export."));
-          return;
-        }
-        context.scale(scale, scale);
-        context.drawImage(image, 0, 0, dimensions.width, dimensions.height);
-        canvas.toBlob((blob) => {
-          URL.revokeObjectURL(url);
-          if (blob) resolve(blob);
-          else reject(new Error("PNG export failed."));
-        }, "image/png");
-      };
-      image.onerror = () => {
-        URL.revokeObjectURL(url);
-        reject(new Error("The SVG could not be rendered for PNG export."));
-      };
-      image.src = url;
-    });
+      image.decoding = "sync";
+      await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("The SVG could not be rendered for PNG export."));
+        image.src = url;
+      });
+      try {
+        await image.decode();
+      } catch {
+        // decode() can reject for SVG images in some browsers; onload already fired so continue.
+      }
+      const dimensions = getCanvasDimensions(manifest);
+      const scale = Math.min(targetPixelsPerMm, maxPixelEdge / Math.max(dimensions.width, dimensions.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.ceil(dimensions.width * scale));
+      canvas.height = Math.max(1, Math.ceil(dimensions.height * scale));
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Your browser does not support PNG export.");
+      // Embedded fonts inside an SVG image can finish a moment after onload: draw once to warm them up, then draw for real.
+      context.drawImage(image, 0, 0, 8, 8);
+      await new Promise((resolve) => window.setTimeout(resolve, 200));
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.scale(scale, scale);
+      context.drawImage(image, 0, 0, dimensions.width, dimensions.height);
+      return await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error("PNG export failed."))), "image/png");
+      });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
 
   const exportPng = async () => {
     if (!svgMarkup || !template || !manifest) return;
@@ -1107,35 +1464,10 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
         throw new Error("এই টেমপ্লেটের প্রিন্ট সাইজ সঠিক নয়। Template size settings পরীক্ষা করুন।");
       }
 
-      const exportDoc = parseSvg(cleanSvgForExport());
-      const exportRoot = exportDoc.documentElement;
-      const canvasSize = getCanvasDimensions(manifest);
-      exportRoot.setAttribute("xmlns", SVG_NS);
-      if (!exportRoot.getAttribute("viewBox")) exportRoot.setAttribute("viewBox", `0 0 ${canvasSize.width} ${canvasSize.height}`);
-      exportRoot.setAttribute("width", `${physicalWidthMm}mm`);
-      exportRoot.setAttribute("height", `${physicalHeightMm}mm`);
-      exportRoot.setAttribute("overflow", "hidden");
-      exportRoot.setAttribute("preserveAspectRatio", "xMidYMid meet");
-      exportRoot.removeAttribute("style");
-      exportRoot.querySelectorAll("[data-editor-selected]").forEach((element) => element.removeAttribute("data-editor-selected"));
-
-      // Every font + the exact text that uses it. Google Fonts splits Bangla into unicode-range files,
-      // so each used text must be loaded explicitly or the printout silently falls back to another font.
-      const fontJobs = new Map<string, { family: string; weight: string; sample: string }>();
-      exportRoot.querySelectorAll("text").forEach((element) => {
-        const sample = (element.textContent || "").trim();
-        if (!sample) return;
-        const family = (element.closest("[font-family]")?.getAttribute("font-family") || exportRoot.getAttribute("font-family") || "sans-serif").replace(/&quot;/g, '"');
-        const weight = element.closest("[font-weight]")?.getAttribute("font-weight") || "400";
-        const key = `${weight}|${family}`;
-        const existing = fontJobs.get(key);
-        fontJobs.set(key, { family, weight, sample: `${existing?.sample ?? ""}${sample}`.slice(0, 2000) });
-      });
-      const imageSources = Array.from(exportRoot.querySelectorAll("image"))
-        .map((element) => element.getAttribute("href") || element.getAttributeNS("http://www.w3.org/1999/xlink", "href") || "")
-        .filter((href) => href.startsWith("data:image/"));
-
-      const printSvg = serializeSvg(exportDoc);
+      // Print exactly what the PNG download shows: render once (fonts embedded) at 300 dpi and print that picture.
+      // This removes every browser/font difference between the editor, the PNG and the printed PDF.
+      const printBlob = await renderPngBlob(300 / 25.4, 12000);
+      const printImageUrl = URL.createObjectURL(printBlob);
 
       frame = document.createElement("iframe");
       frame.setAttribute("title", "SebaLagbe print document");
@@ -1155,7 +1487,6 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
       const printDocument = printWindow?.document;
       if (!printWindow || !printDocument) throw new Error("Browser print window could not be prepared.");
 
-      const fontCssUrl = "https://fonts.googleapis.com/css2?family=Anek+Bangla:wght@400;500;600;700;800&family=Baloo+Da+2:wght@400;500;600;700;800&family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&family=Noto+Sans+Bengali:wght@400;500;600;700;800&family=Noto+Serif+Bengali:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Tiro+Bangla&display=swap";
       const pageW = `${physicalWidthMm}mm`;
       const pageH = `${physicalHeightMm}mm`;
       // The sheet is a hair (0.3mm) shorter than the paper and the SVG is absolutely positioned inside it.
@@ -1167,9 +1498,6 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${(template?.title || "Print Design").replace(/[&<>\"]/g, "")}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link id="pm-print-fonts" rel="stylesheet" href="${fontCssUrl}" />
 <style>
   @page { size: ${pageW} ${pageH}; margin: 0; }
   *, *::before, *::after { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -1177,58 +1505,36 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
   html { height: auto; }
   body { height: auto; }
   .pm-sheet { position: relative; display: block; width: ${pageW}; height: calc(${pageH} - 0.3mm); overflow: visible; break-inside: avoid; break-before: avoid; break-after: avoid; page-break-inside: avoid; page-break-before: avoid; page-break-after: avoid; }
-  .pm-sheet > svg { position: absolute; left: 0; top: 0; display: block; width: ${pageW} !important; height: ${pageH} !important; max-width: none !important; max-height: none !important; overflow: hidden; background: #fff; }
+  .pm-sheet > img { position: absolute; left: 0; top: 0; display: block; width: ${pageW} !important; height: ${pageH} !important; max-width: none !important; max-height: none !important; background: #fff; image-rendering: auto; }
   svg text, svg tspan { text-rendering: geometricPrecision; font-kerning: normal; font-variant-ligatures: normal; }
   @media screen { body { outline: 1px solid #ddd; } }
 </style>
 </head>
-<body><div class="pm-sheet">${printSvg}</div></body>
+<body><div class="pm-sheet"><img id="pm-print-art" alt="" src="${printImageUrl}" /></div></body>
 </html>`);
       printDocument.close();
 
       const cleanup = () => {
         window.clearTimeout(removeTimer);
-        window.setTimeout(() => frame?.remove(), 1200);
+        window.setTimeout(() => {
+          frame?.remove();
+          URL.revokeObjectURL(printImageUrl);
+        }, 1200);
       };
       printWindow.addEventListener("afterprint", cleanup, { once: true });
       // Safety net: if the browser never fires afterprint, still remove the hidden frame.
-      removeTimer = window.setTimeout(() => frame?.remove(), 10 * 60 * 1000);
+      removeTimer = window.setTimeout(() => {
+        frame?.remove();
+        URL.revokeObjectURL(printImageUrl);
+      }, 10 * 60 * 1000);
 
-      // Wait for the font stylesheet, the fonts actually used (with their real text) and embedded images.
+      // Wait until the picture is fully decoded before opening the print dialog.
       try {
-        const fontLink = printDocument.getElementById("pm-print-fonts") as HTMLLinkElement | null;
-        const stylesheetReady = new Promise<void>((resolve) => {
-          if (!fontLink || fontLink.sheet) {
-            resolve();
-            return;
-          }
-          fontLink.addEventListener("load", () => resolve(), { once: true });
-          fontLink.addEventListener("error", () => resolve(), { once: true });
-        });
-        const resourcesReady = (async () => {
-          await stylesheetReady;
-          await Promise.all(
-            Array.from(fontJobs.values()).map((job) =>
-              printDocument.fonts.load(`${job.weight} 32px ${job.family}`, job.sample).catch(() => []),
-            ),
-          );
-          await printDocument.fonts.ready;
-          await Promise.all(
-            imageSources.map(async (source) => {
-              try {
-                const image = new (printWindow as Window & typeof globalThis).Image();
-                image.src = source;
-                await image.decode();
-              } catch {
-                // A broken image should not block printing the rest of the design.
-              }
-            }),
-          );
-        })();
-        await Promise.race([resourcesReady, new Promise((resolve) => window.setTimeout(resolve, 9000))]);
+        const art = printDocument.getElementById("pm-print-art") as HTMLImageElement | null;
+        await Promise.race([art ? art.decode() : Promise.resolve(), new Promise((resolve) => window.setTimeout(resolve, 15000))]);
         await new Promise<void>((resolve) => printWindow.requestAnimationFrame(() => printWindow.requestAnimationFrame(() => resolve())));
       } catch {
-        // Font loading is best-effort; system fallback fonts remain available.
+        // Decoding is best-effort; printing continues.
       }
 
       await new Promise((resolve) => window.setTimeout(resolve, 250));
@@ -1288,7 +1594,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
         .editor-zoom { width:28px; height:28px; border-radius:8px; border:1px solid #d7c7a7; background:#fffaf0; color:#6a5332; font-weight:800; }
         .pm-editor-font, .pm-editor-font *:not(svg):not(svg *) { font-family: "Plus Jakarta Sans", "Hind Siliguri", "Noto Sans Bengali", sans-serif; -webkit-font-smoothing: antialiased; }
         .pm-canvas svg { width: 100%; height: auto; max-height: 100%; display: block; }
-        .pm-canvas svg text, .pm-canvas svg tspan { text-rendering: optimizeLegibility; font-kerning: normal; }
+        .pm-canvas svg text, .pm-canvas svg tspan { text-rendering: geometricPrecision; font-kerning: normal; font-variant-ligatures: normal; }
         .pm-canvas svg [data-editor-selected="true"]:not(#bg_page):not(#background):not([data-layer-name="Page Background"]) { filter: drop-shadow(0 0 1px rgba(220,38,38,.95)) drop-shadow(0 0 1px rgba(220,38,38,.65)); }
         .pm-canvas svg [data-editor-selected="true"]#bg_page, .pm-canvas svg [data-editor-selected="true"]#background { filter:none !important; }
         .pm-canvas svg [data-editable="true"] { cursor: move; touch-action: none; }
@@ -1423,6 +1729,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                         <label className="block space-y-1.5">
                           <span className="text-xs font-bold text-[#6F5B3C]"><T>Text content</T></span>
                           <textarea
+                            ref={textAreaRef}
                             value={textDraft}
                             lang="bn"
                             spellCheck={false}

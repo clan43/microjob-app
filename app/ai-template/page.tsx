@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { buildImageUploadRequest } from "@/lib/clientUpload";
 import "react-image-crop/dist/ReactCrop.css";
 
@@ -13,6 +14,7 @@ import {
   TEMPLATES_BY_ID,
   getTemplateIdByImage,
   templates,
+  CATEGORY_OPTIONS,
 } from "./components/templateData";
 import type {
   Gender,
@@ -21,14 +23,12 @@ import type {
   ColorFilter,
   SortType,
 } from "./components/templateData";
-import { TemplateSidebar } from "./components/TemplateSidebar";
 import { TemplateToolbar } from "./components/TemplateToolbar";
 import { TemplateGrid } from "./components/TemplateGrid";
 import { TemplatePreviewModal } from "./components/TemplatePreviewModal";
 import { PhotoCropWorkspace } from "../_components/PhotoCropWorkspace";
 import { buildCoupleTemplatePrompt, buildSingleTemplatePrompt } from "./templatePrompt";
 import { useAiTemplateText } from "./components/aiTemplateI18n";
-import { FloatingTools } from "./components/FloatingTools";
 import AITemplateStyles from "./components/AITemplateStyles";
 import RetentionNotice from "@/app/_components/RetentionNotice";
 import { notifyMyFilesSaved } from "@/app/_lib/myFilesNotice";
@@ -82,10 +82,15 @@ async function persistGeneratedFile(
   }
 }
 
-export default function AITemplatePage() {
+function AITemplateContent() {
   const { t } = useAiTemplateText();
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All");
+  // The category comes from the URL (?category=..., set by the navbar hover menu) until the visitor picks one here.
+  const searchParams = useSearchParams();
+  const urlCategory = searchParams.get("category");
+  const [pickedCategory, setCategory] = useState<string | null>(null);
+  useEffect(() => setCategory(null), [urlCategory]);
+  const category = pickedCategory ?? (urlCategory && CATEGORY_OPTIONS.includes(urlCategory) ? urlCategory : "All");
   const [gender, setGender] = useState<Gender>("All");
   const [imageCount, setImageCount] = useState<ImageCountFilter>("All");
   const [orientation, setOrientation] = useState<OrientationFilter>("All");
@@ -521,41 +526,33 @@ export default function AITemplatePage() {
           setSortType={setSortType}
           showFavorites={showFavorites}
           setShowFavorites={setShowFavorites}
+          favoritesCount={favorites.length}
           onHashtagClick={handleHashtagClick}
           filteredCount={filteredTemplates.length}
+          category={category}
+          setCategory={setCategory}
+          gender={gender}
+          setGender={setGender}
+          imageCount={imageCount}
+          setImageCount={setImageCount}
+          orientation={orientation}
+          setOrientation={setOrientation}
+          selectedColor={selectedColor}
+          setSelectedColor={setSelectedColor}
+          resetFilters={resetFilters}
         />
 
-        <div className="workspace">
-          <TemplateSidebar
-            category={category}
-            setCategory={setCategory}
-            gender={gender}
-            setGender={setGender}
-            imageCount={imageCount}
-            setImageCount={setImageCount}
-            orientation={orientation}
-            setOrientation={setOrientation}
-            selectedColor={selectedColor}
-            setSelectedColor={setSelectedColor}
-            sortType={sortType}
-            setSortType={setSortType}
-            resetFilters={resetFilters}
+        <section className="content-area">
+          <TemplateGrid
+            filteredTemplates={filteredTemplates}
+            favoriteIds={favoriteIds}
+            showFavorites={showFavorites}
+            onToggleFavorite={toggleFavorite}
+            onOpenTemplate={openTemplate}
+            onResetFilters={resetFilters}
           />
-
-          <section className="content-area">
-            <TemplateGrid
-              filteredTemplates={filteredTemplates}
-              favoriteIds={favoriteIds}
-              showFavorites={showFavorites}
-              onToggleFavorite={toggleFavorite}
-              onOpenTemplate={openTemplate}
-              onResetFilters={resetFilters}
-            />
-          </section>
-        </div>
+        </section>
       </main>
-
-      <FloatingTools />
 
       {selectedTemplate && (
         <TemplatePreviewModal
@@ -592,6 +589,15 @@ export default function AITemplatePage() {
 
       <AITemplateStyles />
     </div>
+  );
+}
+
+export default function AITemplatePage() {
+  // useSearchParams needs a Suspense boundary.
+  return (
+    <Suspense fallback={null}>
+      <AITemplateContent />
+    </Suspense>
   );
 }
 

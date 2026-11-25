@@ -517,19 +517,14 @@ const QuestionPaperIcon = dual(QuestionPaperColor, QuestionPaperMono);
 const PrintMediaIcon = dual(PrintMediaColor, PrintMediaMono);
 const AllToolsIcon = dual(AllToolsColor, AllToolsMono);
 
+// Same categories as the filter on the AI Template page (category key = template category).
 const aiTemplateItems = [
-  "Motivational",
-  "Creative Shots",
-  "Victory Day",
-  "Photo restoration",
-  "Wedding Photo",
-  "Product Advertisement",
-  "Baby and Kids",
-  "Couple Portraits",
-  "Father's Day",
-  "Greeting card",
-  "Birthday wishes",
-  "Family photo",
+  { label: "শিশু ও বাচ্চাদের ছবি", href: "/ai-template?category=Baby%20and%20Kids" },
+  { label: "জুটির পোর্ট্রেট", href: "/ai-template?category=Couple%20Portraits" },
+  { label: "কিশোর-কিশোরীর পোর্ট্রেট", href: "/ai-template?category=Teen%20Portraits" },
+  { label: "পুরুষদের পোর্ট্রেট", href: "/ai-template?category=Men%20Portraits" },
+  { label: "নারীদের পোর্ট্রেট", href: "/ai-template?category=Women%20Portraits" },
+  { label: "প্রবীণদের পোর্ট্রেট", href: "/ai-template?category=Elderly%20Portraits" },
 ];
 // Same categories as the filter on the Print Media page (category key = template category).
 const printMediaItems = [
@@ -540,6 +535,12 @@ const printMediaItems = [
   { label: "ব্যানার ও সাইনবোর্ড", href: "/print-media?category=Banner%20%26%20Signboard" },
   { label: "রেস্টুরেন্ট ও খাবার", href: "/print-media?category=Restaurant%20%26%20Food" },
   { label: "শিক্ষা প্রতিষ্ঠান", href: "/print-media?category=Education%20%26%20Institution" },
+  { label: "স্বাস্থ্য ও ক্লিনিক", href: "/print-media?category=Health%20%26%20Clinic" },
+  { label: "ব্যক্তিগত ও আবেদন", href: "/print-media?category=Personal%20%26%20Applications" },
+  { label: "অনুষ্ঠান ও দাওয়াত", href: "/print-media?category=Events%20%26%20Invitations" },
+  { label: "অফিস ও চাকরি", href: "/print-media?category=Office%20%26%20Job" },
+  { label: "বাসা ও পরিবার", href: "/print-media?category=Home%20%26%20Family" },
+  { label: "নির্বাচন ও প্রচার", href: "/print-media?category=Election%20%26%20Campaign" },
 ];
 const NAV_ITEMS: NavConfig[] = [
   {

@@ -418,7 +418,7 @@ export default function PrintMediaPage() {
           )}
 
           {/* ---------- Category tabs ---------- */}
-          <nav aria-label="Template categories" className="pm-scroll mt-3 flex items-end gap-1 overflow-x-auto border-b border-[#D6C7A2]">
+          <nav aria-label="Template categories" className="mt-3 flex flex-wrap items-end gap-x-1 gap-y-0 border-b border-[#D6C7A2]">
             {categoryItems.map((category) => {
               const selected = selectedCategory === category.name;
               return (

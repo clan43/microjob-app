@@ -1320,7 +1320,7 @@ export const PRINT_MEDIA_TEMPLATES: PrintMediaTemplate[] = [
     "title": "নির্বাচনী প্রচার ব্যানার",
     "englishTitle": "Election Campaign Banner",
     "description": "Wide navy-and-green campaign banner with photo frame, candidate name, post ribbon, slogan, symbol circle and contact strip.",
-    "category": "Banners & Signboards",
+    "category": "Banner & Signboard",
     "categoryLabel": "ব্যানার ও সাইনবোর্ড",
     "slug": "73-election-campaign-banner",
     "aspectRatio": "8:3",
@@ -2033,6 +2033,24 @@ export const PRINT_MEDIA_TEMPLATES: PrintMediaTemplate[] = [
       "isFree": true,
       "editable": true,
       "objectCount": 42
+  },
+  {
+      "id": 113,
+      "sourceId": "113-green-wash-symbol-chairman-poster",
+      "title": "চেয়ারম্যান পোস্টার (সবুজ জলরঙ, প্রতীক বক্স, নীল নামের বার)",
+      "englishTitle": "Green Wash Symbol Chairman Poster",
+      "description": "Green watercolor poster with Bismillah banner, pledge box, union name pill, stylised নির্বাচনে / চেয়ারম্যান / পদপ্রার্থী lettering, big candidate photo, framed election-symbol box, navy-and-sky name pill, symbol name with vote appeal and green campaign strip.",
+      "category": "Election & Campaign",
+      "categoryLabel": "নির্বাচন ও প্রচার",
+      "slug": "113-green-wash-symbol-chairman-poster",
+      "aspectRatio": "210:297",
+      "printSize": "A4 portrait",
+      "svgUrl": "/print-media/templates/113-green-wash-symbol-chairman-poster.svg",
+      "jsonUrl": "/print-media/manifests/113-green-wash-symbol-chairman-poster.json",
+      "previewUrl": "/print-media/previews/113-green-wash-symbol-chairman-poster.svg",
+      "isFree": true,
+      "editable": true,
+      "objectCount": 38
   }
 ];
 
