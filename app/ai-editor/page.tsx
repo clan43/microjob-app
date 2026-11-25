@@ -14,6 +14,7 @@ import PhotoPreviewArea from "./_components/PhotoPreviewArea";
 import QrCodeSidebar from "./_components/QrCodeSidebar";
 import PhotoSetupWizard, { type WizardResult } from "./_components/PhotoSetupWizard";
 import RecentGenerations from "./_components/RecentGenerations";
+import { RECENT_PHOTO_DRAG_TYPE } from "./_components/aiEditorData";
 import GeneratedResultPanel, { GeneratedResultItem, PrintSession } from "./_components/GeneratedResultPanel";
 import { admissionMasterScale, applyFiltersToExportable, buildPrintStudioPayload, printSinglePhoto } from "./_components/photoExport";
 import { DEFAULT_FILTERS, RESULT_DEFAULT_FILTERS, filterString, isNeutralFilters, type FilterState } from "./_components/ImageEditSidebar";
@@ -989,22 +990,92 @@ export default function PhotoEditorPage() {
         setActiveTarget(target);
         openImageForCrop(file);
     };
-    // Drag and drop from "Recent generations": the dragged photo is loaded and then follows the same crop flow as a picked file.
-    const handleDropRecent = async (target: "single" | "left" | "right", url: string) => {
-        try {
-            const response = await fetch(url);
-            if (!response.ok)
-                throw new Error("Could not load this photo.");
-            const blob = await response.blob();
-            const type = blob.type.startsWith("image/") ? blob.type : "image/png";
-            const extension = type === "image/jpeg" ? "jpg" : type.split("/")[1] || "png";
-            handleDropFile(target, new File([blob], `recent-${Date.now()}.${extension}`, { type }));
+    // Drag and drop from "Recent generations": the photo opens in the main preview together with the
+    // edit sidebar (brightness, contrast ... + Save), exactly like right after a photo has been generated.
+    const showRecentInEditor = (payload: { url?: string; id?: string | number }) => {
+        if (isGenerating || !payload?.url)
+            return;
+        const found = recentList.find((entry) => (payload.id !== undefined && payload.id !== null && String(entry.id) === String(payload.id)) || entry.url === payload.url);
+        const item = (found || { url: payload.url, id: payload.id }) as any;
+        const url: string = item.url || payload.url;
+        setErrorMessage(null);
+        setPrintSession(null);
+        setBulkPrintSources(null);
+        setRegeneratingId(null);
+        if (item.side === "dual") {
+            // A dual photo is shown as one combined picture in dual mode.
+            setIsDualMode(true);
+            setSelectedSize("Dual");
+            setShowVisaPopup(false);
+            setShowAdmissionPopup(false);
+            setShowColorPicker(false);
+            setIsDualPreviewActive(false);
+            setUploadedImage(null);
+            setDualResultImage(url);
         }
-        catch (error) {
-            console.error("Could not use the recent photo:", error);
-            setErrorMessage("Could not load this photo. Please try again.");
+        else {
+            if (isDualMode) {
+                exitDualMode("");
+            }
+            setDualResultImage(null);
+            setOriginalImageForDual(item.originalUrl || url);
+            setUploadedImage(url);
+            setIsDualPreviewActive(false);
         }
+        showGeneratedResult({ ...item, url, rawUrl: url } as GeneratedResultItem, url);
     };
+    // The whole AI editor accepts a photo dragged from "Recent generations".
+    const [isRecentDragOver, setIsRecentDragOver] = useState(false);
+    const recentDragDepth = useRef(0);
+    const isRecentDrag = (event: React.DragEvent) => Array.from(event.dataTransfer?.types ?? []).includes(RECENT_PHOTO_DRAG_TYPE);
+    const recentDropProps = {
+        onDragEnter: (event: React.DragEvent) => {
+            if (!isRecentDrag(event))
+                return;
+            event.preventDefault();
+            recentDragDepth.current += 1;
+            setIsRecentDragOver(true);
+        },
+        onDragOver: (event: React.DragEvent) => {
+            if (!isRecentDrag(event))
+                return;
+            // Without this the browser refuses the drop.
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+        },
+        onDragLeave: (event: React.DragEvent) => {
+            if (!isRecentDrag(event))
+                return;
+            recentDragDepth.current = Math.max(0, recentDragDepth.current - 1);
+            if (recentDragDepth.current === 0)
+                setIsRecentDragOver(false);
+        },
+        onDrop: (event: React.DragEvent) => {
+            if (!isRecentDrag(event))
+                return;
+            event.preventDefault();
+            recentDragDepth.current = 0;
+            setIsRecentDragOver(false);
+            try {
+                const payload = JSON.parse(event.dataTransfer.getData(RECENT_PHOTO_DRAG_TYPE) || "{}") as { url?: string; id?: string | number };
+                showRecentInEditor(payload);
+            }
+            catch { /* ignore a malformed drag payload */ }
+        },
+    };
+    // If the drag is cancelled (Esc / dropped outside the window) the overlay must not stay.
+    useEffect(() => {
+        const reset = () => {
+            recentDragDepth.current = 0;
+            setIsRecentDragOver(false);
+        };
+        window.addEventListener("dragend", reset);
+        window.addEventListener("drop", reset);
+        return () => {
+            window.removeEventListener("dragend", reset);
+            window.removeEventListener("drop", reset);
+        };
+    }, []);
     const enableDualMode = () => {
         setIsDualMode(true);
         setSelectedSize("Dual");
@@ -1147,9 +1218,17 @@ export default function PhotoEditorPage() {
             setResultItem((prev) => prev && prev.id === updatedId
                 ? { ...prev, ...(savedItem || {}), url: finalUrl, rawUrl: undefined }
                 : prev);
-            // The saved file already contains the edits, so the dropdown values start neutral again.
-            if (resultItem && resultItem.id === updatedId)
+            // The saved file already contains the edits, so the dropdown values start neutral again
+            // and the main preview now shows the saved (edited) photo instead of the old one.
+            if (resultItem && resultItem.id === updatedId) {
+                const oldPreviewUrl = resultPreviewUrl;
                 setResultFilters(DEFAULT_FILTERS);
+                setResultPreviewUrl(finalUrl);
+                if (oldPreviewUrl) {
+                    setUploadedImage((prev) => (prev === oldPreviewUrl ? finalUrl : prev));
+                    setDualResultImage((prev) => (prev === oldPreviewUrl ? finalUrl : prev));
+                }
+            }
         }
         catch (error) {
             console.error("Error updating edited image in MongoDB:", error);
@@ -2347,7 +2426,10 @@ export default function PhotoEditorPage() {
 
       <ImagePreviewModal image={previewModalImage} onClose={() => { setPreviewModalImage(null); setPreviewStartWithEdit(false); }} onDelete={handleDeleteImage} onRegenerate={handleRegenerateFromModal} onSaveImage={handleSaveEditedImage} startWithEdit={previewStartWithEdit}/>
 
-      <div className="ai-main flex-1 flex flex-col items-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-4 xl:min-h-0 xl:overflow-hidden xl:px-4 xl:py-3 min-w-0">
+      <div {...recentDropProps} className="ai-main relative flex-1 flex flex-col items-center p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:p-4 xl:min-h-0 xl:overflow-hidden xl:px-4 xl:py-3 min-w-0">
+        {isRecentDragOver && (<div className="pointer-events-none absolute inset-2 z-50 flex items-center justify-center rounded-2xl border-4 border-dashed border-[#DC2626]/70 bg-[#F6D9A8]/70 backdrop-blur-[1px]">
+            <span className="rounded-xl bg-[#DC2626] px-5 py-2.5 text-base font-semibold text-white shadow-lg"><AiT>{"Drop the photo here to edit it"}</AiT></span>
+          </div>)}
         {/* xl: 3-column grid. Left = full-height settings panel (no inner scrollbar, the page itself scrolls).
             Middle + QR = row 1 (fixed viewport-based height). "Recent photos" = row 2, aligned under the upload box + QR. */}
         <div className="ai-row relative flex flex-col lg:flex-row lg:flex-wrap xl:grid xl:grid-cols-[var(--ai-left-w)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)_auto] xl:flex-1 xl:min-h-0 w-full max-w-[1400px] xl:max-w-none gap-3 sm:gap-4 items-center lg:items-start xl:items-stretch min-w-0">
@@ -2359,11 +2441,11 @@ export default function PhotoEditorPage() {
             <div className="flex flex-col xl:flex-row gap-3 xl:min-h-0 min-w-0">
               {/* Photo preview (kept mounted, hidden while the print section is open) */}
               <div className="flex flex-col flex-1 min-w-0 xl:min-h-0 [&>*]:flex-1 xl:[&>*]:min-h-0">
-                <PhotoPreviewArea onDropFile={handleDropFile} onDropRecent={handleDropRecent} isDualMode={isDualMode} uploadedImage={uploadedImage} setUploadedImage={setUploadedImage} leftImage={leftImage} setLeftImage={setLeftImage} rightImage={rightImage} setRightImage={setRightImage} triggerUpload={triggerUpload} enableDualMode={enableDualMode} exitDualMode={exitDualMode} activeBoxInfo={getCurrentBoxDimensions()} currentBgColorValue={getSelectedBgColorValue()} isGenerating={isGenerating} isDeleting={isDeleting} originalImageForDual={originalImageForDual} setOriginalImageForDual={setOriginalImageForDual} isDualPreviewActive={isDualPreviewActive} setIsDualPreviewActive={setIsDualPreviewActive} dualResultImage={dualResultImage} setDualResultImage={setDualResultImage} resultFilter={liveResultFilter} resultInfo={resultInfo}/>
+                <PhotoPreviewArea onDropFile={handleDropFile} isDualMode={isDualMode} uploadedImage={uploadedImage} setUploadedImage={setUploadedImage} leftImage={leftImage} setLeftImage={setLeftImage} rightImage={rightImage} setRightImage={setRightImage} triggerUpload={triggerUpload} enableDualMode={enableDualMode} exitDualMode={exitDualMode} activeBoxInfo={getCurrentBoxDimensions()} currentBgColorValue={getSelectedBgColorValue()} isGenerating={isGenerating} isDeleting={isDeleting} originalImageForDual={originalImageForDual} setOriginalImageForDual={setOriginalImageForDual} isDualPreviewActive={isDualPreviewActive} setIsDualPreviewActive={setIsDualPreviewActive} dualResultImage={dualResultImage} setDualResultImage={setDualResultImage} resultFilter={liveResultFilter} resultInfo={resultInfo}/>
               </div>
               {/* Options appear right beside the generated photo */}
               {resultItem && !printSession && !bulkPrintSources && (<div className="flex justify-center xl:block xl:shrink-0">
-                  <GeneratedResultPanel item={resultItem} onClose={() => setResultItem(null)} filters={resultFilters} onFiltersChange={setResultFilters} autoOpenToken={resultEditToken} onDelete={handleDeleteImage} onPrint={(session) => { setBulkPrintSources(null); setPrintSession(session); }}/>
+                  <GeneratedResultPanel item={resultItem} onClose={() => setResultItem(null)} filters={resultFilters} onFiltersChange={setResultFilters} autoOpenToken={resultEditToken} onSave={handleSaveEditedImage} onDelete={handleDeleteImage} onPrint={(session) => { setBulkPrintSources(null); setPrintSession(session); }}/>
                 </div>)}
             </div>
           </div>

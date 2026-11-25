@@ -195,7 +195,7 @@ export default function RecentGenerations({
                 onDragStart={(event) => {
                     if (compact || isSelecting) { event.preventDefault(); return; }
                     // Only our own type is set (no file / url), so the photo can only be dropped on the upload boxes.
-                    event.dataTransfer.setData(RECENT_PHOTO_DRAG_TYPE, JSON.stringify({ url: item.url }));
+                    event.dataTransfer.setData(RECENT_PHOTO_DRAG_TYPE, JSON.stringify({ url: item.url, id: item.id }));
                     event.dataTransfer.effectAllowed = "copy";
                     const thumb = event.currentTarget.querySelector("img");
                     if (thumb) event.dataTransfer.setDragImage(thumb, thumb.clientWidth / 2, thumb.clientHeight / 2);

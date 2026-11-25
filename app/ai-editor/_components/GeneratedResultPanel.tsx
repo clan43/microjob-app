@@ -1,7 +1,7 @@
 "use client";
 import { AiT, useAiEditorText } from "./aiEditorI18n";
 import React, { useEffect, useRef, useState } from "react";
-import { ArrowRight, CheckCircle2, ChevronDown, Download, Edit3, FileImage, Grid, Info, Loader2, Printer, Trash2, X, } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, ChevronDown, Download, Edit3, FileImage, Grid, Info, Loader2, Printer, Save, Trash2, X, } from "lucide-react";
 import { CLOTHING_NAMES } from "./clothingStyles";
 import { applyFiltersToExportable, buildPrintStudioPayload, downloadPhotoFormat, downloadPhotoPrintSheet, } from "./photoExport";
 import ImageEditSidebar, { FilterState, RESULT_DEFAULT_FILTERS, filterString, isNeutralFilters, } from "./ImageEditSidebar";
@@ -30,6 +30,8 @@ interface GeneratedResultPanelProps {
     onEdit?: (item: GeneratedResultItem) => void;
     onDelete: (item: GeneratedResultItem) => void;
     onPrint: (session: PrintSession) => void;
+    /** Saves the edited photo (brightness etc. baked in) and replaces the stored photo in Recent Generations. */
+    onSave?: (id: string, editedUrl: string) => Promise<void>;
     onClose: () => void;
     /** Current brightness / contrast / ... values (owned by the page so the main preview can follow them live). */
     filters: FilterState;
@@ -42,13 +44,15 @@ interface GeneratedResultPanelProps {
  * Right-hand panel that opens as soon as a photo has been generated.
  * Same actions as the Recent Generations preview: Edit, Delete, Print, Download.
  */
-export default function GeneratedResultPanel({ item, onDelete, onPrint, onClose, filters, onFiltersChange, autoOpenToken = 0, }: GeneratedResultPanelProps) {
+export default function GeneratedResultPanel({ item, onDelete, onPrint, onSave, onClose, filters, onFiltersChange, autoOpenToken = 0, }: GeneratedResultPanelProps) {
     const { t } = useAiEditorText();
     const [showDownloadMenu, setShowDownloadMenu] = useState(false);
     const [isDownloading, setIsDownloading] = useState(false);
     const [isPreparingPrint, setIsPreparingPrint] = useState(false);
     const [message, setMessage] = useState<string | null>(null);
     const [isEditOpen, setIsEditOpen] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [savedFlash, setSavedFlash] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -115,6 +119,33 @@ export default function GeneratedResultPanel({ item, onDelete, onPrint, onClose,
         }
     };
 
+    // Bakes the current brightness / contrast / ... into the photo and replaces the saved one in "Recent photos".
+    const handleSave = async () => {
+        if (!onSave || !item.id || isSaving)
+            return;
+        setMessage(null);
+        setSavedFlash(false);
+        setIsSaving(true);
+        try {
+            const edited = await getEditedItem();
+            await onSave(String(item.id), edited.url);
+            setSavedFlash(true);
+        }
+        catch (error) {
+            console.error("Saving the edited photo failed:", error);
+            setMessage(error instanceof Error ? error.message : "Failed to save the edited image.");
+        }
+        finally {
+            setIsSaving(false);
+        }
+    };
+    useEffect(() => {
+        if (!savedFlash)
+            return;
+        const timer = window.setTimeout(() => setSavedFlash(false), 2500);
+        return () => window.clearTimeout(timer);
+    }, [savedFlash]);
+
     return (<aside className="w-full xl:w-[var(--ai-right-w)] max-w-[320px] xl:max-w-[var(--ai-right-w)] xl:h-full xl:flex xl:flex-col" aria-label={t("Photo actions")}>
       <div className="rounded-2xl border border-stone-200 bg-[#FBF6E8] p-3.5 shadow-[0_8px_24px_rgba(15,23,42,0.06)] xl:flex-1 xl:min-h-0 xl:flex xl:flex-col xl:overflow-y-auto xl:[scrollbar-gutter:stable]">
         <div className="flex items-start justify-between gap-2 mb-2.5">
@@ -138,6 +169,10 @@ export default function GeneratedResultPanel({ item, onDelete, onPrint, onClose,
               <div className="overflow-hidden min-h-0">
                 <div className="pt-1.5">
                   <ImageEditSidebar inline isOpen filters={filters} setFilters={onFiltersChange} resetFilters={RESULT_DEFAULT_FILTERS} onClose={() => setIsEditOpen(false)} onReset={() => setMessage(null)}/>
+                  {onSave && item.id && (<button type="button" onClick={handleSave} disabled={isSaving || (isNeutralFilters(filters) && !savedFlash)} className="mt-2 w-full flex items-center justify-center gap-1.5 rounded-lg bg-[#10B981] px-3 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-emerald-600 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer">
+                      {isSaving ? <Loader2 size={15} className="animate-spin"/> : savedFlash ? <Check size={15}/> : <Save size={15}/>}
+                      <span>{isSaving ? <AiT>{"Saving..."}</AiT> : savedFlash ? <AiT>{"Saved"}</AiT> : <AiT>{"Save changes"}</AiT>}</span>
+                    </button>)}
                 </div>
               </div>
             </div>
