@@ -23,7 +23,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { type ChangeEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, type DragEvent as ReactDragEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PRINT_MEDIA_TEMPLATES, type PrintMediaTemplate } from "./templateCatalog";
 
 type Manifest = {
@@ -826,21 +826,12 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
   const duplicateSelectedRef = useRef<() => void>(() => {});
   // Internal clipboard for Ctrl+C / Ctrl+V: the serialized layer plus how many times it was pasted.
   const clipboardRef = useRef<{ markup: string; pasteCount: number } | null>(null);
-  const [showTips, setShowTips] = useState(false);
   // Unsaved-changes tracking + auto-saved draft.
   const baselineRef = useRef("");
   const latestMarkupRef = useRef("");
   const draftKeyRef = useRef("");
   const [draftOffer, setDraftOffer] = useState<{ svgMarkup: string; updatedAt: string } | null>(null);
   const draftOfferRef = useRef<{ svgMarkup: string; updatedAt: string } | null>(null);
-  const TIPS_KEY = "pm-editor-tips-seen-v1";
-  useEffect(() => {
-    try {
-      if (!window.localStorage.getItem(TIPS_KEY)) setShowTips(true);
-    } catch {
-      // Storage can be blocked; the tips are simply skipped.
-    }
-  }, []);
   latestMarkupRef.current = svgMarkup;
   draftOfferRef.current = draftOffer;
   const hasUnsavedChanges = () => !!latestMarkupRef.current && !!baselineRef.current && latestMarkupRef.current !== baselineRef.current;
@@ -896,16 +887,102 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     router.push("/print-media");
   };
 
-  const dismissTips = () => {
-    setShowTips(false);
-    try {
-      window.localStorage.setItem(TIPS_KEY, "1");
-    } catch {
-      // ignore
-    }
-  };
   const printWrapRef = useRef<HTMLDivElement>(null);
   const [selBox, setSelBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+
+  // Empty photo frames get an on-canvas upload button and accept dropped files.
+  type EmptyFrame = { id: string; left: number; top: number; width: number; height: number };
+  const [emptyFrames, setEmptyFrames] = useState<EmptyFrame[]>([]);
+  const [dropFrameId, setDropFrameId] = useState("");
+  const pendingFrameRef = useRef("");
+
+  const measureEmptyFrames = () => {
+    const wrap = printWrapRef.current;
+    const svg = svgContainerRef.current?.querySelector("svg");
+    if (!wrap || !svg) {
+      setEmptyFrames([]);
+      return;
+    }
+    const base = wrap.getBoundingClientRect();
+    const next: EmptyFrame[] = [];
+    svg.querySelectorAll('[data-object-type="image"]').forEach((frame) => {
+      if (frame.localName === "image" || frame.hasAttribute("data-pm-orig-guide")) return;
+      const previous = frame.previousElementSibling;
+      if (previous && previous.localName === "image" && (previous.getAttribute("data-layer-name") || "").startsWith("Uploaded image for")) return;
+      const id = frame.getAttribute("id");
+      if (!id) return;
+      const rect = frame.getBoundingClientRect();
+      if (rect.width < 14 || rect.height < 14) return;
+      next.push({ id, left: rect.left - base.left, top: rect.top - base.top, width: rect.width, height: rect.height });
+    });
+    setEmptyFrames((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
+  };
+
+  useLayoutEffect(() => {
+    measureEmptyFrames();
+  }, [svgMarkup, zoom, loading]);
+
+  useEffect(() => {
+    if (loading) return;
+    const onResize = () => measureEmptyFrames();
+    window.addEventListener("resize", onResize);
+    const container = svgContainerRef.current;
+    const observer = typeof ResizeObserver !== "undefined" && container ? new ResizeObserver(onResize) : null;
+    if (observer && container) observer.observe(container);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      observer?.disconnect();
+    };
+  }, [loading]);
+
+  const openUploadFor = (frameId: string) => {
+    pendingFrameRef.current = frameId;
+    setSelectedId(frameId);
+    imageInputRef.current?.click();
+  };
+
+  const frameAtPoint = (clientX: number, clientY: number): string => {
+    const wrap = printWrapRef.current;
+    if (!wrap) return "";
+    const base = wrap.getBoundingClientRect();
+    const x = clientX - base.left;
+    const y = clientY - base.top;
+    const hits = emptyFrames.filter((f) => x >= f.left && x <= f.left + f.width && y >= f.top && y <= f.top + f.height);
+    if (hits.length) return hits.sort((a, b) => a.width * a.height - b.width * b.height)[0].id;
+    if (emptyFrames.length === 1) return emptyFrames[0].id;
+    const selectedEmpty = emptyFrames.find((f) => f.id === selectedId);
+    return selectedEmpty ? selectedEmpty.id : "";
+  };
+
+  const hasFiles = (event: ReactDragEvent<HTMLDivElement>) => Array.from(event.dataTransfer?.types ?? []).includes("Files");
+
+  const handleWrapDragOver = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    const id = frameAtPoint(event.clientX, event.clientY);
+    setDropFrameId((current) => (current === id ? current : id));
+  };
+
+  const handleWrapDragLeave = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setDropFrameId("");
+  };
+
+  const handleWrapDrop = (event: ReactDragEvent<HTMLDivElement>) => {
+    if (!hasFiles(event)) return;
+    event.preventDefault();
+    const id = frameAtPoint(event.clientX, event.clientY);
+    setDropFrameId("");
+    const file = event.dataTransfer.files?.[0];
+    if (!file) return;
+    if (!id) {
+      setError("ছবিটি যে ফ্রেমে বসাতে চান, তার ওপর ছেড়ে দিন।");
+      return;
+    }
+    setSelectedId(id);
+    placeImageFile(file, id);
+  };
 
   const findLiveElement = (id: string): SVGGraphicsElement | null => {
     const svg = svgContainerRef.current?.querySelector("svg");
@@ -1505,7 +1582,13 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
   const addImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = "";
-    if (!file || !selectedId || !svgMarkup) return;
+    const frameId = pendingFrameRef.current || selectedId;
+    pendingFrameRef.current = "";
+    if (file) placeImageFile(file, frameId);
+  };
+
+  const placeImageFile = (file: File, frameId: string) => {
+    if (!file || !frameId || !svgMarkup) return;
     if (!file.type.startsWith("image/")) {
       setError("Please choose an image file.");
       return;
@@ -1519,7 +1602,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
       if (typeof reader.result !== "string") return;
       try {
         const doc = parseSvg(svgMarkup);
-        const frame = findSvgElement(doc, selectedId);
+        const frame = findSvgElement(doc, frameId);
         if (!frame || frame.getAttribute("data-object-type") !== "image") {
           setError("Select an image placeholder before uploading a photo or logo.");
           return;
@@ -1573,7 +1656,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
 
         const image = doc.createElementNS(SVG_NS, "image");
         image.setAttribute("id", `uploaded-image-${Date.now()}`);
-        image.setAttribute("data-layer-name", `Uploaded image for ${frame.getAttribute("data-layer-name") || selectedId}`);
+        image.setAttribute("data-layer-name", `Uploaded image for ${frame.getAttribute("data-layer-name") || frameId}`);
         image.setAttribute("data-editable", "true");
         image.setAttribute("data-object-type", "image");
         image.setAttribute("href", reader.result);
@@ -1586,9 +1669,9 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
         frame.parentNode?.insertBefore(image, frame);
         hideFrameGuide(frame);
 
-        const hint = findSvgElement(doc, `${selectedId}_hint`);
+        const hint = findSvgElement(doc, `${frameId}_hint`);
         hint?.setAttribute("display", "none");
-        if (selectedId === "qr_image_placeholder") {
+        if (frameId === "qr_image_placeholder") {
           findSvgElement(doc, "qr_hint_text")?.setAttribute("display", "none");
         }
 
@@ -2128,22 +2211,6 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                   </div>
                 </div>
               )}
-              {showTips && (
-                <div className="rounded-2xl border border-[#F0C98F] bg-[#FFF6E5] px-4 py-3 text-[12px] text-[#5C4B32]">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="font-bold text-[#C2410C]"><T>ডিজাইন এডিট করার সহজ নিয়ম</T></p>
-                    <button type="button" onClick={dismissTips} className="shrink-0 rounded-lg bg-[#DC2626] px-3 py-1 text-[11px] font-bold text-white hover:bg-[#B91C1C]"><T>বুঝেছি</T></button>
-                  </div>
-                  <ul className="mt-1.5 grid gap-x-6 gap-y-1 sm:grid-cols-2">
-                    <li><T>✏️ লেখায় ডাবল ক্লিক করলে লেখা বদলানো যাবে</T></li>
-                    <li><T>🖱️ অবজেক্ট ধরে টেনে সরান, কোণা ধরে ছোট-বড় করুন</T></li>
-                    <li><T>🖼️ ছবির ফ্রেমে ক্লিক করে ডান পাশ থেকে ছবি দিন</T></li>
-                    <li><T>🗑️ Delete চাপলে মুছবে, Ctrl+Z দিলে ফিরে আসবে</T></li>
-                    <li><T>📋 Ctrl+C / Ctrl+V কপি-পেস্ট, Ctrl+D ডুপ্লিকেট</T></li>
-                    <li><T>💾 কাজ শেষে Ctrl+S দিয়ে সেভ করুন (অটো-সেভ শুধু এই কম্পিউটারে থাকে)</T></li>
-                  </ul>
-                </div>
-              )}
               <div className="flex items-center justify-between gap-3 px-1">
                 <div className="text-[12px] font-semibold text-[#806E50] truncate">
                   {manifest?.physicalSizeLabel || template?.printSize} · {manifest?.physicalWidth ?? canvasDimensions.width} × {manifest?.physicalHeight ?? canvasDimensions.height} {manifest?.unit || "mm"}
@@ -2156,7 +2223,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                 </div>
               </div>
               <div className="bg-[#D9D0C1] border border-[#CFC2A9] rounded-2xl p-3 sm:p-5 lg:p-7 min-h-[55vh] flex items-center justify-center overflow-auto">
-                <div ref={printWrapRef} className="relative" style={{ flexShrink: 0 }}>
+                <div ref={printWrapRef} className="relative" style={{ flexShrink: 0 }} onDragOver={handleWrapDragOver} onDragLeave={handleWrapDragLeave} onDrop={handleWrapDrop}>
                   <div
                     id="pm-print-area"
                     ref={svgContainerRef}
@@ -2167,6 +2234,47 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                     style={{ ...canvasStyle, width: `${Math.round(760 * zoom / 100)}px`, flexShrink: 0 }}
                     dangerouslySetInnerHTML={{ __html: svgMarkup }}
                   />
+                  {emptyFrames.map((frame) => {
+                    const active = dropFrameId === frame.id;
+                    const minDim = Math.min(frame.width, frame.height);
+                    const iconOnly = frame.width < 130 || frame.height < 100;
+                    const compact = frame.width < 190 || frame.height < 130;
+                    const iconSize = Math.max(10, Math.min(30, Math.round(minDim - 8)));
+                    return (
+                      <div
+                        key={frame.id}
+                        data-pm-keep-selection="true"
+                        className={`absolute pointer-events-none transition ${active ? "bg-[#DC2626]/15 outline outline-2 outline-dashed outline-[#DC2626]" : ""}`}
+                        style={{ left: frame.left, top: frame.top, width: frame.width, height: frame.height }}
+                      >
+                        {iconOnly ? (
+                          <button
+                            type="button"
+                            data-pm-keep-selection="true"
+                            title="ছবি আপলোড করুন"
+                            aria-label="ছবি আপলোড করুন"
+                            onClick={(event) => { event.stopPropagation(); openUploadFor(frame.id); }}
+                            className="pointer-events-auto absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-[#DC2626]/50 bg-white/95 text-[#DC2626] shadow hover:bg-[#FFF1F1] hover:border-[#DC2626]"
+                            style={{ width: iconSize, height: iconSize }}
+                          >
+                            <Upload size={Math.max(8, Math.round(iconSize * 0.55))} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            data-pm-keep-selection="true"
+                            onClick={(event) => { event.stopPropagation(); openUploadFor(frame.id); }}
+                            className="pointer-events-auto absolute left-1/2 top-[68%] -translate-x-1/2 -translate-y-1/2 flex max-w-[92%] flex-col items-center gap-0.5 rounded-xl border border-[#DC2626]/40 bg-white/95 px-3 py-2 text-center shadow-md hover:bg-[#FFF1F1] hover:border-[#DC2626]"
+                          >
+                            <span className="inline-flex items-center gap-1.5 text-[12px] font-bold text-[#DC2626]">
+                              <Upload size={14} /> {active ? <T>এখানে ছেড়ে দিন</T> : <T>ছবি আপলোড করুন</T>}
+                            </span>
+                            {!compact && <span className="text-[10px] leading-4 text-[#7A6A4C]"><T>ক্লিক করুন অথবা ছবি টেনে এনে ছেড়ে দিন</T></span>}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                   {selBox && (["nw", "ne", "sw", "se"] as const).map((corner) => (
                     <div
                       key={corner}
