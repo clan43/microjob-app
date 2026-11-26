@@ -1,0 +1,19 @@
+{
+  "id": "131-watercolor-chairman-leaders-poster",
+  "title": "Chairman Candidate Poster (Watercolour, Leaders Photos)",
+  "category": "Election & Campaign",
+  "aspectRatio": "210:272.4",
+  "physicalWidth": 210,
+  "physicalHeight": 272.4,
+  "unit": "mm",
+  "physicalSizeLabel": "210 x 272.4 mm portrait",
+  "file": "templates/131-watercolor-chairman-leaders-poster.svg",
+  "preview": "previews/131-watercolor-chairman-leaders-poster.svg",
+  "platform": "SebaLagbe.com",
+  "viewBox": "0 0 210 272.4",
+  "editableObjects": [],
+  "printSettings": {
+    "bleedMm": 3,
+    "safeMarginMm": 5
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "127-sky-blue-women-member-poster",
+  "title": "Sky Blue Women Member Poster",
+  "category": "Election & Campaign",
+  "aspectRatio": "3:4",
+  "physicalWidth": 210,
+  "physicalHeight": 280,
+  "unit": "mm",
+  "physicalSizeLabel": "3:4 portrait",
+  "file": "templates/127-sky-blue-women-member-poster.svg",
+  "preview": "previews/127-sky-blue-women-member-poster.svg",
+  "platform": "SebaLagbe.com",
+  "viewBox": "0 0 210 280",
+  "editableObjects": [],
+  "printSettings": {
+    "bleedMm": 3,
+    "safeMarginMm": 5
+  }
+}

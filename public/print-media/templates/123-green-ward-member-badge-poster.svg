@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs>
+<clipPath id="in123"><rect x="13.3" y="10.5" width="189" height="266.9"/></clipPath>
+<linearGradient id="top123" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#84c63c"/><stop offset="0.45" stop-color="#c5e08a"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+<radialGradient id="mist123" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#8cc63f" stop-opacity="0.85"/><stop offset="1" stop-color="#c8e39a" stop-opacity="0"/></radialGradient>
+<linearGradient id="sw123" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7cc040"/><stop offset="1" stop-color="#cfe46a"/></linearGradient>
+<linearGradient id="lt123" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a9d63a"/><stop offset="1" stop-color="#7cc03e"/></linearGradient>
+<linearGradient id="dk123" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#056f38"/><stop offset="1" stop-color="#008c47"/></linearGradient>
+<radialGradient id="rd123" cx="0.4" cy="0.35" r="0.75"><stop offset="0" stop-color="#e8272c"/><stop offset="1" stop-color="#c81c26"/></radialGradient>
+<linearGradient id="yl123" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff98a"/><stop offset="1" stop-color="#ffff3f"/></linearGradient>
+</defs>
+<rect x="0" y="0" width="210" height="297" fill="#ffffff" data-layer-name="Frame"/>
+<rect x="0.6" y="0.6" width="208.8" height="295.8" fill="none" stroke="#84c338" stroke-width="1.2" data-layer-name="Outer line"/>
+<rect x="8.7" y="6.1" width="198.2" height="284.6" fill="#84c338" data-layer-name="Green frame"/>
+<rect x="12.2" y="9.4" width="190.2" height="268.8" fill="none" stroke="#ffffff" stroke-width="0.4" data-layer-name="Inner white line"/>
+<g clip-path="url(#in123)" data-layer-name="Content background">
+<rect x="13.3" y="10.5" width="189" height="266.9" fill="#ffffff" data-layer-name="Background"/>
+<rect x="13.3" y="10.5" width="189" height="75" fill="url(#top123)" data-layer-name="Top green fade"/>
+<ellipse cx="10" cy="150" rx="65" ry="80" fill="url(#mist123)" data-layer-name="Left green mist"/>
+<path d="M 13.3 10.5 L 82 10.5 C 60 24 34 42 13.3 54 Z" fill="url(#sw123)" data-layer-name="Top swoosh"/>
+<path d="M 13.3 54 C 34 42 60 24 78 11.5" fill="none" stroke="#f2e53a" stroke-width="1" data-layer-name="Yellow swoosh line"/>
+</g>
+<rect x="82.6" y="12.2" width="48.3" height="4.3" rx="2" fill="#ffffff" stroke="#9ca3af" stroke-width="0.2" data-layer-name="Bismillah pill"/>
+<text x="106.7" y="15.2" font-size="3.1" fill="#111111" font-weight="700" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="44" data-pm-fs="3.1" data-layer-name="Bismillah">বিসমিল্লাহির রাহমানির রাহিম</text>
+<text x="134.4" y="33.1" font-size="11.5" fill="#111111" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="126" data-pm-fs="11.5" data-layer-name="Area line 1">আসন্ন ১১ নং গালিমপুর ইউনিয়ন</text>
+<text x="135.4" y="44.6" font-size="11.5" fill="#111111" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="60" data-pm-fs="11.5" data-layer-name="Area line 2">পরিষদ নির্বাচনে</text>
+<rect x="13.3" y="58" width="134" height="200" rx="0" fill="#e5e7eb" fill-opacity="0.1" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="photo_placeholder" data-object-type="image" data-layer-name="প্রার্থীর ছবি"/>
+<text x="80" y="150" font-size="5.2" fill="#6b7280" font-weight="500" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="100" data-pm-fs="5.2" data-layer-name="Candidate hint">প্রার্থীর ছবি (ব্যাকগ্রাউন্ড মুছে দিন)</text>
+<polygon points="114,59.9 135.1,65.6 135.1,82.5 119,82.7" fill="#fbc20a" data-layer-name="Yellow wing left"/>
+<polygon points="182,71.6 196.7,75.4 195.3,80 182,81" fill="#f6a800" data-layer-name="Yellow wing right"/>
+<path d="M 134.4 82 L 134.4 61 A 24.15 14.5 0 0 1 182.7 61 L 182.7 82 Z" fill="#0b4fa8" data-layer-name="Ward arch outer"/>
+<path d="M 137 82 L 137 61 A 21.5 12 0 0 1 180.1 61 L 180.1 82 Z" fill="#26338c" data-layer-name="Ward arch inner"/>
+<text x="158.4" y="73" font-size="20" fill="#fff200" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="36" data-pm-fs="20" data-layer-name="Ward number">১নং</text>
+<polygon points="119,82.7 196.7,75.4 190.4,94.6 126.7,96" fill="#d3202b" data-layer-name="Ward red ribbon"/>
+<text x="158" y="93" font-size="12" fill="#ffffff" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="62" data-pm-fs="12" data-layer-name="Ward word">ওয়ার্ড এর</text>
+<text x="161" y="108.2" font-size="7.2" fill="#111111" font-weight="700" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="68" data-pm-fs="7.2" data-layer-name="Intro line 1">আপনাদের সু-পরিচিত</text>
+<text x="161.3" y="117" font-size="7.2" fill="#111111" font-weight="700" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="62" data-pm-fs="7.2" data-layer-name="Intro line 2">এলাকার কৃতি সন্তান</text>
+<rect x="145.6" y="186.6" width="41.3" height="57" fill="url(#yl123)" data-layer-name="Yellow appeal box"/>
+<text x="166.6" y="202.8" font-size="7.6" fill="#111111" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="36" data-pm-fs="7.6" data-layer-name="Appeal line 1">আপনাদের</text>
+<text x="166.6" y="212.9" font-size="7.6" fill="#111111" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="36" data-pm-fs="7.6" data-layer-name="Appeal line 2">সকলের</text>
+<text x="166.6" y="223.1" font-size="7.6" fill="#111111" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="36" data-pm-fs="7.6" data-layer-name="Appeal line 3">দোয়া ও</text>
+<text x="166.6" y="232.5" font-size="7.6" fill="#111111" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="36" data-pm-fs="7.6" data-layer-name="Appeal line 4">সমর্থন</text>
+<text x="166.6" y="242" font-size="7.6" fill="#111111" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="36" data-pm-fs="7.6" data-layer-name="Appeal line 5">প্রত্যাশী</text>
+<circle cx="163.8" cy="156.8" r="38.5" fill="none" stroke="#8cc63f" stroke-width="0.5" stroke-dasharray="40 8" data-layer-name="Badge green ring"/>
+<circle cx="163.8" cy="156.8" r="34" fill="url(#rd123)" data-layer-name="Member badge"/>
+<text x="163.8" y="143.6" font-size="6.5" fill="#fff7b0" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="31" data-pm-fs="6.5" data-layer-name="Sombabbo">সম্ভাব্য</text>
+<text x="163.8" y="166.3" font-size="19" fill="#fff200" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="46" data-pm-fs="19" stroke="#8a1010" stroke-width="0.5" paint-order="stroke" stroke-linejoin="round" data-layer-name="Member word">মেম্বার</text>
+<text x="163.8" y="176.4" font-size="7.5" fill="#ffffff" font-weight="700" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="29" data-pm-fs="7.5" data-layer-name="Candidate word">পদপ্রার্থী</text>
+<path d="M 13.3 223 C 35 219 55 224 80 236 C 100 245 120 248 145 247 C 170 246 190 240 202.3 235 L 202.3 242 C 185 248 165 254 140 254 C 105 254 60 245 13.3 241 Z" fill="url(#lt123)" data-layer-name="Light green wave"/>
+<path d="M 13.3 241 C 60 245 105 254 140 254 C 165 254 185 248 202.3 242 L 202.3 277.4 L 13.3 277.4 Z" fill="url(#dk123)" data-layer-name="Dark green base"/>
+<text x="107.4" y="270.4" font-size="22" fill="#ffffff" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="163" data-pm-fs="22" data-layer-name="Candidate name">মোঃ মামুন হোসেন</text>
+<rect x="8.7" y="277.4" width="198.2" height="13.3" fill="#ee1f27" data-layer-name="Footer strip"/>
+<text x="107.8" y="284.6" font-size="6.4" fill="#ffffff" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="187" data-pm-fs="6.4" data-layer-name="Footer line">প্রচারে: ১১নং গালিমপুর ইউনিয়ন ১নং ওয়ার্ডের সর্বস্তরের জনসাধারণবৃন্দ ।</text>
+</svg>

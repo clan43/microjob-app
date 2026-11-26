@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs>
+<linearGradient id="bg116" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff04a"/><stop offset="0.45" stop-color="#fffbe6"/><stop offset="1" stop-color="#ffe9dc"/></linearGradient>
+<radialGradient id="yel116" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffee33" stop-opacity="1"/><stop offset="0.6" stop-color="#ffee33" stop-opacity="0.55"/><stop offset="1" stop-color="#ffee33" stop-opacity="0"/></radialGradient>
+<radialGradient id="red116" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#f83639" stop-opacity="1"/><stop offset="0.6" stop-color="#f83639" stop-opacity="0.55"/><stop offset="1" stop-color="#f83639" stop-opacity="0"/></radialGradient>
+<radialGradient id="ora116" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ff9a4a" stop-opacity="1"/><stop offset="0.6" stop-color="#ff9a4a" stop-opacity="0.55"/><stop offset="1" stop-color="#ff9a4a" stop-opacity="0"/></radialGradient>
+<linearGradient id="wave116" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1573d6"/><stop offset="0.55" stop-color="#0a35b4"/><stop offset="1" stop-color="#02138f"/></linearGradient>
+<linearGradient id="rib116" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#14305c"/><stop offset="0.5" stop-color="#5a1a50"/><stop offset="1" stop-color="#e8332a"/></linearGradient>
+<linearGradient id="sub116" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1d6fd0"/><stop offset="1" stop-color="#e8332a"/></linearGradient>
+<linearGradient id="nm116" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f4f23a"/><stop offset="1" stop-color="#8be63c"/></linearGradient>
+</defs>
+<rect x="0.0" y="0.0" width="210.0" height="297.0" rx="0" fill="#f5e761"  data-layer-name="Frame"/>
+<rect x="2.52" y="5.99" width="204.96" height="287.42" rx="0" fill="url(#bg116)"  data-layer-name="Background"/>
+<ellipse cx="36.4" cy="56.89" rx="98.0" ry="83.83" fill="url(#yel116)"  data-layer-name="Yellow glow left"/>
+<ellipse cx="198.8" cy="23.95" rx="98.0" ry="113.77" fill="url(#red116)"  data-layer-name="Red glow top right"/>
+<ellipse cx="207.2" cy="122.75" rx="58.8" ry="77.84" fill="url(#ora116)"  data-layer-name="Orange glow right"/>
+<rect x="84.7" y="8.23" width="39.9" height="6.59" rx="1.2" fill="#1b3b73"  data-layer-name="Bismillah tab"/>
+<text x="104.58" y="13.17" font-size="4.26" fill="#ffffff" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="36.4" data-pm-fs="4.26"  data-layer-name="Bismillah">বিসমিল্লাহির রাহমানির রাহিম</text>
+<ellipse cx="23.8" cy="27.69" rx="14.28" ry="14.28" fill="#4ba3d8"  data-layer-name="নেতার ছবি 1 ring"/>
+<ellipse cx="23.8" cy="27.69" rx="12.88" ry="12.88" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_1" data-object-type="image" data-layer-name="নেতার ছবি 1"/>
+<ellipse cx="26.6" cy="52.39" rx="12.88" ry="12.88" fill="#9a6a2f"  data-layer-name="নেতার ছবি 3 ring"/>
+<ellipse cx="26.6" cy="52.39" rx="11.48" ry="11.48" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_3" data-object-type="image" data-layer-name="নেতার ছবি 3"/>
+<ellipse cx="54.32" cy="35.93" rx="17.36" ry="17.36" fill="#25a14a"  data-layer-name="নেতার ছবি 2 ring"/>
+<ellipse cx="54.32" cy="35.93" rx="15.68" ry="15.68" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="leader_photo_2" data-object-type="image" data-layer-name="নেতার ছবি 2"/>
+<ellipse cx="100.8" cy="47.6" rx="6.44" ry="6.44" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="symbol_placeholder" data-object-type="image" data-layer-name="Symbol"/>
+<text x="84.0" y="64.67" font-size="16.76" fill="#e32027" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="42.0" data-pm-fs="16.76" stroke="#ffffff" stroke-width="1" paint-order="stroke" stroke-linejoin="round" data-layer-name="Slogan word 1">নৌকায়</text>
+<text x="96.6" y="78.14" font-size="11.93" fill="#0a8a42" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="36.4" data-pm-fs="11.93" stroke="#ffffff" stroke-width="1" paint-order="stroke" stroke-linejoin="round" data-layer-name="Slogan word 2">ভোট দিন</text>
+<ellipse cx="96.6" cy="91.61" rx="7.84" ry="7.84" fill="#a9cde8" stroke="#ffffff" stroke-width="0.6" id="collage_1" data-object-type="image" data-layer-name="Collage 1"/>
+<ellipse cx="89.6" cy="106.58" rx="8.68" ry="8.68" fill="#4f8f63" stroke="#ffffff" stroke-width="0.6" id="collage_2" data-object-type="image" data-layer-name="Collage 2"/>
+<ellipse cx="102.2" cy="113.77" rx="8.68" ry="8.68" fill="#2e6ea3" stroke="#ffffff" stroke-width="0.6" id="collage_3" data-object-type="image" data-layer-name="Collage 3"/>
+<ellipse cx="96.88" cy="125.15" rx="6.44" ry="6.44" fill="#1d2a40" stroke="#ffffff" stroke-width="0.6" id="collage_4" data-object-type="image" data-layer-name="Collage 4"/>
+<rect x="9.52" y="87.57" width="67.76" height="39.22" rx="3.6" fill="#fffef2" stroke="#8c8c8c" stroke-width="0.6" data-layer-name="Title box"/>
+<rect x="23.8" y="85.63" width="39.2" height="10.48" rx="0" fill="#fffef2"  data-layer-name="Title notch top"/>
+<rect x="18.2" y="123.05" width="50.4" height="7.19" rx="0" fill="#fffef2"  data-layer-name="Title notch bottom"/>
+<text x="43.4" y="95.81" font-size="13.63" fill="#111111" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="32.2" data-pm-fs="13.63"  data-layer-name="Upcoming">আসন্ন</text>
+<text x="43.4" y="108.53" font-size="14.2" fill="#0a8a2a" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="58.8" data-pm-fs="14.2"  data-layer-name="Area name">মাগুরা সদর</text>
+<text x="43.4" y="122.75" font-size="14.77" fill="#d9201f" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="46.2" data-pm-fs="14.77"  data-layer-name="Upazila">উপজেলা</text>
+<text x="43.4" y="128.44" font-size="5.68" fill="#333333" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="42.0" data-pm-fs="5.68"  data-layer-name="Parishad line">পরিষদ নির্বাচনে</text>
+<ellipse cx="159.6" cy="83.83" rx="42.7" ry="42.7" fill="#ffcf33"  data-layer-name="Halo yellow"/>
+<ellipse cx="166.6" cy="83.83" rx="33.6" ry="38.62" fill="#47c1d9"  data-layer-name="Halo cyan"/>
+<rect x="110.6" y="14.22" width="99.4" height="116.02" fill="#e5e7eb" fill-opacity="0.08" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="leader_main_photo" data-object-type="image" data-layer-name="প্রধান নেতার ছবি"/>
+<text x="160.3" y="71.85" font-size="6.53" fill="#6b7280" font-weight="500" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="70.0" data-pm-fs="6.53"  data-layer-name="Leader hint">প্রধান নেতার ছবি</text>
+<ellipse cx="47.6" cy="178.14" rx="42.0" ry="42.0" fill="#6ec6f0"  data-layer-name="Candidate ring"/>
+<ellipse cx="47.6" cy="178.14" rx="33.32" ry="33.32" fill="#ffb92e"  data-layer-name="Candidate glow"/>
+<rect x="4.2" y="136.22" width="96.6" height="119.76" fill="#e5e7eb" fill-opacity="0.08" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="প্রার্থীর ছবি"/>
+<text x="52.5" y="182.63" font-size="5.96" fill="#6b7280" font-weight="500" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="86.8" data-pm-fs="5.96"  data-layer-name="Candidate hint">প্রার্থীর ছবি (ব্যাকগ্রাউন্ড মুছে দিন)</text>
+<text x="145.6" y="149.7" font-size="5.4" fill="#222222" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="100.8" data-pm-fs="5.4"  data-layer-name="Leader support line">সৎ, যোগ্য, নিরলস, বিশ্বস্ত ও দক্ষ সমাজসেবক</text>
+<rect x="91.7" y="151.94" width="110.6" height="19.46" rx="3" fill="url(#rib116)" stroke="#ffffff" stroke-width="0.7" data-layer-name="Leader name ribbon"/>
+<text x="126.0" y="166.46" font-size="13.06" fill="#ffffff" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="58.8" data-pm-fs="13.06"  data-layer-name="Leader name 1">বাবু পঙ্কজ</text>
+<text x="172.9" y="166.46" font-size="13.06" fill="#ffe600" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="56.0" data-pm-fs="13.06"  data-layer-name="Leader name 2">কুমার কুন্ডু</text>
+<rect x="91.7" y="172.45" width="110.6" height="3.89" rx="0" fill="#fffdf0"  data-layer-name="Leader white strip"/>
+<rect x="141.4" y="183.38" width="61.6" height="6.59" fill="url(#sub116)" data-layer-name="Leader post strip"/>
+<text x="172.2" y="188.17" font-size="4.83" fill="#ffffff" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="56.0" data-pm-fs="4.83"  data-layer-name="Leader post">মাগুরা উপজেলা পরিষদের</text>
+<text x="147.0" y="209.58" font-size="28.4" fill="#e32027" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="92.4" data-pm-fs="28.4" stroke="#ffffff" stroke-width="1.6" paint-order="stroke" stroke-linejoin="round" data-layer-name="Chairman word">চেয়ারম্যান</text>
+<text x="128.1" y="235.77" font-size="15.34" fill="#a4161a" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="42.0" data-pm-fs="15.34" stroke="#ffffff" stroke-width="1" paint-order="stroke" stroke-linejoin="round" data-layer-name="Hisebe">হিসেবে</text>
+<text x="173.6" y="233.53" font-size="9.66" fill="#1b2f7a" font-weight="700" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="47.6" data-pm-fs="9.66"  data-layer-name="Dekhte chai">দেখতে চাই</text>
+<path d="M 0 267.96 C 42.0 254.49 78.4 245.5 126.0 247.0 C 161.0 248.5 186.2 242.51 210.0 247.0 L 210 297 L 0 297 Z" fill="url(#wave116)" data-layer-name="Blue wave"/>
+<text x="106.4" y="273.95" font-size="24.42" fill="url(#nm116)" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="168.0" data-pm-fs="24.42" stroke="#0c3a1f" stroke-width="1.2" paint-order="stroke" stroke-linejoin="round" data-layer-name="Candidate name">মোঃ নিশান পারভেজ</text>
+<ellipse cx="22.4" cy="274.7" rx="14.28" ry="14.28" fill="#ffffff"  data-layer-name="Logo ring"/>
+<ellipse cx="22.4" cy="274.7" rx="12.6" ry="12.6" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.4" stroke-dasharray="1.5 1" id="logo_placeholder" data-object-type="image" data-layer-name="Logo"/>
+<text x="106.4" y="288.17" font-size="5.96" fill="#ffffff" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="126.0" data-pm-fs="5.96"  data-layer-name="Footer line 1">সাধারণ সম্পাদক, মাগুরা জেলা শাখা।</text>
+<text x="106.4" y="294.6" font-size="5.96" fill="#ffffff" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="126.0" data-pm-fs="5.96"  data-layer-name="Footer line 2">সহযোগী সাধারণ সম্পাদক, উপজেলা শাখা।</text>
+</svg>

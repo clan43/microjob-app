@@ -1,0 +1,19 @@
+{
+  "id": "128-green-yellow-jeweller-cash-memo",
+  "title": "Green Yellow Jeweller Cash Memo",
+  "category": "Shop & Business",
+  "aspectRatio": "148:242",
+  "physicalWidth": 148,
+  "physicalHeight": 241.55,
+  "unit": "mm",
+  "physicalSizeLabel": "148 x 242 mm portrait",
+  "file": "templates/128-green-yellow-jeweller-cash-memo.svg",
+  "preview": "previews/128-green-yellow-jeweller-cash-memo.svg",
+  "platform": "SebaLagbe.com",
+  "viewBox": "0 0 148 241.55",
+  "editableObjects": [],
+  "printSettings": {
+    "bleedMm": 3,
+    "safeMarginMm": 5
+  }
+}

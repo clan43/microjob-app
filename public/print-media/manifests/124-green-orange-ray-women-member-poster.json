@@ -1,0 +1,19 @@
+{
+  "id": "124-green-orange-ray-women-member-poster",
+  "title": "Green Orange Ray Women Member Poster",
+  "category": "Election & Campaign",
+  "aspectRatio": "3:4",
+  "physicalWidth": 210,
+  "physicalHeight": 280,
+  "unit": "mm",
+  "physicalSizeLabel": "3:4 portrait",
+  "file": "templates/124-green-orange-ray-women-member-poster.svg",
+  "preview": "previews/124-green-orange-ray-women-member-poster.svg",
+  "platform": "SebaLagbe.com",
+  "viewBox": "0 0 210 280",
+  "editableObjects": [],
+  "printSettings": {
+    "bleedMm": 3,
+    "safeMarginMm": 5
+  }
+}

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 210 297" width="210mm" height="297mm" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif">
+<defs>
+<linearGradient id="bg115" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7a21b"/><stop offset="0.28" stop-color="#fdd90f"/><stop offset="0.6" stop-color="#fee90a"/><stop offset="1" stop-color="#fdf04a"/></linearGradient>
+<radialGradient id="glow115" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fffbd6" stop-opacity="0.95"/><stop offset="0.6" stop-color="#fff7a8" stop-opacity="0.45"/><stop offset="1" stop-color="#fff7a8" stop-opacity="0"/></radialGradient>
+<radialGradient id="glowL115" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff9c4" stop-opacity="0.9"/><stop offset="1" stop-color="#fff9c4" stop-opacity="0"/></radialGradient>
+<linearGradient id="swoosh115" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f58a1f"/><stop offset="1" stop-color="#ef5a22"/></linearGradient>
+<linearGradient id="redbox115" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e5222b"/><stop offset="1" stop-color="#b80f17"/></linearGradient>
+<linearGradient id="blue115" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d86e6"/><stop offset="1" stop-color="#1558b8"/></linearGradient>
+<linearGradient id="bar115" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#df1d26"/><stop offset="1" stop-color="#ae0c14"/></linearGradient>
+<linearGradient id="nir115" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34b24a"/><stop offset="1" stop-color="#127a36"/></linearGradient>
+<linearGradient id="band115" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffbe0"/><stop offset="1" stop-color="#fde72a"/></linearGradient>
+<linearGradient id="pink115" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b3216f"/><stop offset="1" stop-color="#9c1a66"/></linearGradient>
+</defs>
+<rect x="0" y="0" width="210" height="297" fill="url(#bg115)" data-layer-name="Background"/>
+<ellipse cx="155.36" cy="98.98" rx="98.0" ry="109.1" fill="url(#glow115)" data-layer-name="Light glow behind photo"/>
+<ellipse cx="23.24" cy="197.96" rx="75.2" ry="66.0" fill="url(#glowL115)" data-layer-name="Light glow bottom left"/>
+<path d="M 0.0 0.0 L 71.07 0.0 C 52.85 10.15 27.79 20.3 0.0 27.92 Z" fill="#f6921c" opacity="0.85" data-layer-name="Orange corner left"/>
+<path d="M 0.0 0.0 L 55.13 0.0 C 39.18 12.69 18.68 17.77 0.0 20.3 Z" fill="#f9b233" opacity="0.8" data-layer-name="Orange corner highlight"/>
+<path d="M 141.69 0.0 L 210.03 0.0 L 210.03 38.07 C 191.81 22.84 164.47 12.69 141.69 0.0 Z" fill="url(#swoosh115)" data-layer-name="Orange swoosh right"/>
+<path d="M 155.36 0.0 L 210.03 0.0 L 210.03 20.3 C 191.81 11.42 173.58 5.08 155.36 0.0 Z" fill="#f26a21" opacity="0.8" data-layer-name="Orange swoosh dark"/>
+<path d="M 102.97 44.42 C 132.58 25.38 182.7 27.92 210.03 60.91" fill="none" stroke="#fff7b0" stroke-width="1.2" opacity="0.85" data-layer-name="Light arc"/>
+<rect x="86" y="42" width="124" height="166" fill="#e5e7eb" stroke="#9ca3af" stroke-width="0.5" stroke-dasharray="2 1.2" id="photo_placeholder" data-object-type="image" data-layer-name="ছবি"/>
+<text x="148" y="125" font-size="6.22" fill="#6b7280" font-weight="500" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="100" data-pm-fs="6.22" id="photo_placeholder_hint" data-layer-name="ছবি hint">প্রার্থীর ছবি (ব্যাকগ্রাউন্ড মুছে দিন)</text>
+<path d="M 66.97 0.0 L 141.69 0.0 L 141.69 8.88 Q 141.69 13.96 137.14 13.96 L 71.53 13.96 Q 66.97 13.96 66.97 8.88 Z" fill="#ffe81a" stroke="#f08a1c" stroke-width="0.45" data-layer-name="Bismillah tab"/>
+<text x="104.33" y="9.14" font-size="5.6" fill="#1a1a1a" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="64" data-pm-fs="5.6"  data-layer-name="Bismillah">বিসমিল্লাহির রাহমানির রাহিম</text>
+<rect x="9.57" y="18.27" width="99.09" height="28.68" rx="5" fill="#ffffff" data-layer-name="Slogan box"/>
+<rect x="7.29" y="22.84" width="4.1" height="20.3" rx="1.8" fill="#f28a1e" data-layer-name="Slogan scroll left"/>
+<rect x="106.84" y="22.84" width="4.1" height="20.3" rx="1.8" fill="#f28a1e" data-layer-name="Slogan scroll right"/>
+<text x="60.82" y="27.41" font-size="5.8" fill="#1a1a1a" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="84" data-pm-fs="5.8"  data-layer-name="Slogan line 1">জনসেবা ও ন্যায়ভিত্তিক সমাজ প্রতিষ্ঠায়</text>
+<text x="58.54" y="37.05" font-size="10.5" fill="#111111" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="68" data-pm-fs="10.5"  data-layer-name="Slogan line 2">“মনোবল আছে যার”</text>
+<text x="60.37" y="44.67" font-size="6.2" fill="#c0267a" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="84" data-pm-fs="6.2"  data-layer-name="Slogan line 3">জন প্রতিনিধি হওয়ার অধিকার আছে তার।</text>
+<text x="60.37" y="61.42" font-size="9.4" fill="#1a1a1a" font-weight="800" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="108" data-pm-fs="9.4"  data-layer-name="Union line">আসন্ন ৩নং কবাখালী ইউনিয়ন পরিষদ</text>
+<rect x="7.29" y="73.6" width="47.84" height="13.96" rx="3.4" fill="url(#pink115)" data-layer-name="Ward area pill"/>
+<text x="30.98" y="83.75" font-size="8.0" fill="#ffffff" font-weight="700" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="44" data-pm-fs="8.0"  data-layer-name="Ward area">উত্তর মিলনপুর</text>
+<polygon points="56.95,65.99 64.24,62.18 69.25,69.03 61.96,72.33" fill="#2fa04a" data-layer-name="Green flag 1"/>
+<polygon points="73.35,67.26 81.32,71.06 78.36,78.68 72.9,76.65" fill="#1c8040" data-layer-name="Green flag 2"/>
+<rect x="53.31" y="68.02" width="21.19" height="15.74" fill="#ffffff" stroke="#d3141c" stroke-width="0.8" data-layer-name="Ward number box"/>
+<text x="63.78" y="81.22" font-size="14.5" fill="#d3141c" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="20" data-pm-fs="14.5"  data-layer-name="Ward number">৭নং</text>
+<polygon points="54.67,84.77 85.2,84.77 80.64,99.49 56.95,99.49" fill="#1b8a3f" stroke="#ffffff" stroke-width="0.5" data-layer-name="Ward ribbon"/>
+<text x="68.8" y="95.94" font-size="9.0" fill="#ffffff" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="24" data-pm-fs="9.0"  data-layer-name="Ward word">ওয়ার্ড</text>
+<rect x="0.0" y="111.67" width="11.85" height="2.28" rx="1" fill="#2c9c45" data-layer-name="Green stripe 1"/>
+<rect x="0.0" y="115.99" width="11.85" height="2.28" rx="1" fill="#2c9c45" data-layer-name="Green stripe 2"/>
+<rect x="0.0" y="120.3" width="11.85" height="2.28" rx="1" fill="#2c9c45" data-layer-name="Green stripe 3"/>
+<text x="47.15" y="120.81" font-size="18.5" fill="url(#nir115)" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="64" data-pm-fs="18.5" stroke="#ffffff" stroke-width="1.5" paint-order="stroke" stroke-linejoin="round" data-layer-name="Election word">নির্বাচনে</text>
+<ellipse cx="52.17" cy="179.69" rx="25.97" ry="15.74" fill="url(#blue115)" stroke="#8fd0ff" stroke-width="0.6" data-layer-name="Candidate badge"/>
+<g id="member_group" data-layer-name="Member ribbon"><path d="M 10.93 138.32 Q 10.02 134.01 15.95 132.74 L 88.84 125.88 Q 93.4 125.38 93.4 130.96 L 94.31 162.43 Q 94.31 167.51 89.3 168.52 L 25.51 175.12 Q 20.5 175.63 19.59 170.55 Z" fill="url(#redbox115)" stroke="#8a0a10" stroke-width="0.4" stroke-linejoin="round" data-layer-name="Member box"/>
+<text x="50.12" y="160.4" font-size="25.5" fill="#ffe600" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="64" data-pm-fs="25.5" stroke="#8a0a10" stroke-width="0.8" paint-order="stroke" stroke-linejoin="round" data-layer-name="Member word">মেম্বার</text></g>
+<text x="52.17" y="187.81" font-size="9.0" fill="#ffffff" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="32" data-pm-fs="9.0"  data-layer-name="Candidate post">পদপ্রার্থী</text>
+<polygon points="73.81,205.58 210.03,205.58 210.03,218.27 67.88,218.27" fill="url(#pink115)" data-layer-name="Tagline strip"/>
+<text x="139.41" y="214.46" font-size="7.8" fill="#ffffff" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="118" data-pm-fs="7.8"  data-layer-name="Tagline">শান্তিময় ও দুর্নীতিমুক্ত সমাজ গঠনে অঙ্গীবদ্ধ</text>
+<rect x="0" y="219.79" width="210" height="2.54" fill="#f6a21b" data-layer-name="Orange line above name"/>
+<rect x="0.0" y="222.08" width="210.03" height="37.31" rx="4.2" fill="url(#bar115)" stroke="#ffe600" stroke-width="0.7" data-layer-name="Name bar"/>
+<text x="105.24" y="249.23" font-size="21.5" fill="#ffe600" font-weight="800" text-anchor="middle" font-family="'Baloo Da 2', 'Hind Siliguri', 'Noto Sans Bengali', sans-serif" data-pm-maxw="188" data-pm-fs="21.5" stroke="#7a0a10" stroke-width="0.5" paint-order="stroke" stroke-linejoin="round" data-layer-name="Candidate name">মোঃ আনোয়ার হোসেন</text>
+<rect x="0" y="259.89" width="210" height="19.29" fill="url(#band115)" data-layer-name="Appeal band"/>
+<text x="105.24" y="273.6" font-size="11.0" fill="#111111" font-weight="800" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="190" data-pm-fs="11.0"  data-layer-name="Appeal line">আপনাদের সকলের দোয়া, সহযোগিতা ও রায় প্রত্যাশী।</text>
+<rect x="0" y="278.67" width="210" height="2.54" fill="#ffd400" data-layer-name="Yellow line"/>
+<rect x="0" y="281.21" width="210" height="15.79" fill="#2c3b8f" data-layer-name="Footer bar"/>
+<text x="105.24" y="291.87" font-size="8.2" fill="#e6e8ff" font-weight="600" text-anchor="middle" font-family="'Hind Siliguri', 'Noto Sans Bengali', 'Nirmala UI', sans-serif" data-pm-maxw="160" data-pm-fs="8.2"  data-layer-name="Campaign line">প্রচারে: উত্তর মিলনপুর ৭নং ওয়ার্ড সর্বস্তরের জনগণ ।</text>
+</svg>

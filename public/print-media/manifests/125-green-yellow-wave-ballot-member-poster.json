@@ -1,0 +1,19 @@
+{
+  "id": "125-green-yellow-wave-ballot-member-poster",
+  "title": "Green Yellow Wave Ballot Member Poster",
+  "category": "Election & Campaign",
+  "aspectRatio": "210:265",
+  "physicalWidth": 210,
+  "physicalHeight": 265,
+  "unit": "mm",
+  "physicalSizeLabel": "210 x 265 mm",
+  "file": "templates/125-green-yellow-wave-ballot-member-poster.svg",
+  "preview": "previews/125-green-yellow-wave-ballot-member-poster.svg",
+  "platform": "SebaLagbe.com",
+  "viewBox": "0 0 210 265",
+  "editableObjects": [],
+  "printSettings": {
+    "bleedMm": 3,
+    "safeMarginMm": 5
+  }
+}

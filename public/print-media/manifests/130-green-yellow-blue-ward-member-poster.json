@@ -1,0 +1,19 @@
+{
+  "id": "130-green-yellow-blue-ward-member-poster",
+  "title": "Ward Member Candidate Poster (Green-Yellow-Blue)",
+  "category": "Election & Campaign",
+  "aspectRatio": "210:316",
+  "physicalWidth": 210,
+  "physicalHeight": 316,
+  "unit": "mm",
+  "physicalSizeLabel": "210 x 316 mm portrait",
+  "file": "templates/130-green-yellow-blue-ward-member-poster.svg",
+  "preview": "previews/130-green-yellow-blue-ward-member-poster.svg",
+  "platform": "SebaLagbe.com",
+  "viewBox": "0 0 210 316",
+  "editableObjects": [],
+  "printSettings": {
+    "bleedMm": 3,
+    "safeMarginMm": 5
+  }
+}

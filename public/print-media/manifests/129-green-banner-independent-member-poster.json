@@ -1,0 +1,19 @@
+{
+  "id": "129-green-banner-independent-member-poster",
+  "title": "Independent Member Candidate Poster",
+  "category": "Election & Campaign",
+  "aspectRatio": "210:318.5",
+  "physicalWidth": 210,
+  "physicalHeight": 318.5,
+  "unit": "mm",
+  "physicalSizeLabel": "210 x 318.5 mm portrait",
+  "file": "templates/129-green-banner-independent-member-poster.svg",
+  "preview": "previews/129-green-banner-independent-member-poster.svg",
+  "platform": "SebaLagbe.com",
+  "viewBox": "0 0 210 318.5",
+  "editableObjects": [],
+  "printSettings": {
+    "bleedMm": 3,
+    "safeMarginMm": 5
+  }
+}

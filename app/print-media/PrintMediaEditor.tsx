@@ -179,6 +179,61 @@ function makeAllEditable(markup: string): string {
   return serializeSvg(doc);
 }
 
+// ---- Drag-to-resize helpers (corner handles on images, frames and shapes) ----
+type ResizeShape = { element: Element; attrs: Record<string, number> };
+
+const RESIZE_ATTRS: Record<string, string[]> = {
+  image: ["x", "y", "width", "height"],
+  rect: ["x", "y", "width", "height", "rx"],
+  circle: ["cx", "cy", "r"],
+};
+
+function readShape(element: Element | null): ResizeShape | null {
+  if (!element) return null;
+  const names = RESIZE_ATTRS[element.localName.toLowerCase()];
+  if (!names) return null;
+  const attrs: Record<string, number> = {};
+  for (const name of names) {
+    const raw = element.getAttribute(name);
+    const value = raw === null || raw === "" ? 0 : Number(raw);
+    if (!Number.isFinite(value)) return null;
+    attrs[name] = value;
+  }
+  return { element, attrs };
+}
+
+function shapeBox(shape: ResizeShape): { x: number; y: number; w: number; h: number } {
+  const a = shape.attrs;
+  if (shape.element.localName.toLowerCase() === "circle") return { x: a.cx - a.r, y: a.cy - a.r, w: a.r * 2, h: a.r * 2 };
+  return { x: a.x, y: a.y, w: a.width, h: a.height };
+}
+
+// Scales a shape around the anchor point (ax, ay): the opposite corner stays where it is.
+function applyScale(shape: ResizeShape, ax: number, ay: number, scale: number) {
+  const a = shape.attrs;
+  const el = shape.element;
+  const round = (n: number) => String(Math.round(n * 100) / 100);
+  if (el.localName.toLowerCase() === "circle") {
+    el.setAttribute("cx", round(ax + (a.cx - ax) * scale));
+    el.setAttribute("cy", round(ay + (a.cy - ay) * scale));
+    el.setAttribute("r", round(a.r * scale));
+    return;
+  }
+  el.setAttribute("x", round(ax + (a.x - ax) * scale));
+  el.setAttribute("y", round(ay + (a.y - ay) * scale));
+  el.setAttribute("width", round(a.width * scale));
+  el.setAttribute("height", round(a.height * scale));
+  if (el.localName.toLowerCase() === "rect" && el.hasAttribute("rx")) el.setAttribute("rx", round(a.rx * scale));
+}
+
+// An uploaded photo is cut by a clip shape; it has to be scaled together with the photo.
+function findClipShape(root: ParentNode, element: Element): Element | null {
+  const match = /url\(\s*['"]?#([^)'"]+)['"]?\s*\)/.exec(element.getAttribute("clip-path") || "");
+  if (!match) return null;
+  const clip = Array.from(root.querySelectorAll("*")).find((node) => node.localName.toLowerCase() === "clippath" && node.getAttribute("id") === match[1]);
+  return clip?.firstElementChild ?? null;
+}
+
 function getMove(element: Element): { dx: number; dy: number } {
   return { dx: parseFloat(element.getAttribute("data-dx") || "0") || 0, dy: parseFloat(element.getAttribute("data-dy") || "0") || 0 };
 }
@@ -739,6 +794,97 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
   }, []);
   const suppressClickRef = useRef(false);
   const nudgeRef = useRef<(dx: number, dy: number) => void>(() => {});
+  const printWrapRef = useRef<HTMLDivElement>(null);
+  const [selBox, setSelBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+
+  const findLiveElement = (id: string): SVGGraphicsElement | null => {
+    const svg = svgContainerRef.current?.querySelector("svg");
+    if (!svg || !id) return null;
+    const found = Array.from(svg.querySelectorAll("[id]")).find((element) => element.getAttribute("id") === id);
+    return (found as SVGGraphicsElement | undefined) ?? null;
+  };
+
+  // Places the four resize handles on the selected image / frame / shape.
+  const updateSelBox = (idOverride?: string) => {
+    const wrap = printWrapRef.current;
+    const svg = svgContainerRef.current?.querySelector("svg");
+    const element = findLiveElement(idOverride ?? selectedId);
+    if (!wrap || !svg || !element || !RESIZE_ATTRS[element.localName.toLowerCase()]) {
+      setSelBox(null);
+      return;
+    }
+    try {
+      const bbox = element.getBBox();
+      const viewBox = svg.viewBox.baseVal;
+      if (viewBox && viewBox.width > 0 && bbox.width >= viewBox.width * 0.9 && bbox.height >= viewBox.height * 0.9) {
+        setSelBox(null); // the page background is not resized
+        return;
+      }
+    } catch {
+      setSelBox(null);
+      return;
+    }
+    const rect = element.getBoundingClientRect();
+    const base = wrap.getBoundingClientRect();
+    setSelBox({ left: rect.left - base.left, top: rect.top - base.top, width: rect.width, height: rect.height });
+  };
+
+  const startResize = (corner: "nw" | "ne" | "sw" | "se") => (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const id = selectedId;
+    const svg = svgContainerRef.current?.querySelector("svg");
+    const liveElement = findLiveElement(id);
+    const matrix = svg?.getScreenCTM();
+    if (!svg || !liveElement || !matrix || !matrix.a) return;
+    const unitsPerPx = 1 / matrix.a;
+    const primary = readShape(liveElement);
+    if (!primary) return;
+    const liveClip = readShape(findClipShape(svg, liveElement));
+    const box = shapeBox(primary);
+    if (box.w <= 0 || box.h <= 0) return;
+    const east = corner.includes("e");
+    const south = corner.includes("s");
+    const ax = east ? box.x : box.x + box.w;
+    const ay = south ? box.y : box.y + box.h;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let scale = 1;
+
+    const onMove = (moveEvent: PointerEvent) => {
+      moveEvent.preventDefault();
+      const dx = (moveEvent.clientX - startX) * unitsPerPx;
+      const dy = (moveEvent.clientY - startY) * unitsPerPx;
+      const sx = ((east ? 1 : -1) * dx + box.w) / box.w;
+      const sy = ((south ? 1 : -1) * dy + box.h) / box.h;
+      scale = Math.max(0.1, Math.max(sx, sy));
+      applyScale(primary, ax, ay, scale);
+      if (liveClip) applyScale(liveClip, ax, ay, scale);
+      updateSelBox(id);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      if (Math.abs(scale - 1) < 0.001) return;
+      try {
+        const doc = parseSvg(svgMarkup);
+        const docElement = findSvgElement(doc, id);
+        const docPrimary = readShape(docElement);
+        if (!docElement || !docPrimary) return;
+        const docClip = readShape(findClipShape(doc, docElement));
+        applyScale(docPrimary, ax, ay, scale);
+        if (docClip) applyScale(docClip, ax, ay, scale);
+        commitSvg(serializeSvg(doc));
+      } catch {
+        setError("Could not resize the element.");
+      }
+    };
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  };
   const printDesignRef = useRef<() => Promise<void>>(async () => {});
 
   const templateFromCatalog = useMemo(
@@ -883,6 +1029,14 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
   }, [selectedId, svgMarkup]);
 
   useEffect(() => {
+    updateSelBox();
+    const onWindowResize = () => updateSelBox();
+    window.addEventListener("resize", onWindowResize);
+    return () => window.removeEventListener("resize", onWindowResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, svgMarkup, zoom]);
+
+  useEffect(() => {
     const handleKeyboardShortcuts = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const isTyping = !!target && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
@@ -1007,6 +1161,57 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     }
   };
 
+  // Layer order (what sits in front of what): one step, or all the way to the front / back.
+  const reorderSelected = (mode: "forward" | "backward" | "front" | "back") => {
+    if (!selectedId || !svgMarkup) return;
+    try {
+      const doc = parseSvg(svgMarkup);
+      const element = findSvgElement(doc, selectedId);
+      const parent = element?.parentNode;
+      if (!element || !parent) return;
+      const isArtwork = (node: Element) => !["defs", "style", "title", "desc", "metadata", "clippath"].includes(node.localName.toLowerCase());
+      const artwork = Array.from(parent.childNodes).filter((node): node is Element => node.nodeType === 1 && isArtwork(node as Element));
+      const index = artwork.indexOf(element);
+      if (index < 0) return;
+      const liveOf = (node: Element) => {
+        const id = node.getAttribute("id");
+        return id ? findLiveElement(id) : null;
+      };
+      const liveSelf = liveOf(element);
+      // One step jumps over the layers that do not touch this one, so every click visibly changes something.
+      const touches = (other: Element) => {
+        const a = liveSelf?.getBoundingClientRect();
+        const b = liveOf(other)?.getBoundingClientRect();
+        if (!a || !b) return true;
+        return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      };
+      if (mode === "front") {
+        if (index === artwork.length - 1) return;
+        parent.appendChild(element);
+      } else if (mode === "back") {
+        if (index === 0) return;
+        parent.insertBefore(element, artwork[0]);
+      } else if (mode === "forward") {
+        if (index === artwork.length - 1) return;
+        let target = artwork[artwork.length - 1];
+        for (let i = index + 1; i < artwork.length; i += 1) {
+          if (touches(artwork[i])) { target = artwork[i]; break; }
+        }
+        parent.insertBefore(element, target.nextSibling);
+      } else {
+        if (index === 0) return;
+        let target = artwork[0];
+        for (let i = index - 1; i >= 0; i -= 1) {
+          if (touches(artwork[i])) { target = artwork[i]; break; }
+        }
+        parent.insertBefore(element, target);
+      }
+      commitSvg(serializeSvg(doc));
+    } catch {
+      setError("Could not change the layer order.");
+    }
+  };
+
   const moveSelectedBy = (deltaX: number, deltaY: number) => {
     if (!selectedId || !svgMarkup) return;
     try {
@@ -1067,6 +1272,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
       finalDx = base.dx + (point.x - start.x);
       finalDy = base.dy + (point.y - start.y);
       setMove(editable, finalDx, finalDy);
+      updateSelBox(id);
     };
     const onUp = () => {
       window.removeEventListener("pointermove", onMove);
@@ -1598,6 +1804,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
         .pm-canvas svg [data-editor-selected="true"]:not(#bg_page):not(#background):not([data-layer-name="Page Background"]) { filter: drop-shadow(0 0 1px rgba(220,38,38,.95)) drop-shadow(0 0 1px rgba(220,38,38,.65)); }
         .pm-canvas svg [data-editor-selected="true"]#bg_page, .pm-canvas svg [data-editor-selected="true"]#background { filter:none !important; }
         .pm-canvas svg [data-editable="true"] { cursor: move; touch-action: none; }
+        .pm-resize-handle { position: absolute; width: 14px; height: 14px; background: #fff; border: 2px solid #dc2626; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.35); touch-action: none; z-index: 30; }
         .pm-canvas svg [data-editable="true"]:hover:not([data-editor-selected="true"]) { opacity: .92; }
         .pm-property-input { width: 100%; border: 1px solid #ded1b7; border-radius: 10px; background: #fffaf0; color: #332a1d; padding: 9px 10px; outline: none; font-size: 13px; }
         .pm-property-input:focus { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.1); }
@@ -1698,15 +1905,31 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                 </div>
               </div>
               <div className="bg-[#D9D0C1] border border-[#CFC2A9] rounded-2xl p-3 sm:p-5 lg:p-7 min-h-[55vh] flex items-center justify-center overflow-auto">
-                <div
-                  id="pm-print-area"
-                  ref={svgContainerRef}
-                  onClick={handleSvgClick}
-                  onPointerDown={handleCanvasPointerDown}
-                  className="pm-canvas bg-white shadow-[0_12px_40px_rgba(52,40,20,.18)] ring-1 ring-black/10"
-                  style={{ ...canvasStyle, width: `${Math.round(760 * zoom / 100)}px`, flexShrink: 0 }}
-                  dangerouslySetInnerHTML={{ __html: svgMarkup }}
-                />
+                <div ref={printWrapRef} className="relative" style={{ flexShrink: 0 }}>
+                  <div
+                    id="pm-print-area"
+                    ref={svgContainerRef}
+                    onClick={handleSvgClick}
+                    onPointerDown={handleCanvasPointerDown}
+                    className="pm-canvas bg-white shadow-[0_12px_40px_rgba(52,40,20,.18)] ring-1 ring-black/10"
+                    style={{ ...canvasStyle, width: `${Math.round(760 * zoom / 100)}px`, flexShrink: 0 }}
+                    dangerouslySetInnerHTML={{ __html: svgMarkup }}
+                  />
+                  {selBox && (["nw", "ne", "sw", "se"] as const).map((corner) => (
+                    <div
+                      key={corner}
+                      data-pm-keep-selection="true"
+                      onPointerDown={startResize(corner)}
+                      className="pm-resize-handle"
+                      title="Drag to resize"
+                      style={{
+                        left: selBox.left + (corner.includes("e") ? selBox.width : 0) - 7,
+                        top: selBox.top + (corner.includes("s") ? selBox.height : 0) - 7,
+                        cursor: corner === "nw" || corner === "se" ? "nwse-resize" : "nesw-resize",
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
               <p className="text-[11px] text-[#8B7656] px-1"><T>ক্যানভাসের ফাঁকা জায়গা বা বাইরে ক্লিক করলে নির্বাচিত অবজেক্টের selection উঠে যাবে। Print / PDF আলাদা print page খুলে সঠিক মাপে প্রিন্ট করবে।</T></p>
             </main>
@@ -1724,6 +1947,15 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                         <p className="text-[11px] font-bold text-[#9A835D] uppercase tracking-wide mb-1"><T>Selected layer</T></p>
                         <p className="text-sm font-bold text-[#3B2F1E] break-words">{selectedLayer.name}</p>
                         <p className="text-[10px] text-[#917C59] mt-1">{selectedLayer.objectType.toUpperCase()} · {selectedLayer.id}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-[#6F5B3C] mb-1.5"><T>Layer order</T></p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button type="button" onClick={() => reorderSelected("forward")} className="rounded-xl border border-[#E2D4B9] bg-white px-2 py-2 text-[12px] font-bold text-[#5C4B32] hover:bg-[#F7DDB8]">↑ <T>সামনে আনুন</T></button>
+                          <button type="button" onClick={() => reorderSelected("backward")} className="rounded-xl border border-[#E2D4B9] bg-white px-2 py-2 text-[12px] font-bold text-[#5C4B32] hover:bg-[#F7DDB8]">↓ <T>পেছনে পাঠান</T></button>
+                          <button type="button" onClick={() => reorderSelected("front")} className="rounded-xl border border-[#E2D4B9] bg-white px-2 py-2 text-[12px] font-bold text-[#5C4B32] hover:bg-[#F7DDB8]">⤒ <T>একদম সামনে</T></button>
+                          <button type="button" onClick={() => reorderSelected("back")} className="rounded-xl border border-[#E2D4B9] bg-white px-2 py-2 text-[12px] font-bold text-[#5C4B32] hover:bg-[#F7DDB8]">⤓ <T>একদম পেছনে</T></button>
+                        </div>
                       </div>
                       {selectedLayer.tag === "text" || selectedLayer.tag === "tspan" ? (
                         <label className="block space-y-1.5">
