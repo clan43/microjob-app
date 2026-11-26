@@ -99,6 +99,29 @@ const STORAGE_PREFIX = "sebalagbe-print-media-design-v1-";
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XML_NS = "http://www.w3.org/XML/1998/namespace";
 const BENGALI_RE = /[\u0980-\u09FF]/;
+const FONT_CHOICES: Array<{ name: string; value: string; note: string; group: "bn" | "en" }> = [
+  { name: "Hind Siliguri", value: '"Hind Siliguri", "Noto Sans Bengali", "Nirmala UI", sans-serif', note: "পরিষ্কার ও আধুনিক", group: "bn" },
+  { name: "Tiro Bangla", value: '"Tiro Bangla", "Noto Serif Bengali", serif', note: "ঐতিহ্যবাহী", group: "bn" },
+  { name: "Anek Bangla", value: '"Anek Bangla", "Hind Siliguri", "Noto Sans Bengali", sans-serif', note: "আধুনিক শিরোনাম", group: "bn" },
+  { name: "Noto Sans Bengali", value: '"Noto Sans Bengali", "Hind Siliguri", sans-serif', note: "স্ট্যান্ডার্ড", group: "bn" },
+  { name: "Noto Serif Bengali", value: '"Noto Serif Bengali", "Tiro Bangla", serif', note: "ক্লাসিক", group: "bn" },
+  { name: "Baloo Da 2", value: '"Baloo Da 2", "Hind Siliguri", sans-serif', note: "গোলাকার স্টাইল", group: "bn" },
+  { name: "Plus Jakarta Sans", value: '"Plus Jakarta Sans", "Inter", sans-serif', note: "", group: "en" },
+  { name: "Inter", value: '"Inter", Arial, sans-serif', note: "", group: "en" },
+  { name: "Arial", value: "Arial, sans-serif", note: "", group: "en" },
+];
+
+// The first family in a font-family string is the font that is really used (the rest are fallbacks).
+function firstFontFamily(value: string): string {
+  const first = (value || "").split(",")[0] || "";
+  return first.replace(/&quot;|["']/g, "").trim();
+}
+
+function matchFontChoice(value: string) {
+  const name = firstFontFamily(value).toLowerCase();
+  return FONT_CHOICES.find((choice) => choice.name.toLowerCase() === name) ?? null;
+}
+
 const BENGALI_FONT_RE = /bengali|bangla|siliguri|baloo|tiro|nirmala|kalpurush|solaiman|lohit/i;
 const BENGALI_FALLBACK_FONTS = '"Hind Siliguri", "Noto Sans Bengali", "Nirmala UI", sans-serif';
 
@@ -2030,21 +2053,32 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                           </label>
                           <label className="block space-y-1.5">
                             <span className="text-xs font-bold text-[#6F5B3C]"><T>Font family</T></span>
-                            <select value={selectedLayer.fontFamily || '\"Hind Siliguri\", \"Noto Sans Bengali\", \"Nirmala UI\", sans-serif'} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateSelected("font-family", event.target.value)} className="pm-property-input">
-                              <optgroup label="বাংলা ফন্ট">
-                                <option value={'\"Hind Siliguri\", \"Noto Sans Bengali\", \"Nirmala UI\", sans-serif'}>Hind Siliguri — পরিষ্কার ও আধুনিক</option>
-                                <option value={'\"Anek Bangla\", \"Hind Siliguri\", \"Noto Sans Bengali\", sans-serif'}>Anek Bangla — আধুনিক শিরোনাম</option>
-                                <option value={'\"Noto Sans Bengali\", \"Hind Siliguri\", sans-serif'}>Noto Sans Bengali — স্ট্যান্ডার্ড</option>
-                                <option value={'\"Baloo Da 2\", \"Hind Siliguri\", sans-serif'}>Baloo Da 2 — গোলাকার স্টাইল</option>
-                                <option value={'\"Noto Serif Bengali\", \"Tiro Bangla\", serif'}>Noto Serif Bengali — ক্লাসিক</option>
-                                <option value={'\"Tiro Bangla\", \"Noto Serif Bengali\", serif'}>Tiro Bangla — ঐতিহ্যবাহী</option>
-                              </optgroup>
-                              <optgroup label="English fonts">
-                                <option value={'\"Plus Jakarta Sans\", \"Inter\", sans-serif'}>Plus Jakarta Sans</option>
-                                <option value={'\"Inter\", Arial, sans-serif'}>Inter</option>
-                                <option value="Arial, sans-serif">Arial</option>
-                              </optgroup>
-                            </select>
+                            {(() => {
+                              const rawFamily = selectedLayer.fontFamily || FONT_CHOICES[0].value;
+                              const current = matchFontChoice(rawFamily);
+                              const currentName = current?.name || firstFontFamily(rawFamily) || FONT_CHOICES[0].name;
+                              return (
+                                <>
+                                  <div className="flex items-center justify-between gap-2 rounded-lg border border-[#E7C9C9] bg-[#FFF5F5] px-3 py-2">
+                                    <span className="text-[10px] font-bold text-[#917C59]">এখন ব্যবহার হচ্ছে</span>
+                                    <span className="text-sm font-bold text-[#DC2626] truncate" style={{ fontFamily: rawFamily }}>{currentName}</span>
+                                  </div>
+                                  <select value={current ? current.value : rawFamily} onChange={(event: ChangeEvent<HTMLSelectElement>) => updateSelected("font-family", event.target.value)} className="pm-property-input">
+                                    {!current && <option value={rawFamily}>{currentName}</option>}
+                                    <optgroup label="বাংলা ফন্ট">
+                                      {FONT_CHOICES.filter((choice) => choice.group === "bn").map((choice) => (
+                                        <option key={choice.name} value={choice.value}>{choice.name} — {choice.note}</option>
+                                      ))}
+                                    </optgroup>
+                                    <optgroup label="English fonts">
+                                      {FONT_CHOICES.filter((choice) => choice.group === "en").map((choice) => (
+                                        <option key={choice.name} value={choice.value}>{choice.name}</option>
+                                      ))}
+                                    </optgroup>
+                                  </select>
+                                </>
+                              );
+                            })()}
                           </label>
                           <label className="block space-y-1.5">
                             <span className="text-xs font-bold text-[#6F5B3C]"><T>Font weight</T></span>
