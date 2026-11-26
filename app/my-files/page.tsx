@@ -26,6 +26,7 @@ import {
   Eye,
   Pencil,
   Trash2,
+  Check,
   Loader2,
   type LucideIcon,
 } from "lucide-react";
@@ -145,6 +146,14 @@ const PAGE_BN: Record<string, string> = {
   "File deleted successfully.": "ফাইলটি সফলভাবে মুছে ফেলা হয়েছে।",
   "Couldn't find any file with that name.": "ওই নামে কোনো ফাইল পাওয়া যায়নি।",
   Save: "সেভ করুন",
+  Select: "সিলেক্ট করুন",
+  "Select all": "সব সিলেক্ট করুন",
+  "Deselect all": "সব বাদ দিন",
+  "Cancel selection": "সিলেকশন বাতিল",
+  "Delete selected": "সিলেক্ট করাগুলো মুছুন",
+  "Delete selected files?": "সিলেক্ট করা ফাইলগুলো মুছে ফেলবেন?",
+  "Some files could not be deleted. Please try again.":
+    "কিছু ফাইল মুছে ফেলা যায়নি। আবার চেষ্টা করুন।",
 };
 
 function translatePageText(value: unknown, locale: "en" | "bn"): string {
@@ -167,6 +176,16 @@ function translatePageText(value: unknown, locale: "en" | "bn"): string {
     );
     return `${translatePageText(label, locale)} টুল থেকে সেভ করা ফাইলগুলো এখানে দেখা যাবে।`;
   }
+  if (/^\d+ selected$/i.test(normalized))
+    return `${normalized.split(" ")[0]}টি সিলেক্ট করা হয়েছে`;
+  if (/^Delete \d+ files$/i.test(normalized))
+    return `${normalized.split(" ")[1]}টি ফাইল মুছুন`;
+  if (/^Deleting \d+ \/ \d+…$/.test(normalized)) {
+    const m = normalized.match(/^Deleting (\d+) \/ (\d+)…$/)!;
+    return `মুছে ফেলা হচ্ছে ${m[1]} / ${m[2]}…`;
+  }
+  if (/^\d+ files will be permanently removed\.$/i.test(normalized))
+    return `${normalized.split(" ")[0]}টি ফাইল স্থায়ীভাবে মুছে যাবে।`;
   if (/^Preview (.+)$/i.test(normalized))
     return `প্রিভিউ: ${normalized.slice(8)}`;
   if (/^View (.+)$/i.test(normalized)) return `দেখুন: ${normalized.slice(5)}`;
@@ -740,6 +759,16 @@ export default function MyFilesPage() {
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string>("");
   const [previewToolFile, setPreviewToolFile] = useState<ToolFile | null>(null);
+  // একসাথে অনেক ফাইল সিলেক্ট করে ডিলিট
+  const [selectMode, setSelectMode] = useState<boolean>(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState<boolean>(false);
+  const [bulkDeleting, setBulkDeleting] = useState<boolean>(false);
+  const [bulkProgress, setBulkProgress] = useState<{
+    done: number;
+    total: number;
+  }>({ done: 0, total: 0 });
+  const [bulkError, setBulkError] = useState<string>("");
   // Check auth first, then hydrate instantly from the in-memory cache when the
   // navbar has already prefetched the user's files. Revalidate quietly in the
   // background so recent uploads/deletions still appear without stale UI delay.
@@ -808,12 +837,18 @@ export default function MyFilesPage() {
   }, []);
   // মডাল খোলা থাকলে পেছনের পেজ স্ক্রল বন্ধ + Escape চাপলে বন্ধ হবে
   useEffect(() => {
-    if (!(previewFile || previewToolFile || deleteTarget)) return;
+    if (!(previewFile || previewToolFile || deleteTarget || bulkConfirmOpen))
+      return;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      if (deleteTarget) {
+      if (bulkConfirmOpen) {
+        if (!bulkDeleting) {
+          setBulkConfirmOpen(false);
+          setBulkError("");
+        }
+      } else if (deleteTarget) {
         if (!deletingFileId) {
           setDeleteTarget(null);
           setDeleteError("");
@@ -826,7 +861,14 @@ export default function MyFilesPage() {
       document.body.style.overflow = prevOverflow;
       window.removeEventListener("keydown", onKey);
     };
-  }, [previewFile, previewToolFile, deleteTarget, deletingFileId]);
+  }, [
+    previewFile,
+    previewToolFile,
+    deleteTarget,
+    deletingFileId,
+    bulkConfirmOpen,
+    bulkDeleting,
+  ]);
   // সার্চ করলে: বর্তমান ট্যাবে না পেলে, যে ট্যাবে ফাইলটা আছে সেখানে অটো চলে যাবে
   useEffect(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -937,7 +979,91 @@ export default function MyFilesPage() {
       setDeletingFileId(null);
     }
   };
+  // এই মুহূর্তে স্ক্রিনে দেখা ফাইলগুলোর মধ্যে যেগুলো সিলেক্ট করা আছে
+  const selectedVisibleFiles = useMemo(
+    () => visibleFiles.filter((f) => selectedIds.has(f.id)),
+    [visibleFiles, selectedIds],
+  );
+  const allVisibleSelected =
+    visibleFiles.length > 0 &&
+    selectedVisibleFiles.length === visibleFiles.length;
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+  const toggleSelected = (id: string) => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (allVisibleSelected) visibleFiles.forEach((f) => next.delete(f.id));
+      else visibleFiles.forEach((f) => next.add(f.id));
+      return next;
+    });
+  };
+  const closeBulkConfirm = () => {
+    if (bulkDeleting) return;
+    setBulkConfirmOpen(false);
+    setBulkError("");
+  };
+  const handleBulkDelete = async () => {
+    if (bulkDeleting || selectedVisibleFiles.length === 0) return;
+    const targets = selectedVisibleFiles.map((f) => f.id);
+    setBulkDeleting(true);
+    setBulkError("");
+    setBulkProgress({ done: 0, total: targets.length });
+    const succeeded = new Set<string>();
+    const failed: string[] = [];
+    let cursor = 0;
+    let done = 0;
+    const worker = async () => {
+      while (cursor < targets.length) {
+        const id = targets[cursor++];
+        try {
+          const response = await fetch("/api/my-files", {
+            method: "DELETE",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id }),
+          });
+          const result = await response.json().catch(() => null);
+          if (!response.ok || result?.success === false) {
+            failed.push(id);
+          } else {
+            succeeded.add(id);
+            removeCachedMyFilesItem(id);
+          }
+        } catch (error) {
+          console.error("Failed to delete My Files item:", error);
+          failed.push(id);
+        }
+        done += 1;
+        setBulkProgress({ done, total: targets.length });
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    setFiles((current) => current.filter((item) => !succeeded.has(item.id)));
+    setPreviewFile((current) =>
+      current && succeeded.has(current.id) ? null : current,
+    );
+    setBulkDeleting(false);
+    if (failed.length === 0) {
+      setBulkConfirmOpen(false);
+      exitSelectMode();
+    } else {
+      // যেগুলো মোছা যায়নি সেগুলো সিলেক্ট করা থাকবে, যাতে আবার চেষ্টা করা যায়
+      setSelectedIds(new Set(failed));
+      setBulkError("Some files could not be deleted. Please try again.");
+    }
+  };
   const handleCategoryChange = (id: CategoryId) => {
+    exitSelectMode();
     setToolsTab(false);
     setActiveTab(id);
     resetSearch();
@@ -1314,7 +1440,66 @@ export default function MyFilesPage() {
                 onChange={setSort}
                 className="w-full shrink-0 min-[480px]:w-auto"
               />
+              {!filesLoading && visibleFiles.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    selectMode ? exitSelectMode() : setSelectMode(true)
+                  }
+                  className={`${secondaryBtn} shrink-0 justify-center`}
+                >
+                  {selectMode ? (
+                    <>
+                      <X size={15} />
+                      <T>{"Cancel selection"}</T>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={15} />
+                      <T>{"Select"}</T>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
+
+            {selectMode && !filesLoading && (
+              <div className="mx-4 mb-3 flex shrink-0 flex-wrap items-center gap-2 rounded-xl border border-[#E3D6B8] bg-[#FBF6E8] px-3 py-2 sm:mx-5">
+                <button
+                  type="button"
+                  onClick={toggleSelectAll}
+                  disabled={visibleFiles.length === 0}
+                  className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg px-2 text-base font-medium text-[#3B2F1E] hover:bg-[#EFE3C8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DC2626]/40 disabled:opacity-50"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`flex h-5 w-5 items-center justify-center rounded-md border-2 ${
+                      allVisibleSelected
+                        ? "border-[#DC2626] bg-[#DC2626] text-white"
+                        : "border-[#B0A080] bg-white text-transparent"
+                    }`}
+                  >
+                    <Check size={13} strokeWidth={3} />
+                  </span>
+                  <T>{allVisibleSelected ? "Deselect all" : "Select all"}</T>
+                </button>
+                <span className="text-base text-[#7A6A50]" aria-live="polite">
+                  <T>{`${selectedVisibleFiles.length} selected`}</T>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBulkError("");
+                    setBulkConfirmOpen(true);
+                  }}
+                  disabled={selectedVisibleFiles.length === 0}
+                  className="ml-auto inline-flex h-9 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-red-600 px-3 text-base font-semibold text-white transition-all duration-150 hover:bg-red-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Trash2 size={15} />
+                  <T>{"Delete selected"}</T>
+                </button>
+              </div>
+            )}
 
             {/* Results */}
             <div className="scroll flex flex-1 flex-col px-4 pb-4 sm:px-5 sm:pb-5 lg:min-h-0 lg:overflow-y-auto">
@@ -1340,8 +1525,32 @@ export default function MyFilesPage() {
                     return (
                       <article
                         key={file.id}
-                        className="overflow-hidden rounded-2xl border border-[#E3D6B8] bg-[#FBF6E8] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B0A080] hover:bg-[#EFE3C8]"
+                        className={`relative overflow-hidden rounded-2xl border bg-[#FBF6E8] shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-[#B0A080] hover:bg-[#EFE3C8] ${
+                          selectMode && selectedIds.has(file.id)
+                            ? "border-[#DC2626] ring-2 ring-[#DC2626]/40"
+                            : "border-[#E3D6B8]"
+                        }`}
                       >
+                        {selectMode && (
+                          <button
+                            type="button"
+                            onClick={() => toggleSelected(file.id)}
+                            aria-pressed={selectedIds.has(file.id)}
+                            aria-label={file.name}
+                            className="absolute inset-x-0 top-0 z-10 aspect-[4/3] w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#DC2626]"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-md border-2 shadow ${
+                                selectedIds.has(file.id)
+                                  ? "border-[#DC2626] bg-[#DC2626] text-white"
+                                  : "border-[#B0A080] bg-white/95 text-transparent"
+                              }`}
+                            >
+                              <Check size={15} strokeWidth={3} />
+                            </span>
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => handlePreview(file)}
@@ -1682,6 +1891,73 @@ export default function MyFilesPage() {
                   <>
                     <Trash2 size={15} />
                     <T>{"Delete\n                  "}</T>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===================== Bulk delete confirmation ===================== */}
+      {bulkConfirmOpen && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-[#2A2117]/45 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bulk-delete-title"
+        >
+          <div className="w-full max-h-[90dvh] max-w-md overflow-y-auto rounded-2xl border border-[#E3D6B8] bg-[#FBF6E8] p-4 shadow-xl sm:p-6">
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FEE9E9] text-red-600">
+                <Trash2 size={19} />
+              </div>
+              <div className="min-w-0">
+                <h2
+                  id="bulk-delete-title"
+                  className="text-lg font-semibold text-[#3B2F1E]"
+                >
+                  <T>{"Delete selected files?"}</T>
+                </h2>
+                <p className="mt-1 break-words text-base leading-6 text-[#5A4A32]">
+                  <T>{`${selectedVisibleFiles.length} files will be permanently removed.`}</T>
+                </p>
+              </div>
+            </div>
+
+            {bulkError && (
+              <p
+                role="alert"
+                className="mt-4 rounded-xl border border-[#FBB6B6] bg-[#FEE9E9] px-3 py-2 text-base text-red-700"
+              >
+                <T>{bulkError}</T>
+              </p>
+            )}
+
+            <div className="mt-5 flex flex-col-reverse gap-2 min-[400px]:flex-row min-[400px]:justify-end">
+              <button
+                type="button"
+                onClick={closeBulkConfirm}
+                disabled={bulkDeleting}
+                className={`${secondaryBtn} justify-center`}
+              >
+                <T>{"Cancel"}</T>
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting || selectedVisibleFiles.length === 0}
+                className="inline-flex h-10 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-red-600 px-4 text-base font-semibold text-white transition-all duration-150 hover:bg-red-700 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40 disabled:cursor-wait disabled:opacity-60"
+              >
+                {bulkDeleting ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" />
+                    <T>{`Deleting ${bulkProgress.done} / ${bulkProgress.total}…`}</T>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={15} />
+                    <T>{`Delete ${selectedVisibleFiles.length} files`}</T>
                   </>
                 )}
               </button>
