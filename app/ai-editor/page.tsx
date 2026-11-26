@@ -1037,7 +1037,8 @@ export default function PhotoEditorPage() {
         const item = findRecentItem(payload || { url });
         if (item?.side === "dual")
             return; // a combined dual picture cannot be one person's slot
-        const source: string = item?.originalUrl || url;
+        // Use the EDITED photo that the user dragged (what the slot shows), not the saved real original.
+        const source: string = url;
         setErrorMessage(null);
         setDualResultImage(null);
         setIsDualPreviewActive(false);

@@ -399,7 +399,16 @@ export default function ImagePreviewModal({
             const hPx = Number(image?.heightPx) || 0;
             let widthMm: number;
             let heightMm: number;
-            if (dpi > 0 && wPx > 0 && hPx > 0) {
+            // Saved size label (e.g. "45×55 mm", "90×55 mm") = exact document size; wins over the pixel/DPI guess.
+            const labelMatch = typeof image?.size === "string"
+                ? /(\d+(?:\.\d+)?)\s*[×xX]\s*(\d+(?:\.\d+)?)\s*(mm|inch|in)\b/i.exec(image.size)
+                : null;
+            if (labelMatch) {
+                const factor = labelMatch[3].toLowerCase() === "mm" ? 1 : 25.4;
+                widthMm = Math.round(parseFloat(labelMatch[1]) * factor * 10) / 10;
+                heightMm = Math.round(parseFloat(labelMatch[2]) * factor * 10) / 10;
+            }
+            else if (dpi > 0 && wPx > 0 && hPx > 0) {
                 widthMm = (wPx / dpi) * 25.4;
                 heightMm = (hPx / dpi) * 25.4;
             }
@@ -407,7 +416,8 @@ export default function ImagePreviewModal({
                 widthMm = 100;
                 heightMm = (100 * editedCanvas.height) / Math.max(1, editedCanvas.width);
             }
-            setPrintStudioPreset({ id: "ai-photo", label: "Photo", widthMm, heightMm });
+            const isDualPhoto = (image as any)?.side === "dual";
+            setPrintStudioPreset({ id: isDualPhoto ? "ai-dual" : "ai-photo", label: isDualPhoto ? "Dual" : "Photo", widthMm, heightMm });
             setPrintStudioImage(dataUrl);
             setPrintStudioOpen(true);
         }

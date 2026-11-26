@@ -99,6 +99,13 @@ const PRESETS: Preset[] = [
     { id: "A4", label: "A4", widthMm: 210, heightMm: 297 },
 ];
 const BD_QUICK_IDS = ["passport", "epassport", "visa", "stamp", "2x2"];
+// Dual (two-person) photo sizes. 90×55 mm is the size the AI editor generates, so it is the default.
+const DUAL_PRESETS: Preset[] = [
+    { id: "dual-90x55", label: "Dual 90×55 mm", widthMm: 90, heightMm: 55 },
+    { id: "dual-1.9x1.5in", label: "Dual 1.9×1.5 inch", widthMm: 48.3, heightMm: 38.1 },
+    { id: "dual-3x2in", label: "Dual 3×2 inch", widthMm: 76.2, heightMm: 50.8 },
+    { id: "dual-4x2.5in", label: "Dual 4×2.5 inch", widthMm: 101.6, heightMm: 63.5 },
+];
 const COMBOS: Combo[] = [
     { id: "combo-4-4", label: "4 Passport + 4 Stamp", parts: [["passport", 4], ["stamp", 4]] },
     { id: "combo-6-8", label: "6 Passport + 8 Stamp", parts: [["passport", 6], ["stamp", 8]] },
@@ -694,6 +701,7 @@ export default function AiPrintStudioModal({ open, image, preset, onClose, onPri
         () => Object.fromEntries(PRESETS.map((entry) => [entry.id, { widthMm: entry.widthMm, heightMm: entry.heightMm }]))
     );
     const [applyAllSizeId, setApplyAllSizeId] = useState("");
+    const [unitSizeId, setUnitSizeId] = useState("");
     const [sessionMulti, setSessionMulti] = useState(false);
     const [addingKey, setAddingKey] = useState<string | null>(null);
     const [confirmClose, setConfirmClose] = useState(false);
@@ -742,6 +750,19 @@ export default function AiPrintStudioModal({ open, image, preset, onClose, onPri
         }
         : sourcePreset;
     const hasActivePhotoForQuickAdd = !isMultiPhotoSession || !!selectedItem?.image;
+    const isDualSource = currentPreset?.id === "ai-dual";
+    // Size used by the 1U-8U / Fill page buttons: the photo's own (default) size unless the user picked another one.
+    const unitPreset: Preset = (() => {
+        if (unitSizeId === "custom")
+            return { id: "custom", label: "Custom", widthMm: customWidthMm, heightMm: customHeightMm };
+        const dual = DUAL_PRESETS.find((entry) => entry.id === unitSizeId);
+        if (dual)
+            return dual;
+        const entry = PRESETS.find((candidate) => candidate.id === unitSizeId);
+        if (entry)
+            return { ...entry, ...(presetDimensions[entry.id] ?? {}) };
+        return activePhotoPreset;
+    })();
     const selectedApplyAllPreset: Preset | null = applyAllSizeId === "custom"
         ? { id: "custom", label: "Custom", widthMm: customWidthMm, heightMm: customHeightMm }
         : (() => {
@@ -2157,13 +2178,61 @@ export default function AiPrintStudioModal({ open, image, preset, onClose, onPri
                 <p className="mb-2 rounded-md bg-[#F2E8D2] px-2 py-1.5 text-[10px] leading-snug text-[#7A6544]">একটি ছবির অতিরিক্ত কপি যোগ করতে আগে ক্যানভাসে সেই ছবিটি নির্বাচন করুন।</p>
               )}
 
+              <div className="mb-3 rounded-lg border border-[#E3D6B8] bg-white/55 p-2.5">
+                <p className="text-[11px] font-extrabold text-[#3B2F1E]">ছবির মাপ নির্বাচন করুন</p>
+                <select value={unitSizeId} onChange={(event) => setUnitSizeId(event.target.value)} className="mt-2 h-8 w-full min-w-0 rounded-md border border-[#E3D6B8] bg-[#FBF6E8] px-2 text-[11px] font-semibold text-[#3B2F1E] outline-none focus:border-[#DC2626]">
+                  <option value="">{isDualSource ? "ডুয়াল ডিফল্ট" : "ডিফল্ট (জেনারেট করা মাপ)"} — {roundNice(activePhotoPreset.widthMm)}×{roundNice(activePhotoPreset.heightMm)} মিমি</option>
+                  {isDualSource && (<optgroup label="ডুয়াল ছবির মাপ">
+                      {DUAL_PRESETS.map((entry) => (<option key={entry.id} value={entry.id}>{entry.label} — {roundNice(entry.widthMm)}×{roundNice(entry.heightMm)} মিমি</option>))}
+                    </optgroup>)}
+                  <optgroup label="বাংলাদেশি মাপ">
+                    {PRESETS.filter((entry) => BD_QUICK_IDS.includes(entry.id)).map((entry) => {
+                      const dimensions = presetDimensions[entry.id] ?? entry;
+                      return <option key={entry.id} value={entry.id}>{t(entry.label)} — {roundNice(dimensions.widthMm)}×{roundNice(dimensions.heightMm)} মিমি</option>;
+                    })}
+                  </optgroup>
+                  <option value="custom">নিজের মতো মাপ (কাস্টম)</option>
+                </select>
+                {unitSizeId === "custom" && (
+                  <div className="mt-2.5 rounded-md border border-[#E3D6B8] bg-[#FBF6E8] p-2">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-extrabold text-[#3B2F1E]">নিজের পছন্দমতো মাপ দিন</p>
+                      <div className="w-[126px] shrink-0">
+                        <Segmented<Unit> value={unit} onChange={setUnit} options={[
+                          { value: "mm", label: "mm" },
+                          { value: "cm", label: "cm" },
+                          { value: "in", label: "inch" },
+                        ]}/>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-[1fr_30px_1fr] items-end gap-1.5">
+                      <div className="min-w-0">
+                        <p className="mb-1 text-[10px] font-bold text-[#3B2F1E]/65">প্রস্থ</p>
+                        <NumberField ariaLabel={t("Width")} value={formatInUnit(customWidthMm, unit)} min={MIN_ITEM_MM / UNIT_FACTOR[unit]} max={600 / UNIT_FACTOR[unit]} suffix={unitLabel} onCommit={(value) => setCustomWidthMm(clamp(value * UNIT_FACTOR[unit], MIN_ITEM_MM, 600))}/>
+                      </div>
+                      <button type="button" onClick={() => {
+                        setCustomWidthMm(customHeightMm);
+                        setCustomHeightMm(customWidthMm);
+                      }} className="h-8 rounded-md border border-[#E3D6B8] bg-white hover:bg-[#F2E8D2] flex items-center justify-center cursor-pointer text-[#3B2F1E]" title={t("Swap width and height")} aria-label={t("Swap width and height")}>
+                        <ArrowLeftRight size={13}/>
+                      </button>
+                      <div className="min-w-0">
+                        <p className="mb-1 text-[10px] font-bold text-[#3B2F1E]/65">উচ্চতা</p>
+                        <NumberField ariaLabel={t("Height")} value={formatInUnit(customHeightMm, unit)} min={MIN_ITEM_MM / UNIT_FACTOR[unit]} max={600 / UNIT_FACTOR[unit]} suffix={unitLabel} onCommit={(value) => setCustomHeightMm(clamp(value * UNIT_FACTOR[unit], MIN_ITEM_MM, 600))}/>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <p className="mt-1.5 text-[10px] font-semibold text-[#3B2F1E]/60">নিচের 1U–8U বাটনে এই মাপে ছবি যোগ হবে: {roundNice(unitPreset.widthMm)} × {roundNice(unitPreset.heightMm)} মিমি</p>
+              </div>
+
               <p className="text-[11px] font-extrabold uppercase tracking-wide text-[#3B2F1E]/60 mb-1.5">{t("Units")}</p>
               <div className="grid grid-cols-4 gap-1.5">
-                {Array.from({ length: 8 }, (_, index) => index + 1).map((quantity) => (<button key={quantity} type="button" onClick={() => addPreset(activePhotoPreset, quantity)} disabled={!hasActivePhotoForQuickAdd} className="h-8 rounded-md bg-[#DC2626] hover:bg-[#B91C1C] text-white text-[11px] font-extrabold cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed" title={`${t("Add")} ${quantity} × ${t(activePhotoPreset.label)}`}>
+                {Array.from({ length: 8 }, (_, index) => index + 1).map((quantity) => (<button key={quantity} type="button" onClick={() => addPreset(unitPreset, quantity)} disabled={!hasActivePhotoForQuickAdd} className="h-8 rounded-md bg-[#DC2626] hover:bg-[#B91C1C] text-white text-[11px] font-extrabold cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed" title={`${t("Add")} ${quantity} × ${t(activePhotoPreset.label)}`}>
                     {quantity}U
                   </button>))}
               </div>
-              <button type="button" onClick={() => addPreset(activePhotoPreset, MAX_ITEMS, true, activePageValue)} disabled={!hasActivePhotoForQuickAdd} className="w-full mt-1.5 h-8 rounded-md border border-[#DC2626]/40 bg-[#DC2626]/5 hover:bg-[#DC2626]/10 text-[#DC2626] text-[11px] font-extrabold cursor-pointer transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
+              <button type="button" onClick={() => addPreset(unitPreset, MAX_ITEMS, true, activePageValue)} disabled={!hasActivePhotoForQuickAdd} className="w-full mt-1.5 h-8 rounded-md border border-[#DC2626]/40 bg-[#DC2626]/5 hover:bg-[#DC2626]/10 text-[#DC2626] text-[11px] font-extrabold cursor-pointer transition-colors flex items-center justify-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed">
                 <Grid3X3 size={12}/>
                 {t("Fill page")}
               </button>
