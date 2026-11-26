@@ -12,6 +12,7 @@ import ImpersonationBanner from "./_components/ImpersonationBanner";
 import MyFilesSavedPopup from "./_components/MyFilesSavedPopup";
 import FileExpiryPopup from "./_components/FileExpiryPopup";
 import PaidAccessWelcomePopup from "./_components/PaidAccessWelcomePopup";
+import UserAlertPopup from "./_components/UserAlertPopup";
 import PrePaintScript from "./_components/PrePaintScript";
 import ToolAccessGuard from "./_components/ToolAccessGuard";
 import { SiteSettingsProvider } from "./_components/SiteSettingsProvider";
@@ -125,6 +126,7 @@ export default async function RootLayout({
           <MyFilesSavedPopup />
           <FileExpiryPopup />
           <PaidAccessWelcomePopup />
+          <UserAlertPopup />
           <LoginSuccessOverlay />
         </I18nProvider>
         </SiteSettingsProvider>

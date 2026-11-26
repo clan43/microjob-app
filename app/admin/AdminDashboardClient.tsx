@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  Bell,
   CalendarClock,
   CircleDollarSign,
   Copy,
@@ -62,12 +63,13 @@ import WithdrawalCard from "./_components/WithdrawalCard";
 import SubscriptionPlansPanel from "./_components/SubscriptionPlansPanel";
 import SubscriptionActivityPanel from "./_components/SubscriptionActivityPanel";
 import BotStatusPanel from "./_components/BotStatusPanel";
+import UserAlertsPanel from "./_components/UserAlertsPanel";
 import { useSiteSettings } from "@/app/_components/SiteSettingsProvider";
 import "./admin-theme.css";
 import { visibleInterval } from "@/app/_lib/visiblePolling";
 import { ADMIN_CHAT_BADGE_POLL_MS } from "@/lib/presenceConstants";
 
-type TabKey = "overview" | "users" | "subscriptions" | "chats" | "generations" | "settings" | "payment-gateway" | "smtp" | "subscription-plans" | "subscription-activity" | "bot-status";
+type TabKey = "overview" | "users" | "subscriptions" | "chats" | "generations" | "settings" | "payment-gateway" | "smtp" | "subscription-plans" | "subscription-activity" | "bot-status" | "user-alerts";
 // useLayoutEffect in the browser (before paint), useEffect on the server (no SSR warning).
 const useIsoLayoutEffect =
   typeof window !== "undefined" ? useLayoutEffect : useEffect;
@@ -1161,6 +1163,12 @@ export default function AdminDashboardClient() {
         icon: Activity,
         badgeCount: 0,
       },
+      {
+        key: "user-alerts" as const,
+        label: "User Alerts",
+        icon: Bell,
+        badgeCount: 0,
+      },
     ],
     [chatUnreadCount],
   );
@@ -1185,7 +1193,9 @@ export default function AdminDashboardClient() {
                     ? "Subscription activity"
                     : tab === "bot-status"
                       ? "Image bot status"
-                      : "Website settings";
+                      : tab === "user-alerts"
+                        ? "User alerts & popups"
+                        : "Website settings";
 
   const selectTab = (next: TabKey) => {
     setTab(next);
@@ -2396,6 +2406,7 @@ export default function AdminDashboardClient() {
           {tab === "subscription-plans" && <SubscriptionPlansPanel key={subscriptionPlansRefreshKey} />}
           {tab === "subscription-activity" && <SubscriptionActivityPanel />}
           {tab === "bot-status" && <BotStatusPanel />}
+          {tab === "user-alerts" && <UserAlertsPanel />}
 
           {accessModalUser && (
             <div
