@@ -14,6 +14,7 @@ export interface BoxInfo {
 }
 interface PhotoPreviewAreaProps {
     isDualMode: boolean;
+    dualBoxInfo?: BoxInfo;
     uploadedImage: string | null;
     setUploadedImage: React.Dispatch<React.SetStateAction<string | null>>;
     leftImage: string | null;
@@ -624,7 +625,7 @@ function ResultInfoChips({ info }: { info: { size: string; bgColor: string; clot
     </div>);
 }
 export default function PhotoPreviewArea({
-    isDualMode, uploadedImage, setUploadedImage, leftImage, setLeftImage, rightImage, setRightImage, triggerUpload, onDropFile, onDropRecent, enableDualMode, exitDualMode, activeBoxInfo, currentBgColorValue, isGenerating, isDeleting, originalImageForDual, setOriginalImageForDual, isDualPreviewActive, setIsDualPreviewActive, dualResultImage = null, setDualResultImage, resultFilter, resultInfo = null,
+    isDualMode, dualBoxInfo, uploadedImage, setUploadedImage, leftImage, setLeftImage, rightImage, setRightImage, triggerUpload, onDropFile, onDropRecent, enableDualMode, exitDualMode, activeBoxInfo, currentBgColorValue, isGenerating, isDeleting, originalImageForDual, setOriginalImageForDual, isDualPreviewActive, setIsDualPreviewActive, dualResultImage = null, setDualResultImage, resultFilter, resultInfo = null,
 }: PhotoPreviewAreaProps) {
     const { t } = useAiEditorText();
     const handleRemoveSingle = () => {
@@ -683,7 +684,7 @@ export default function PhotoPreviewArea({
           <span className="shrink-0 text-center text-sm font-semibold uppercase tracking-wider text-[#3B2F1E]"><AiT>{"Dual Photo\n          "}</AiT></span>
 
           {/* ONE wide frame and ONE gate: both photos fall in together, one group photo comes out. */}
-          <FitFrame info={{ text: "90×55 mm", style: { width: "540px", height: "330px" } }} imageSrc={dualResultImage || leftImage} className="overflow-hidden rounded-2xl border-2 border-[#E3D6B8] shadow-xl">
+          <FitFrame info={dualBoxInfo ?? { text: "90×55 mm", style: { width: "540px", height: "330px" } }} imageSrc={dualResultImage || leftImage} className="overflow-hidden rounded-2xl border-2 border-[#E3D6B8] shadow-xl">
             <div className="group relative h-full w-full" style={getBackgroundStyle(currentBgColorValue)}>
               {dualResultImage ? (<ProtectedImage src={dualResultImage} alt={t("Dual photo")} className="h-full w-full object-contain" style={resultFilter ? { filter: resultFilter } : undefined}/>) : (<div className="flex h-full w-full">
                   <div className="h-full w-1/2" style={getBackgroundStyle(currentBgColorValue)}>

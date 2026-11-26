@@ -763,6 +763,19 @@ const AI_EDITOR_BN_EXTRA: Record<string, string> = {
   "Brown": "বাদামি", "Yellow": "হলুদ", "Pink": "গোলাপি", "Purple": "বেগুনি", "Orange": "কমলা", "Maroon": "মেরুন",
   "Teal": "টিল", "Olive": "জলপাই", "Beige": "বেইজ", "Amber": "অ্যাম্বার", "Magenta": "ম্যাজেন্টা", "Cyan": "সায়ান",
   "Letter — 216×279 mm": "লেটার — ২১৬×২৭৯ মিমি",
+  "Dual photo size": "ডুয়াল ছবির মাপ",
+  "Custom size": "নিজের মতো মাপ (কাস্টম)",
+  "cm": "সেমি",
+  "inch": "ইঞ্চি",
+  "Dual size must be wider than tall, between 20 and 300 mm.": "ডুয়াল মাপে প্রস্থ উচ্চতার চেয়ে বেশি হতে হবে এবং ২০–৩০০ মিমির মধ্যে হতে হবে।",
+  "Passport ×2 (45×55 each)": "পাসপোর্ট ×২ (প্রতিটি ৪৫×৫৫)",
+  "Visa / Stamp ×2 (35×45 each)": "ভিসা / স্ট্যাম্প ×২ (প্রতিটি ৩৫×৪৫)",
+  "E-Pass ×2 (25×30 each)": "ই-পাস ×২ (প্রতিটি ২৫×৩০)",
+  "40×50 ×2": "৪০×৫০ ×২",
+  "2×2 inch ×2": "২×২ ইঞ্চি ×২",
+  "Small couple photo": "ছোট কাপল ছবি",
+  "Couple photo": "কাপল ছবি",
+  "Small dual": "ছোট ডুয়াল",
 };
 
 function normalizeAiText(value: string): string {

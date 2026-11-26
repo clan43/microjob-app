@@ -1,5 +1,6 @@
 "use client";
 import { ADMISSION_PRESETS, parseAdmissionLabel, presetLabel } from "./_components/admissionSizes";
+import { DEFAULT_DUAL_SIZE, dualHalfLabel, dualLabelToMm } from "./_components/dualSizes";
 import { AiT, useAiEditorText } from "./_components/aiEditorI18n";
 import { buildImageUploadRequest } from "@/lib/clientUpload";
 import { notifyMyFilesSaved } from "@/app/_lib/myFilesNotice";
@@ -186,6 +187,27 @@ export default function PhotoEditorPage() {
     const [rotate, setRotate] = useState(0);
     const [showVisaPopup, setShowVisaPopup] = useState(false);
     const [selectedVisaSize, setSelectedVisaSize] = useState("35×45 mm");
+    // Dual mode: size of the WHOLE two-person photo (each person gets half of the width).
+    const [dualSizeLabel, setDualSizeLabel] = useState(DEFAULT_DUAL_SIZE);
+    const dualSizeMm = dualLabelToMm(dualSizeLabel);
+    // Crop ratio for ONE person inside the dual photo.
+    const dualPersonAspect = (dualSizeMm.widthMm / 2) / dualSizeMm.heightMm;
+    const dualBoxInfo = (() => {
+        const ratio = dualSizeMm.widthMm / dualSizeMm.heightMm;
+        let width = 540;
+        let height = width / ratio;
+        if (height > 420) {
+            height = 420;
+            width = height * ratio;
+        }
+        return { text: dualSizeLabel, style: { width: `${Math.round(width)}px`, height: `${Math.round(height)}px` } };
+    })();
+    // A saved dual photo remembers its size; reopening / regenerating it restores that size.
+    const applyDualSizeFromItem = (item: any) => {
+        if (item && typeof item.size === "string" && /\d\s*[×xX]\s*\d/.test(item.size)) {
+            setDualSizeLabel(item.size);
+        }
+    };
     const [showAdmissionPopup, setShowAdmissionPopup] = useState(false);
     const [selectedAdmissionLabel, setSelectedAdmissionLabel] = useState(presetLabel(ADMISSION_PRESETS[0]));
     const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -628,7 +650,7 @@ export default function PhotoEditorPage() {
         const imageHeight = image.naturalHeight;
         if (!imageWidth || !imageHeight) return;
 
-        const targetAspect = isDualMode ? 45 / 55 : getSelectedTargetAspect();
+        const targetAspect = isDualMode ? dualPersonAspect : getSelectedTargetAspect();
         const initialCrop = targetAspect
             ? centerCrop(
                 makeAspectCrop(
@@ -1004,6 +1026,7 @@ export default function PhotoEditorPage() {
         setRegeneratingId(null);
         if (item.side === "dual") {
             // A dual photo is shown as one combined picture in dual mode.
+            applyDualSizeFromItem(item);
             setIsDualMode(true);
             setSelectedSize("Dual");
             setShowVisaPopup(false);
@@ -1178,6 +1201,7 @@ export default function PhotoEditorPage() {
         setPreviewStartWithEdit(false);
         if (imageItem?.side === "dual") {
             // A combined dual photo: split the saved real photo back into left/right.
+            applyDualSizeFromItem(imageItem);
             try {
                 const { left, right } = await splitDualImage(imageItem.originalUrl || imageItem.url);
                 setIsDualMode(true);
@@ -1324,6 +1348,10 @@ export default function PhotoEditorPage() {
     // Dual mode: ONE request with TWO attached photos (image = left person, image2 = right person).
     // The AI must return ONE studio group portrait of both people in the same frame.
     const buildDualPrompt = (payload: Record<string, unknown>) => {
+        const dualCanvasMm = dualLabelToMm(typeof payload.size === "string" ? payload.size : dualSizeLabel);
+        const dualCanvasW = Math.round(dualCanvasMm.widthMm * 10) / 10;
+        const dualCanvasH = Math.round(dualCanvasMm.heightMm * 10) / 10;
+        const dualCanvasRatio = (dualCanvasMm.widthMm / dualCanvasMm.heightMm).toFixed(2);
         const transparentBackground = payload.transparentBackground === true;
         const keepOriginalBackground = payload.keepOriginalBackground === true && !transparentBackground;
         const bgColor = typeof payload.bgColor === "string" ? payload.bgColor.toUpperCase() : "#FFFFFF";
@@ -1357,7 +1385,7 @@ export default function PhotoEditorPage() {
             "You are a professional passport and ID photographer working in a studio with a DSLR camera. Produce ONE perfect studio group portrait of two people from the two attached photos.",
             "INPUTS: The FIRST attached photo shows Person A, who must appear on the LEFT side of the final image. The SECOND attached photo shows Person B, who must appear on the RIGHT side. Each attached photo contains exactly one person. Use each person's own photo as the one and only reference for that person's face.",
             "OUTPUT: Return exactly ONE image. It is a single photograph of both people sitting side by side in the same frame, as if one camera took one shot of them posing together. It is NOT a collage, NOT a split screen, NOT two separate photos placed next to each other, and has no divider, gap, border, frame, or line between them. Never return the attached photos unchanged.",
-            "CANVAS: landscape, aspect ratio exactly 90:55 (about 1.64 : 1). The backdrop must fill the ENTIRE canvas edge to edge. No white, black, or colored bars, margins, strips, or letterboxing at the top, bottom, or sides.",
+            `CANVAS: landscape, aspect ratio exactly ${dualCanvasW}:${dualCanvasH} (about ${dualCanvasRatio} : 1). The backdrop must fill the ENTIRE canvas edge to edge. No white, black, or colored bars, margins, strips, or letterboxing at the top, bottom, or sides.`,
             `IDENTITY LOCK (highest priority for face structure): Each person's face must remain exactly the same real person. Keep the exact face shape, jaw, cheeks, forehead, eyes and eye shape, nose, lips, teeth, ears, moles, scars, birthmarks and apparent age. Also keep the eyebrows, facial hair, hairline and hairstyle (unless an eyebrow, beard/facial-hair, hair style or hair color edit is requested below; if one is requested, apply it fully to the person it is meant for). Do NOT slim, enlarge, age, reshape, or re-draw any face. Do NOT average, blend, or swap features between the two people. Do NOT create a generic or idealized face. If you must choose between a nicer-looking result and a different face, choose the identical face structure. Both faces must be clearly recognizable as the people in their own photos. (Skin cleanliness and brightness are improved separately, see SKIN RETOUCH.)${plan.expression && expressionChangesFace(plan.expression) ? " The only exception is the facial expression, which follows the EXPRESSION rule." : ""}`,
             `${skinRule} ${plan.skinTone ? "Apply this chosen skin color to BOTH people, with the same level of cleanliness, so the two people look consistent side by side." : "Apply this to BOTH people, keeping each person's own natural skin color exactly (never copy one person's skin color onto the other), with the same level of cleanliness, so the two people look consistent side by side."}`,
             ...(plan.expression ? [`${buildExpressionRule(plan.expression)} Apply this expression to BOTH people.`] : []),
@@ -1557,7 +1585,7 @@ export default function PhotoEditorPage() {
     });
     // Joins the left and right person into ONE image (left person | right person).
     const composeDualImage = async (leftSrc: string, rightSrc: string, transparentBackground: boolean, fillColor?: string) => {
-        const single = getExactExportDimensions("45×55 mm");
+        const single = getExactExportDimensions(dualHalfLabel(dualSizeLabel));
         const [leftImg, rightImg] = await Promise.all([
             loadImageForCanvas(leftSrc),
             loadImageForCanvas(rightSrc),
@@ -1576,7 +1604,7 @@ export default function PhotoEditorPage() {
             context.fillStyle = fillColor || (selectedBgValue === "transparent" ? "#FFFFFF" : selectedBgValue);
             context.fillRect(0, 0, canvas.width, canvas.height);
         }
-        // Each half is exactly one 45x55 mm photo; fit (never crop) inside its half.
+        // Each half is exactly one person's share of the dual size; fit (never crop) inside its half.
         const drawHalf = (img: HTMLImageElement, offsetX: number) => {
             const sw = img.naturalWidth || img.width;
             const sh = img.naturalHeight || img.height;
@@ -1804,7 +1832,7 @@ export default function PhotoEditorPage() {
                 await waitForPendingCropUploads();
                 const leftSource = resolveUploadedUrl(originalLeftImage || leftImage!);
                 const rightSource = resolveUploadedUrl(originalRightImage || rightImage!);
-                const dualExport = getExactExportDimensions("90×55 mm");
+                const dualExport = getExactExportDimensions(dualSizeLabel);
                 // Both photos go to the AI as two separate images in ONE request
                 // (image = left person, image2 = right person). The AI returns ONE
                 // group photo with both people in the same frame.
@@ -1815,7 +1843,7 @@ export default function PhotoEditorPage() {
                     image: leftSource,
                     image2: rightSource,
                     dualMode: true,
-                    size: "90×55 mm",
+                    size: dualSizeLabel,
                     leftClothing,
                     rightClothing,
                     leftClothingColor,
@@ -1837,7 +1865,7 @@ export default function PhotoEditorPage() {
                 const dualDocData = {
                     url: savedCombinedUrl,
                     originalUrl: combinedOriginal,
-                    size: "90×55 mm",
+                    size: dualSizeLabel,
                     sizeType: selectedSize,
                     widthPx: dualExport.widthPx,
                     heightPx: dualExport.heightPx,
@@ -2137,6 +2165,7 @@ export default function PhotoEditorPage() {
         setPrintSession(null);
         setSelectedSize("");
         setSelectedVisaSize("35×45 mm");
+        setDualSizeLabel(DEFAULT_DUAL_SIZE);
         setSelectedAdmissionLabel(presetLabel(ADMISSION_PRESETS[0]));
         setShowAdmissionPopup(false);
         setSelectedBg(-1);
@@ -2405,7 +2434,7 @@ export default function PhotoEditorPage() {
           {/* Crop stage */}
           <div className="flex min-h-0 flex-1 items-center justify-center p-3 sm:p-6">
             <div className="flex h-full w-full max-w-[1100px] items-center justify-center overflow-auto rounded-2xl border border-[#E3D6B8] bg-[#F3E9D2]/70 p-3 shadow-inner sm:p-5">
-              <CropStage crop={crop} aspect={isDualMode ? 45 / 55 : getSelectedTargetAspect()} imgRef={imgRef} src={tempImageForCrop || undefined} alt={t("Crop Preview")} zoom={zoom} rotate={rotate} onImageLoad={handleCropImageLoad} onCommit={setCompletedCrop}/>
+              <CropStage crop={crop} aspect={isDualMode ? dualPersonAspect : getSelectedTargetAspect()} imgRef={imgRef} src={tempImageForCrop || undefined} alt={t("Crop Preview")} zoom={zoom} rotate={rotate} onImageLoad={handleCropImageLoad} onCommit={setCompletedCrop}/>
             </div>
           </div>
 
@@ -2461,14 +2490,14 @@ export default function PhotoEditorPage() {
             Middle + QR = row 1 (fixed viewport-based height). "Recent photos" = row 2, aligned under the upload box + QR. */}
         <div className="ai-row relative flex flex-col lg:flex-row lg:flex-wrap xl:grid xl:grid-cols-[var(--ai-left-w)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)_auto] xl:flex-1 xl:min-h-0 w-full max-w-[1400px] xl:max-w-none gap-3 sm:gap-4 items-center lg:items-start xl:items-stretch min-w-0">
           <div className="w-full lg:w-[var(--ai-left-w-lg)] lg:shrink-0 xl:w-full xl:row-span-2 xl:min-h-0 xl:overflow-hidden flex flex-col [&>*]:flex-1 xl:[&>*]:min-h-0">
-            <GenerationSettings photoSizes={photoSizes} selectedSize={selectedSize} handleSizeClick={handleSizeClick} showVisaPopup={showVisaPopup} setShowVisaPopup={setShowVisaPopup} visaSizesList={visaSizesList} showAdmissionPopup={showAdmissionPopup} setShowAdmissionPopup={setShowAdmissionPopup} selectedAdmissionLabel={selectedAdmissionLabel} setSelectedAdmissionLabel={setSelectedAdmissionLabel} selectedVisaSize={selectedVisaSize} setSelectedVisaSize={setSelectedVisaSize} setSelectedSize={setSelectedSize} isDualMode={isDualMode} exitDualMode={exitDualMode} backgroundColors={backgroundColors} selectedBg={selectedBg} setSelectedBg={setSelectedBg} setShowColorPicker={setShowColorPicker} showColorPicker={showColorPicker} customBgColor={customBgColor} setCustomBgColor={setCustomBgColor} selectedClothing={selectedClothing} setSelectedClothing={handleClothingSelectionChange} selectedClothingColor={selectedClothingColor} setSelectedClothingColor={setSelectedClothingColor} onEditingGuidesChange={handleEditingGuidesChange} applyGuidesSignal={applyGuidesSignal} onResetSettings={handleResetSettings} leftClothing={leftClothing} setLeftClothing={setLeftClothing} rightClothing={rightClothing} setRightClothing={setRightClothing} leftClothingColor={leftClothingColor} setLeftClothingColor={setLeftClothingColor} rightClothingColor={rightClothingColor} setRightClothingColor={setRightClothingColor} colorPickerRef={colorPickerRef} visaPopupRef={visaPopupRef} onGenerate={handleGeneratePhoto} onOpenSetupWizard={isDualMode ? undefined : openSetupWizardFromButton} isGenerating={isGenerating}/>
+            <GenerationSettings photoSizes={photoSizes} selectedSize={selectedSize} handleSizeClick={handleSizeClick} showVisaPopup={showVisaPopup} setShowVisaPopup={setShowVisaPopup} visaSizesList={visaSizesList} showAdmissionPopup={showAdmissionPopup} setShowAdmissionPopup={setShowAdmissionPopup} selectedAdmissionLabel={selectedAdmissionLabel} setSelectedAdmissionLabel={setSelectedAdmissionLabel} selectedVisaSize={selectedVisaSize} setSelectedVisaSize={setSelectedVisaSize} setSelectedSize={setSelectedSize} isDualMode={isDualMode} exitDualMode={exitDualMode} dualSizeLabel={dualSizeLabel} setDualSizeLabel={setDualSizeLabel} backgroundColors={backgroundColors} selectedBg={selectedBg} setSelectedBg={setSelectedBg} setShowColorPicker={setShowColorPicker} showColorPicker={showColorPicker} customBgColor={customBgColor} setCustomBgColor={setCustomBgColor} selectedClothing={selectedClothing} setSelectedClothing={handleClothingSelectionChange} selectedClothingColor={selectedClothingColor} setSelectedClothingColor={setSelectedClothingColor} onEditingGuidesChange={handleEditingGuidesChange} applyGuidesSignal={applyGuidesSignal} onResetSettings={handleResetSettings} leftClothing={leftClothing} setLeftClothing={setLeftClothing} rightClothing={rightClothing} setRightClothing={setRightClothing} leftClothingColor={leftClothingColor} setLeftClothingColor={setLeftClothingColor} rightClothingColor={rightClothingColor} setRightClothingColor={setRightClothingColor} colorPickerRef={colorPickerRef} visaPopupRef={visaPopupRef} onGenerate={handleGeneratePhoto} onOpenSetupWizard={isDualMode ? undefined : openSetupWizardFromButton} isGenerating={isGenerating}/>
           </div>
 
           <div className="w-full min-w-0 lg:flex-1 lg:basis-0 xl:flex-1 flex flex-col [&>*]:flex-1 xl:min-h-0 xl:[&>*]:min-h-0">
             <div className="flex flex-col xl:flex-row gap-3 xl:min-h-0 min-w-0">
               {/* Photo preview (kept mounted, hidden while the print section is open) */}
               <div className="flex flex-col flex-1 min-w-0 xl:min-h-0 [&>*]:flex-1 xl:[&>*]:min-h-0">
-                <PhotoPreviewArea onDropFile={handleDropFile} onDropRecent={(target, url, payload) => { if (target === "left" || target === "right") handleDropRecentToSlot(target, url, payload); }} isDualMode={isDualMode} uploadedImage={uploadedImage} setUploadedImage={setUploadedImage} leftImage={leftImage} setLeftImage={setLeftImage} rightImage={rightImage} setRightImage={setRightImage} triggerUpload={triggerUpload} enableDualMode={enableDualMode} exitDualMode={exitDualMode} activeBoxInfo={getCurrentBoxDimensions()} currentBgColorValue={getSelectedBgColorValue()} isGenerating={isGenerating} isDeleting={isDeleting} originalImageForDual={originalImageForDual} setOriginalImageForDual={setOriginalImageForDual} isDualPreviewActive={isDualPreviewActive} setIsDualPreviewActive={setIsDualPreviewActive} dualResultImage={dualResultImage} setDualResultImage={setDualResultImage} resultFilter={liveResultFilter} resultInfo={resultInfo}/>
+                <PhotoPreviewArea onDropFile={handleDropFile} onDropRecent={(target, url, payload) => { if (target === "left" || target === "right") handleDropRecentToSlot(target, url, payload); }} isDualMode={isDualMode} uploadedImage={uploadedImage} setUploadedImage={setUploadedImage} leftImage={leftImage} setLeftImage={setLeftImage} rightImage={rightImage} setRightImage={setRightImage} triggerUpload={triggerUpload} enableDualMode={enableDualMode} exitDualMode={exitDualMode} activeBoxInfo={getCurrentBoxDimensions()} dualBoxInfo={dualBoxInfo} currentBgColorValue={getSelectedBgColorValue()} isGenerating={isGenerating} isDeleting={isDeleting} originalImageForDual={originalImageForDual} setOriginalImageForDual={setOriginalImageForDual} isDualPreviewActive={isDualPreviewActive} setIsDualPreviewActive={setIsDualPreviewActive} dualResultImage={dualResultImage} setDualResultImage={setDualResultImage} resultFilter={liveResultFilter} resultInfo={resultInfo}/>
               </div>
               {/* Options appear right beside the generated photo */}
               {resultItem && !printSession && !bulkPrintSources && (<div className="flex justify-center xl:block xl:shrink-0">

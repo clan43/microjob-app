@@ -20,6 +20,7 @@ import PhotoSizeIcon from "./PhotoSizeIcon";
 import AdmissionPicker from "./AdmissionPicker";
 import { CLOTHING_NAMES } from "./clothingStyles";
 import AiEditorVideoGuide from "./AiEditorVideoGuide";
+import { DEFAULT_DUAL_SIZE, DUAL_CUSTOM_ID, DUAL_SIZE_PRESETS, buildCustomDualLabel, isPresetDualLabel, type DualUnit } from "./dualSizes";
 export interface PhotoSizeOption {
   id: string;
   label: string;
@@ -49,6 +50,9 @@ export interface GenerationSettingsProps {
   setSelectedSize?: (size: string) => void;
   isDualMode?: boolean;
   exitDualMode?: (nextSize?: string) => void;
+  /** Dual mode: size label of the whole two-person photo (e.g. "90×55 mm"). */
+  dualSizeLabel?: string;
+  setDualSizeLabel?: (label: string) => void;
   backgroundColors?: BgColorOption[];
   selectedBg?: number;
   setSelectedBg?: (bg: number) => void;
@@ -480,6 +484,8 @@ export default function GenerationSettings({
   setSelectedSize = () => {},
   isDualMode = false,
   exitDualMode = () => {},
+  dualSizeLabel = DEFAULT_DUAL_SIZE,
+  setDualSizeLabel = () => {},
   backgroundColors = [],
   selectedBg = 0,
   setSelectedBg = () => {},
@@ -590,6 +596,23 @@ export default function GenerationSettings({
   const clothingColorPopupRef = useRef<HTMLDivElement>(null);
   // Dual mode: the colour popup edits the person whose clothing tile was clicked.
   const [dualColorTarget, setDualColorTarget] = useState<"left" | "right">("left");
+  // Dual photo size: preset dropdown + custom width/height.
+  const [dualCustomOpen, setDualCustomOpen] = useState(() => !isPresetDualLabel(dualSizeLabel));
+  const [dualCustomW, setDualCustomW] = useState("90");
+  const [dualCustomH, setDualCustomH] = useState("55");
+  const [dualCustomUnit, setDualCustomUnit] = useState<DualUnit>("mm");
+  useEffect(() => {
+    // Reset / reopening a saved photo can bring a preset size back: close the custom inputs then.
+    if (isPresetDualLabel(dualSizeLabel)) setDualCustomOpen(false);
+  }, [dualSizeLabel]);
+  const applyDualCustom = (w: string, h: string, unit: DualUnit) => {
+    setDualCustomW(w);
+    setDualCustomH(h);
+    setDualCustomUnit(unit);
+    const label = buildCustomDualLabel(w, h, unit);
+    if (label) setDualSizeLabel(label);
+  };
+  const dualCustomInvalid = dualCustomOpen && !buildCustomDualLabel(dualCustomW, dualCustomH, dualCustomUnit);
   const [internalLeftColor, setInternalLeftColor] = useState("#EF4444");
   const [internalRightColor, setInternalRightColor] = useState("#EF4444");
   const dualLeftColor = setLeftClothingColor ? leftClothingColor : internalLeftColor;
@@ -1001,6 +1024,86 @@ export default function GenerationSettings({
               );
             })}
           </div>
+
+          {isDualMode && (
+            <div className="gs-dual-size mt-2 rounded-xl border border-[#E3D6B8] bg-[#FBF6E8] p-2.5">
+              <label className="mb-1 block text-[12px] font-semibold text-[#3B2F1E] xl:text-sm">
+                <AiT>{"Dual photo size"}</AiT>
+              </label>
+              <select
+                value={dualCustomOpen ? DUAL_CUSTOM_ID : dualSizeLabel}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === DUAL_CUSTOM_ID) {
+                    setDualCustomOpen(true);
+                    applyDualCustom(dualCustomW, dualCustomH, dualCustomUnit);
+                    return;
+                  }
+                  setDualCustomOpen(false);
+                  setDualSizeLabel(value);
+                }}
+                className="w-full cursor-pointer rounded-lg border border-[#E3D6B8] bg-white px-2 py-2 text-[13px] text-[#3B2F1E] outline-none focus:border-[#DC2626]"
+              >
+                {DUAL_SIZE_PRESETS.map((preset) => (
+                  <option key={preset.id} value={preset.label}>
+                    {preset.label} — {t(preset.note)}
+                  </option>
+                ))}
+                <option value={DUAL_CUSTOM_ID}>{t("Custom size")}</option>
+              </select>
+              {dualCustomOpen && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-1">
+                    {(["mm", "cm", "inch"] as DualUnit[]).map((unit) => (
+                      <button
+                        key={unit}
+                        type="button"
+                        onClick={() => applyDualCustom(dualCustomW, dualCustomH, unit)}
+                        className={`cursor-pointer rounded-md border px-2.5 py-1 text-[12px] ${
+                          dualCustomUnit === unit
+                            ? "border-[#DC2626] bg-[#DC2626]/10 font-medium text-[#DC2626]"
+                            : "border-[#E3D6B8] text-[#3B2F1E] hover:bg-[#EFE3C8]"
+                        }`}
+                      >
+                        {t(unit)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="text-[11px] text-stone-500">
+                      {t("Width")}
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="any"
+                        value={dualCustomW}
+                        onChange={(event) => applyDualCustom(event.target.value, dualCustomH, dualCustomUnit)}
+                        className="mt-0.5 w-full rounded-lg border border-[#E3D6B8] bg-white px-2 py-1.5 text-[13px] text-[#3B2F1E] outline-none focus:border-[#DC2626]"
+                      />
+                    </label>
+                    <label className="text-[11px] text-stone-500">
+                      {t("Height")}
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="any"
+                        value={dualCustomH}
+                        onChange={(event) => applyDualCustom(dualCustomW, event.target.value, dualCustomUnit)}
+                        className="mt-0.5 w-full rounded-lg border border-[#E3D6B8] bg-white px-2 py-1.5 text-[13px] text-[#3B2F1E] outline-none focus:border-[#DC2626]"
+                      />
+                    </label>
+                  </div>
+                  {dualCustomInvalid && (
+                    <p className="text-[11px] leading-snug text-[#DC2626]">
+                      <AiT>{"Dual size must be wider than tall, between 20 and 300 mm."}</AiT>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {showVisaPopup && (
             <div
