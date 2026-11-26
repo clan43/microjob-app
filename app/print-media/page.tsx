@@ -639,6 +639,7 @@ export default function PrintMediaPage() {
               )}
               <SvgPreviewImage
                 key={previewTemplate.id}
+                priority
                 src={previewTemplate.previewUrl}
                 alt={previewTemplate.title}
                 className="max-h-[56vh] w-auto max-w-full rounded-lg bg-white object-contain shadow-[0_18px_40px_-18px_rgba(59,47,30,0.7)] ring-1 ring-[#D8C9A6] md:max-h-[82vh]"

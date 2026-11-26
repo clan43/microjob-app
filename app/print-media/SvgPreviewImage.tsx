@@ -20,6 +20,9 @@ type FontFaceRule = { family: string; weightMin: number; weightMax: number; rang
 let fontRulesPromise: Promise<FontFaceRule[]> | null = null;
 const fontDataCache = new Map<string, Promise<string>>();
 const previewCache = new Map<string, Promise<string>>();
+// Finished previews, readable synchronously: a card that scrolls back into view (or re-mounts after a filter change)
+// shows its image instantly instead of flashing blank again.
+const readyUrls = new Map<string, string>();
 
 function parseUnicodeRange(value: string): Array<[number, number]> {
   if (!value) return [[0, 0x10ffff]];
@@ -198,7 +201,9 @@ function buildPreviewUrl(src: string): Promise<string> {
       const response = await fetch(src);
       if (!response.ok) throw new Error(`Preview could not be loaded: ${src}`);
       const markup = await fitTextsToWidth(await embedFontsIntoSvg(await response.text()));
-      return URL.createObjectURL(new Blob([markup], { type: "image/svg+xml" }));
+      const url = URL.createObjectURL(new Blob([markup], { type: "image/svg+xml" }));
+      readyUrls.set(src, url);
+      return url;
     })();
     previewCache.set(src, cached);
     cached.catch(() => previewCache.delete(src));
@@ -206,23 +211,95 @@ function buildPreviewUrl(src: string): Promise<string> {
   return cached;
 }
 
+// ---- Build queue -----------------------------------------------------------------------------------------------
+// Building a preview (download SVG + fonts, embed, measure text) is heavy. Doing 20-30 of them at once made the
+// whole page slow and left many cards blank. So: only a few run at the same time, and whenever a slot frees up the
+// card that is closest to what the user is looking at goes first. Cards the user scrolled past are dropped from the
+// queue before they start.
+const MAX_CONCURRENT_BUILDS = 3;
+
+type BuildJob = {
+  src: string;
+  element: HTMLElement;
+  cancelled: boolean;
+  onReady: (url: string) => void;
+  onFail: () => void;
+};
+
+let activeBuilds = 0;
+const waitingJobs: BuildJob[] = [];
+
+function distanceFromViewport(element: HTMLElement): number {
+  const rect = element.getBoundingClientRect();
+  const height = typeof window === "undefined" ? 800 : window.innerHeight;
+  if (rect.bottom < 0) return -rect.bottom + 1000; // above the screen: lowest priority
+  if (rect.top > height) return rect.top - height + 1; // just below the screen: next in line
+  return rect.top / 1000; // on screen: top-most first
+}
+
+function pumpBuilds() {
+  while (activeBuilds < MAX_CONCURRENT_BUILDS && waitingJobs.length > 0) {
+    let bestIndex = 0;
+    let bestScore = Infinity;
+    for (let index = 0; index < waitingJobs.length; index += 1) {
+      const score = distanceFromViewport(waitingJobs[index].element);
+      if (score < bestScore) {
+        bestScore = score;
+        bestIndex = index;
+      }
+    }
+    const job = waitingJobs.splice(bestIndex, 1)[0];
+    activeBuilds += 1;
+    buildPreviewUrl(job.src)
+      .then((url) => {
+        if (!job.cancelled) job.onReady(url);
+      })
+      .catch(() => {
+        if (!job.cancelled) job.onFail();
+      })
+      .finally(() => {
+        activeBuilds -= 1;
+        pumpBuilds();
+      });
+  }
+}
+
+function queuePreview(src: string, element: HTMLElement, onReady: (url: string) => void, onFail: () => void): () => void {
+  const job: BuildJob = { src, element, cancelled: false, onReady, onFail };
+  waitingJobs.push(job);
+  pumpBuilds();
+  return () => {
+    job.cancelled = true;
+    const index = waitingJobs.indexOf(job);
+    if (index >= 0) waitingJobs.splice(index, 1); // not started yet -> never wasted
+  };
+}
+
 type SvgPreviewImageProps = {
   src: string;
   alt: string;
   className?: string;
   loading?: "lazy" | "eager";
+  /** Build right now, skipping the scroll check and the queue (use for the big popup preview). */
+  priority?: boolean;
 };
 
-export default function SvgPreviewImage({ src, alt, className, loading }: SvgPreviewImageProps) {
+const BLANK_GIF = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+
+export default function SvgPreviewImage({ src, alt, className, loading, priority = false }: SvgPreviewImageProps) {
   const isSvg = /\.svg(\?|#|$)/i.test(src);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const [ready, setReady] = useState<{ source: string; url: string } | null>(null);
   const [failedSource, setFailedSource] = useState<string | null>(null);
   const [nearScreen, setNearScreen] = useState(false);
 
-  // Only build previews for cards that are close to the screen (there are 130+ templates).
+  const readyUrl = isSvg ? (ready?.source === src ? ready.url : readyUrls.get(src) ?? null) : null;
+  const alreadyReady = readyUrl !== null;
+
+  // Track whether this card is near the screen (130+ templates, so only the visible ones are built).
+  // The observer keeps running: if the user scrolls past a card before its turn comes, its work is cancelled.
   useEffect(() => {
-    if (!isSvg) return;
+    if (!isSvg || alreadyReady || priority) return;
     const element = imageRef.current;
     if (!element || typeof IntersectionObserver === "undefined") {
       setNearScreen(true);
@@ -230,47 +307,56 @@ export default function SvgPreviewImage({ src, alt, className, loading }: SvgPre
     }
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setNearScreen(true);
-          observer.disconnect();
-        }
+        const last = entries[entries.length - 1];
+        if (last) setNearScreen(last.isIntersecting);
       },
-      { rootMargin: "800px 0px" },
+      { rootMargin: "300px 0px" },
     );
     observer.observe(element);
     return () => observer.disconnect();
-  }, [isSvg, src]);
+  }, [isSvg, alreadyReady, priority, src]);
 
   useEffect(() => {
-    if (!isSvg || !nearScreen) return;
-    let cancelled = false;
-    buildPreviewUrl(src)
-      .then((url) => {
-        if (!cancelled) setReady({ source: src, url });
-      })
-      .catch(() => {
-        if (!cancelled) setFailedSource(src);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isSvg, nearScreen, src]);
+    if (!isSvg || alreadyReady) return;
+    const element = imageRef.current;
+    if (!element) return;
+    if (priority) {
+      let cancelled = false;
+      buildPreviewUrl(src)
+        .then((url) => {
+          if (!cancelled) setReady({ source: src, url });
+        })
+        .catch(() => {
+          if (!cancelled) setFailedSource(src);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (!nearScreen) return;
+    return queuePreview(
+      src,
+      element,
+      (url) => setReady({ source: src, url }),
+      () => setFailedSource(src),
+    );
+  }, [isSvg, alreadyReady, priority, nearScreen, src]);
 
   if (!isSvg) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={src} alt={alt} loading={loading} className={className} />;
+    return <img src={src} alt={alt} loading={loading} decoding="async" className={className} />;
   }
 
-  const showReady = ready?.source === src;
   const showOriginal = failedSource === src;
-  const visible = showReady || showOriginal;
+  const visible = alreadyReady || showOriginal;
 
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
       ref={imageRef}
-      src={showReady ? ready.url : showOriginal ? src : "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="}
+      src={readyUrl ?? (showOriginal ? src : BLANK_GIF)}
       alt={alt}
+      decoding="async"
       className={className}
       style={{ opacity: visible ? 1 : 0, transition: "opacity 160ms ease-out" }}
     />

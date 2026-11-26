@@ -96,6 +96,9 @@ type LayerInfo = {
 };
 
 const STORAGE_PREFIX = "sebalagbe-print-media-design-v1-";
+// Auto-saved work-in-progress copy (kept apart from the explicit Save so it never replaces a saved design).
+const DRAFT_PREFIX = "sebalagbe-print-media-draft-v1-";
+const DRAFT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const SVG_NS = "http://www.w3.org/2000/svg";
 const XML_NS = "http://www.w3.org/XML/1998/namespace";
 const BENGALI_RE = /[\u0980-\u09FF]/;
@@ -817,6 +820,90 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
   }, []);
   const suppressClickRef = useRef(false);
   const nudgeRef = useRef<(dx: number, dy: number) => void>(() => {});
+  const deleteSelectedRef = useRef<() => void>(() => {});
+  const copySelectedRef = useRef<() => void>(() => {});
+  const pasteSelectedRef = useRef<() => void>(() => {});
+  const duplicateSelectedRef = useRef<() => void>(() => {});
+  // Internal clipboard for Ctrl+C / Ctrl+V: the serialized layer plus how many times it was pasted.
+  const clipboardRef = useRef<{ markup: string; pasteCount: number } | null>(null);
+  const [showTips, setShowTips] = useState(false);
+  // Unsaved-changes tracking + auto-saved draft.
+  const baselineRef = useRef("");
+  const latestMarkupRef = useRef("");
+  const draftKeyRef = useRef("");
+  const [draftOffer, setDraftOffer] = useState<{ svgMarkup: string; updatedAt: string } | null>(null);
+  const draftOfferRef = useRef<{ svgMarkup: string; updatedAt: string } | null>(null);
+  const TIPS_KEY = "pm-editor-tips-seen-v1";
+  useEffect(() => {
+    try {
+      if (!window.localStorage.getItem(TIPS_KEY)) setShowTips(true);
+    } catch {
+      // Storage can be blocked; the tips are simply skipped.
+    }
+  }, []);
+  latestMarkupRef.current = svgMarkup;
+  draftOfferRef.current = draftOffer;
+  const hasUnsavedChanges = () => !!latestMarkupRef.current && !!baselineRef.current && latestMarkupRef.current !== baselineRef.current;
+
+  // Warn before closing / refreshing the tab while there is unsaved work.
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges()) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, []);
+
+  // Auto-save a draft a couple of seconds after every change. Paused while the restore question is open.
+  useEffect(() => {
+    if (!svgMarkup || !baselineRef.current || !draftKeyRef.current || draftOffer) return;
+    const key = draftKeyRef.current;
+    if (svgMarkup === baselineRef.current) {
+      try { window.localStorage.removeItem(key); } catch { /* ignore */ }
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      try {
+        window.localStorage.setItem(key, JSON.stringify({ svgMarkup, updatedAt: new Date().toISOString() }));
+      } catch {
+        // Storage full or blocked: the editor keeps working, only the draft is skipped.
+      }
+    }, 2000);
+    return () => window.clearTimeout(timer);
+  }, [svgMarkup, saved, draftOffer]);
+
+  const restoreDraft = () => {
+    const offer = draftOfferRef.current;
+    if (!offer) return;
+    try {
+      const restored = makeAllEditable(applyTypographyDefaults(sanitizeSvg(offer.svgMarkup)));
+      setDraftOffer(null);
+      commitSvg(restored);
+      setSelectedId("");
+    } catch {
+      setDraftOffer(null);
+      setError("আগের কাজটি ফিরিয়ে আনা যায়নি।");
+    }
+  };
+  const discardDraft = () => {
+    try { window.localStorage.removeItem(draftKeyRef.current); } catch { /* ignore */ }
+    setDraftOffer(null);
+  };
+  const goBackToTemplates = () => {
+    if (hasUnsavedChanges() && !window.confirm("আপনার পরিবর্তনগুলো এখনো সেভ হয়নি। সেভ না করেই বের হবেন?")) return;
+    router.push("/print-media");
+  };
+
+  const dismissTips = () => {
+    setShowTips(false);
+    try {
+      window.localStorage.setItem(TIPS_KEY, "1");
+    } catch {
+      // ignore
+    }
+  };
   const printWrapRef = useRef<HTMLDivElement>(null);
   const [selBox, setSelBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
 
@@ -951,6 +1038,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
         let loadedFromCloud = false;
         let loadNotice = "";
         cloudFileIdRef.current = "";
+        setDraftOffer(null);
 
         // Opened from "My Files" (?file=user-file:...): continue the design that was saved there.
         const fileParam = new URLSearchParams(window.location.search).get("file") || "";
@@ -999,11 +1087,28 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
         // Templates can ship their own box widths (data-pm-maxw): make sure the starting text already fits them.
         initialSvg = autoFitText(initialSvg, "fit");
         if (!active) return;
+        baselineRef.current = initialSvg;
+        draftKeyRef.current = `${DRAFT_PREFIX}${templateId}${loadedFromCloud ? `-${cloudFileIdRef.current}` : ""}`;
         setSvgMarkup(initialSvg);
         setHistory([initialSvg]);
         setHistoryIndex(0);
         setSaved(false);
         if (loadNotice) setError(loadNotice);
+        // An auto-saved draft from an earlier session (crash, power cut, closed tab)? Offer to bring it back.
+        try {
+          const rawDraft = window.localStorage.getItem(draftKeyRef.current);
+          if (rawDraft) {
+            const draft = JSON.parse(rawDraft) as { svgMarkup?: string; updatedAt?: string };
+            const age = draft.updatedAt ? Date.now() - new Date(draft.updatedAt).getTime() : Infinity;
+            if (draft.svgMarkup && draft.svgMarkup !== initialSvg && age < DRAFT_MAX_AGE_MS) {
+              setDraftOffer({ svgMarkup: draft.svgMarkup, updatedAt: draft.updatedAt || "" });
+            } else {
+              window.localStorage.removeItem(draftKeyRef.current);
+            }
+          }
+        } catch {
+          // Draft recovery is optional.
+        }
       } catch (loadError) {
         if (active) setError(loadError instanceof Error ? loadError.message : "Unable to open this template.");
       } finally {
@@ -1079,6 +1184,26 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
         event.preventDefault();
         const step = event.shiftKey ? 5 : 1;
         nudgeRef.current(event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0, event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0);
+        return;
+      }
+      if ((event.key === "Delete" || event.key === "Backspace") && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        // Delete / Backspace removes the selected layer directly from the canvas.
+        event.preventDefault();
+        deleteSelectedRef.current();
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && !event.shiftKey && ["c", "v", "d"].includes(event.key.toLowerCase())) {
+        const key = event.key.toLowerCase();
+        if (key === "c") {
+          // Leave normal browser copy alone when the user has highlighted some page text.
+          if ((window.getSelection()?.toString() || "").length > 0) return;
+          copySelectedRef.current();
+        } else if (key === "v") {
+          pasteSelectedRef.current();
+        } else {
+          event.preventDefault(); // Ctrl+D would otherwise bookmark the page.
+          duplicateSelectedRef.current();
+        }
         return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z" && !event.shiftKey) {
@@ -1497,6 +1622,82 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
       setError("Could not remove this layer.");
     }
   };
+  deleteSelectedRef.current = deleteSelected;
+
+  // Copy / paste / duplicate of the selected layer. The copy gets fresh ids and a small offset.
+  const copySelected = () => {
+    if (!selectedId || !svgMarkup) return;
+    try {
+      const doc = parseSvg(svgMarkup);
+      const element = findSvgElement(doc, selectedId);
+      if (!element || element.id === "background") return;
+      clipboardRef.current = { markup: new XMLSerializer().serializeToString(element), pasteCount: 0 };
+    } catch {
+      setError("Could not copy this layer.");
+    }
+  };
+  const pasteFromMarkup = (markup: string, offset: number, parentSource?: Element | null) => {
+    if (!svgMarkup) return;
+    try {
+      const doc = parseSvg(svgMarkup);
+      const holder = parseSvg(`<svg xmlns="${SVG_NS}">${markup}</svg>`);
+      const source = holder.documentElement.firstElementChild;
+      if (!source) return;
+      const clone = doc.importNode(source, true) as Element;
+      const stamp = Date.now();
+      let counter = 0;
+      const renew = (node: Element) => {
+        if (node.hasAttribute("id")) node.setAttribute("id", `${(node.getAttribute("id") || "layer").replace(/-copy-\d+(-\d+)?$/, "")}-copy-${stamp}-${counter++}`);
+        node.removeAttribute("data-pm-orig-guide");
+      };
+      renew(clone);
+      clone.querySelectorAll("[id]").forEach(renew);
+      const originalName = clone.getAttribute("data-layer-name");
+      if (originalName) clone.setAttribute("data-layer-name", `${originalName} copy`);
+      const move = getMove(clone);
+      setMove(clone, move.dx + offset, move.dy + offset);
+      const parent = parentSource?.parentNode ?? doc.documentElement;
+      parent.appendChild(clone);
+      commitSvg(serializeSvg(doc));
+      setSelectedId(clone.getAttribute("id") || "");
+    } catch {
+      setError("Could not paste this layer.");
+    }
+  };
+  const pasteSelected = () => {
+    const clip = clipboardRef.current;
+    if (!clip) return;
+    clip.pasteCount += 1;
+    pasteFromMarkup(clip.markup, 20 * clip.pasteCount);
+  };
+  const duplicateSelected = () => {
+    if (!selectedId || !svgMarkup) return;
+    try {
+      const doc = parseSvg(svgMarkup);
+      const element = findSvgElement(doc, selectedId);
+      if (!element || element.id === "background") return;
+      pasteFromMarkup(new XMLSerializer().serializeToString(element), 20, element);
+    } catch {
+      setError("Could not duplicate this layer.");
+    }
+  };
+  copySelectedRef.current = copySelected;
+  pasteSelectedRef.current = pasteSelected;
+  duplicateSelectedRef.current = duplicateSelected;
+
+  // Double-clicking a text layer on the canvas jumps straight into its text box.
+  const handleCanvasDoubleClick = (event: MouseEvent<HTMLDivElement>) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const editable = target.closest('[data-editable="true"]');
+    const tag = editable?.localName;
+    if (!editable || (tag !== "text" && tag !== "tspan")) return;
+    setShowProperties(true);
+    window.setTimeout(() => {
+      textAreaRef.current?.focus();
+      textAreaRef.current?.select();
+    }, 60);
+  };
 
   // Saves the design to "My Files" (preview image on Cloudinary + the editable SVG in the database).
   const saveToMyFiles = async (markup: string, currentTemplate: PrintMediaTemplate) => {
@@ -1584,6 +1785,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     try {
       await saveToMyFiles(markup, template);
       writeLocalSave(markup, template); // remember the My Files entry for the next Save
+      baselineRef.current = markup; // everything up to here is safely saved
       setSaved(true);
       notifyMyFilesSaved(1, "design");
     } catch (saveError) {
@@ -1844,7 +2046,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
 
       <div data-pm-keep-selection="true" className="sticky top-16 z-40 px-3 sm:px-5 py-3 border-b border-[#D9C9A9] bg-[#F7F0E2]/95 backdrop-blur-md shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
-          <button type="button" onClick={() => router.push("/print-media")} className="w-10 h-10 rounded-xl border border-[#E2D4B9] bg-white text-[#5B4A31] hover:text-[#DC2626] hover:border-[#DC2626] flex items-center justify-center shrink-0" aria-label="Back to templates">
+          <button type="button" onClick={goBackToTemplates} className="w-10 h-10 rounded-xl border border-[#E2D4B9] bg-white text-[#5B4A31] hover:text-[#DC2626] hover:border-[#DC2626] flex items-center justify-center shrink-0" aria-label="Back to templates">
             <ArrowLeft size={18} />
           </button>
           <div className="min-w-0">
@@ -1916,6 +2118,32 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
             </aside>
 
             <main className="min-w-0 space-y-3">
+              {draftOffer && (
+                <div className="rounded-2xl border border-[#F0C98F] bg-[#FFF6E5] px-4 py-3 text-[12px] text-[#5C4B32]">
+                  <p className="font-bold text-[#C2410C]"><T>আগের অসম্পূর্ণ কাজ পাওয়া গেছে</T></p>
+                  <p className="mt-1"><T>এই ডিজাইনে আপনার আগের কাজ অটো-সেভ করা আছে। ফিরিয়ে আনবেন?</T></p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <button type="button" onClick={restoreDraft} className="rounded-lg bg-[#DC2626] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#B91C1C]"><T>হ্যাঁ, ফিরিয়ে আনুন</T></button>
+                    <button type="button" onClick={discardDraft} className="rounded-lg border border-[#E2D4B9] bg-white px-3 py-1.5 text-[11px] font-bold text-[#5C4B32] hover:bg-[#F7DDB8]"><T>না, নতুন করে শুরু করব</T></button>
+                  </div>
+                </div>
+              )}
+              {showTips && (
+                <div className="rounded-2xl border border-[#F0C98F] bg-[#FFF6E5] px-4 py-3 text-[12px] text-[#5C4B32]">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="font-bold text-[#C2410C]"><T>ডিজাইন এডিট করার সহজ নিয়ম</T></p>
+                    <button type="button" onClick={dismissTips} className="shrink-0 rounded-lg bg-[#DC2626] px-3 py-1 text-[11px] font-bold text-white hover:bg-[#B91C1C]"><T>বুঝেছি</T></button>
+                  </div>
+                  <ul className="mt-1.5 grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                    <li><T>✏️ লেখায় ডাবল ক্লিক করলে লেখা বদলানো যাবে</T></li>
+                    <li><T>🖱️ অবজেক্ট ধরে টেনে সরান, কোণা ধরে ছোট-বড় করুন</T></li>
+                    <li><T>🖼️ ছবির ফ্রেমে ক্লিক করে ডান পাশ থেকে ছবি দিন</T></li>
+                    <li><T>🗑️ Delete চাপলে মুছবে, Ctrl+Z দিলে ফিরে আসবে</T></li>
+                    <li><T>📋 Ctrl+C / Ctrl+V কপি-পেস্ট, Ctrl+D ডুপ্লিকেট</T></li>
+                    <li><T>💾 কাজ শেষে Ctrl+S দিয়ে সেভ করুন (অটো-সেভ শুধু এই কম্পিউটারে থাকে)</T></li>
+                  </ul>
+                </div>
+              )}
               <div className="flex items-center justify-between gap-3 px-1">
                 <div className="text-[12px] font-semibold text-[#806E50] truncate">
                   {manifest?.physicalSizeLabel || template?.printSize} · {manifest?.physicalWidth ?? canvasDimensions.width} × {manifest?.physicalHeight ?? canvasDimensions.height} {manifest?.unit || "mm"}
@@ -1933,6 +2161,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                     id="pm-print-area"
                     ref={svgContainerRef}
                     onClick={handleSvgClick}
+                    onDoubleClick={handleCanvasDoubleClick}
                     onPointerDown={handleCanvasPointerDown}
                     className="pm-canvas bg-white shadow-[0_12px_40px_rgba(52,40,20,.18)] ring-1 ring-black/10"
                     style={{ ...canvasStyle, width: `${Math.round(760 * zoom / 100)}px`, flexShrink: 0 }}
