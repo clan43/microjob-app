@@ -776,6 +776,13 @@ const AI_EDITOR_BN_EXTRA: Record<string, string> = {
   "Small couple photo": "ছোট কাপল ছবি",
   "Couple photo": "কাপল ছবি",
   "Small dual": "ছোট ডুয়াল",
+  "Passport photo size": "পাসপোর্ট ছবির মাপ",
+  "Passport / MRP (default)": "পাসপোর্ট / MRP (ডিফল্ট)",
+  "College / job / form (4×5 cm)": "কলেজ / চাকরি / ফর্ম (৪×৫ সেমি)",
+  "ICAO / embassy / foreign visa": "ICAO / দূতাবাস / বিদেশি ভিসা",
+  "Online e-passport form / stamp": "অনলাইন ই-পাসপোর্ট ফর্ম / স্ট্যাম্প",
+  "US visa / DV lottery": "আমেরিকান ভিসা / ডিভি লটারি",
+  "Passport size must be between 10 and 150 mm.": "পাসপোর্ট মাপ ১০–১৫০ মিমির মধ্যে হতে হবে।",
 };
 
 function normalizeAiText(value: string): string {

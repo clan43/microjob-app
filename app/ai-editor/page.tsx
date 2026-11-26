@@ -1,6 +1,7 @@
 "use client";
 import { ADMISSION_PRESETS, parseAdmissionLabel, presetLabel } from "./_components/admissionSizes";
 import { DEFAULT_DUAL_SIZE, dualHalfLabel, dualLabelToMm } from "./_components/dualSizes";
+import { DEFAULT_PASSPORT_SIZE, passportLabelToMm } from "./_components/passportSizes";
 import { AiT, useAiEditorText } from "./_components/aiEditorI18n";
 import { buildImageUploadRequest } from "@/lib/clientUpload";
 import { notifyMyFilesSaved } from "@/app/_lib/myFilesNotice";
@@ -187,6 +188,8 @@ export default function PhotoEditorPage() {
     const [rotate, setRotate] = useState(0);
     const [showVisaPopup, setShowVisaPopup] = useState(false);
     const [selectedVisaSize, setSelectedVisaSize] = useState("35×45 mm");
+    // Passport: default 45×55 mm, other presets + custom size come from the dropdown under the size tiles.
+    const [selectedPassportSize, setSelectedPassportSize] = useState(DEFAULT_PASSPORT_SIZE);
     // Dual mode: size of the WHOLE two-person photo (each person gets half of the width).
     const [dualSizeLabel, setDualSizeLabel] = useState(DEFAULT_DUAL_SIZE);
     const dualSizeMm = dualLabelToMm(dualSizeLabel);
@@ -622,6 +625,8 @@ export default function PhotoEditorPage() {
         if (!selectedSize) return "Original Size";
         if (selectedSize === "Visa")
             return selectedVisaSize;
+        if (selectedSize === "Passport")
+            return selectedPassportSize;
         if (selectedSize === "Admission")
             return selectedAdmissionLabel;
         const found = photoSizes.find((p) => p.id === selectedSize);
@@ -635,7 +640,7 @@ export default function PhotoEditorPage() {
         if (sizeLabel.includes("inch")) {
             return 1.0;
         }
-        const match = sizeLabel.match(/(\d+)×(\d+)/);
+        const match = sizeLabel.match(/(\d+(?:\.\d+)?)×(\d+(?:\.\d+)?)/);
         if (match) {
             const w = parseFloat(match[1]);
             const h = parseFloat(match[2]);
@@ -712,6 +717,13 @@ export default function PhotoEditorPage() {
             return {
                 text: selectedVisaSize,
                 style: getStyleFromAspect(found ? found.aspect : "35/45"),
+            };
+        }
+        if (selectedSize === "Passport") {
+            const mm = passportLabelToMm(selectedPassportSize);
+            return {
+                text: selectedPassportSize,
+                style: getStyleFromAspect(`${mm.widthMm}/${mm.heightMm}`),
             };
         }
         if (selectedSize === "Admission") {
@@ -2165,6 +2177,7 @@ export default function PhotoEditorPage() {
         setPrintSession(null);
         setSelectedSize("");
         setSelectedVisaSize("35×45 mm");
+        setSelectedPassportSize(DEFAULT_PASSPORT_SIZE);
         setDualSizeLabel(DEFAULT_DUAL_SIZE);
         setSelectedAdmissionLabel(presetLabel(ADMISSION_PRESETS[0]));
         setShowAdmissionPopup(false);
@@ -2490,7 +2503,7 @@ export default function PhotoEditorPage() {
             Middle + QR = row 1 (fixed viewport-based height). "Recent photos" = row 2, aligned under the upload box + QR. */}
         <div className="ai-row relative flex flex-col lg:flex-row lg:flex-wrap xl:grid xl:grid-cols-[var(--ai-left-w)_minmax(0,1fr)] xl:grid-rows-[minmax(0,1fr)_auto] xl:flex-1 xl:min-h-0 w-full max-w-[1400px] xl:max-w-none gap-3 sm:gap-4 items-center lg:items-start xl:items-stretch min-w-0">
           <div className="w-full lg:w-[var(--ai-left-w-lg)] lg:shrink-0 xl:w-full xl:row-span-2 xl:min-h-0 xl:overflow-hidden flex flex-col [&>*]:flex-1 xl:[&>*]:min-h-0">
-            <GenerationSettings photoSizes={photoSizes} selectedSize={selectedSize} handleSizeClick={handleSizeClick} showVisaPopup={showVisaPopup} setShowVisaPopup={setShowVisaPopup} visaSizesList={visaSizesList} showAdmissionPopup={showAdmissionPopup} setShowAdmissionPopup={setShowAdmissionPopup} selectedAdmissionLabel={selectedAdmissionLabel} setSelectedAdmissionLabel={setSelectedAdmissionLabel} selectedVisaSize={selectedVisaSize} setSelectedVisaSize={setSelectedVisaSize} setSelectedSize={setSelectedSize} isDualMode={isDualMode} exitDualMode={exitDualMode} dualSizeLabel={dualSizeLabel} setDualSizeLabel={setDualSizeLabel} backgroundColors={backgroundColors} selectedBg={selectedBg} setSelectedBg={setSelectedBg} setShowColorPicker={setShowColorPicker} showColorPicker={showColorPicker} customBgColor={customBgColor} setCustomBgColor={setCustomBgColor} selectedClothing={selectedClothing} setSelectedClothing={handleClothingSelectionChange} selectedClothingColor={selectedClothingColor} setSelectedClothingColor={setSelectedClothingColor} onEditingGuidesChange={handleEditingGuidesChange} applyGuidesSignal={applyGuidesSignal} onResetSettings={handleResetSettings} leftClothing={leftClothing} setLeftClothing={setLeftClothing} rightClothing={rightClothing} setRightClothing={setRightClothing} leftClothingColor={leftClothingColor} setLeftClothingColor={setLeftClothingColor} rightClothingColor={rightClothingColor} setRightClothingColor={setRightClothingColor} colorPickerRef={colorPickerRef} visaPopupRef={visaPopupRef} onGenerate={handleGeneratePhoto} onOpenSetupWizard={isDualMode ? undefined : openSetupWizardFromButton} isGenerating={isGenerating}/>
+            <GenerationSettings photoSizes={photoSizes} selectedSize={selectedSize} handleSizeClick={handleSizeClick} showVisaPopup={showVisaPopup} setShowVisaPopup={setShowVisaPopup} visaSizesList={visaSizesList} showAdmissionPopup={showAdmissionPopup} setShowAdmissionPopup={setShowAdmissionPopup} selectedAdmissionLabel={selectedAdmissionLabel} setSelectedAdmissionLabel={setSelectedAdmissionLabel} selectedVisaSize={selectedVisaSize} setSelectedVisaSize={setSelectedVisaSize} selectedPassportSize={selectedPassportSize} setSelectedPassportSize={setSelectedPassportSize} setSelectedSize={setSelectedSize} isDualMode={isDualMode} exitDualMode={exitDualMode} dualSizeLabel={dualSizeLabel} setDualSizeLabel={setDualSizeLabel} backgroundColors={backgroundColors} selectedBg={selectedBg} setSelectedBg={setSelectedBg} setShowColorPicker={setShowColorPicker} showColorPicker={showColorPicker} customBgColor={customBgColor} setCustomBgColor={setCustomBgColor} selectedClothing={selectedClothing} setSelectedClothing={handleClothingSelectionChange} selectedClothingColor={selectedClothingColor} setSelectedClothingColor={setSelectedClothingColor} onEditingGuidesChange={handleEditingGuidesChange} applyGuidesSignal={applyGuidesSignal} onResetSettings={handleResetSettings} leftClothing={leftClothing} setLeftClothing={setLeftClothing} rightClothing={rightClothing} setRightClothing={setRightClothing} leftClothingColor={leftClothingColor} setLeftClothingColor={setLeftClothingColor} rightClothingColor={rightClothingColor} setRightClothingColor={setRightClothingColor} colorPickerRef={colorPickerRef} visaPopupRef={visaPopupRef} onGenerate={handleGeneratePhoto} onOpenSetupWizard={isDualMode ? undefined : openSetupWizardFromButton} isGenerating={isGenerating}/>
           </div>
 
           <div className="w-full min-w-0 lg:flex-1 lg:basis-0 xl:flex-1 flex flex-col [&>*]:flex-1 xl:min-h-0 xl:[&>*]:min-h-0">

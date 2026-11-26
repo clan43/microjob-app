@@ -21,6 +21,7 @@ import AdmissionPicker from "./AdmissionPicker";
 import { CLOTHING_NAMES } from "./clothingStyles";
 import AiEditorVideoGuide from "./AiEditorVideoGuide";
 import { DEFAULT_DUAL_SIZE, DUAL_CUSTOM_ID, DUAL_SIZE_PRESETS, buildCustomDualLabel, isPresetDualLabel, type DualUnit } from "./dualSizes";
+import { DEFAULT_PASSPORT_SIZE, PASSPORT_CUSTOM_ID, PASSPORT_SIZE_PRESETS, buildCustomPassportLabel, isPresetPassportLabel, type PassportUnit } from "./passportSizes";
 export interface PhotoSizeOption {
   id: string;
   label: string;
@@ -47,6 +48,9 @@ export interface GenerationSettingsProps {
   setSelectedAdmissionLabel?: (label: string) => void;
   selectedVisaSize?: string;
   setSelectedVisaSize?: (size: string) => void;
+  /** Passport mode: size label of ONE passport photo (e.g. "45×55 mm"). */
+  selectedPassportSize?: string;
+  setSelectedPassportSize?: (size: string) => void;
   setSelectedSize?: (size: string) => void;
   isDualMode?: boolean;
   exitDualMode?: (nextSize?: string) => void;
@@ -481,6 +485,8 @@ export default function GenerationSettings({
   setSelectedAdmissionLabel = () => {},
   selectedVisaSize = "",
   setSelectedVisaSize = () => {},
+  selectedPassportSize = DEFAULT_PASSPORT_SIZE,
+  setSelectedPassportSize = () => {},
   setSelectedSize = () => {},
   isDualMode = false,
   exitDualMode = () => {},
@@ -613,6 +619,23 @@ export default function GenerationSettings({
     if (label) setDualSizeLabel(label);
   };
   const dualCustomInvalid = dualCustomOpen && !buildCustomDualLabel(dualCustomW, dualCustomH, dualCustomUnit);
+  // Passport photo size: preset dropdown (default 45×55 mm) + custom width/height.
+  const [passportCustomOpen, setPassportCustomOpen] = useState(() => !isPresetPassportLabel(selectedPassportSize));
+  const [passportCustomW, setPassportCustomW] = useState("45");
+  const [passportCustomH, setPassportCustomH] = useState("55");
+  const [passportCustomUnit, setPassportCustomUnit] = useState<PassportUnit>("mm");
+  useEffect(() => {
+    if (isPresetPassportLabel(selectedPassportSize)) setPassportCustomOpen(false);
+  }, [selectedPassportSize]);
+  const applyPassportCustom = (w: string, h: string, unit: PassportUnit) => {
+    setPassportCustomW(w);
+    setPassportCustomH(h);
+    setPassportCustomUnit(unit);
+    const label = buildCustomPassportLabel(w, h, unit);
+    if (label) setSelectedPassportSize(label);
+  };
+  const passportCustomInvalid =
+    passportCustomOpen && !buildCustomPassportLabel(passportCustomW, passportCustomH, passportCustomUnit);
   const [internalLeftColor, setInternalLeftColor] = useState("#EF4444");
   const [internalRightColor, setInternalRightColor] = useState("#EF4444");
   const dualLeftColor = setLeftClothingColor ? leftClothingColor : internalLeftColor;
@@ -1098,6 +1121,86 @@ export default function GenerationSettings({
                   {dualCustomInvalid && (
                     <p className="text-[11px] leading-snug text-[#DC2626]">
                       <AiT>{"Dual size must be wider than tall, between 20 and 300 mm."}</AiT>
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!isDualMode && selectedSize === "Passport" && (
+            <div className="gs-passport-size mt-2 rounded-xl border border-[#E3D6B8] bg-[#FBF6E8] p-2.5">
+              <label className="mb-1 block text-[12px] font-semibold text-[#3B2F1E] xl:text-sm">
+                <AiT>{"Passport photo size"}</AiT>
+              </label>
+              <select
+                value={passportCustomOpen ? PASSPORT_CUSTOM_ID : selectedPassportSize}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  if (value === PASSPORT_CUSTOM_ID) {
+                    setPassportCustomOpen(true);
+                    applyPassportCustom(passportCustomW, passportCustomH, passportCustomUnit);
+                    return;
+                  }
+                  setPassportCustomOpen(false);
+                  setSelectedPassportSize(value);
+                }}
+                className="w-full cursor-pointer rounded-lg border border-[#E3D6B8] bg-white px-2 py-2 text-[13px] text-[#3B2F1E] outline-none focus:border-[#DC2626]"
+              >
+                {PASSPORT_SIZE_PRESETS.map((preset) => (
+                  <option key={preset.id} value={preset.label}>
+                    {preset.label} — {t(preset.note)}
+                  </option>
+                ))}
+                <option value={PASSPORT_CUSTOM_ID}>{t("Custom size")}</option>
+              </select>
+              {passportCustomOpen && (
+                <div className="mt-2 space-y-2">
+                  <div className="flex items-center gap-1">
+                    {(["mm", "cm", "inch"] as PassportUnit[]).map((unit) => (
+                      <button
+                        key={unit}
+                        type="button"
+                        onClick={() => applyPassportCustom(passportCustomW, passportCustomH, unit)}
+                        className={`cursor-pointer rounded-md border px-2.5 py-1 text-[12px] ${
+                          passportCustomUnit === unit
+                            ? "border-[#DC2626] bg-[#DC2626]/10 font-medium text-[#DC2626]"
+                            : "border-[#E3D6B8] text-[#3B2F1E] hover:bg-[#EFE3C8]"
+                        }`}
+                      >
+                        {t(unit)}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="text-[11px] text-stone-500">
+                      {t("Width")}
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="any"
+                        value={passportCustomW}
+                        onChange={(event) => applyPassportCustom(event.target.value, passportCustomH, passportCustomUnit)}
+                        className="mt-0.5 w-full rounded-lg border border-[#E3D6B8] bg-white px-2 py-1.5 text-[13px] text-[#3B2F1E] outline-none focus:border-[#DC2626]"
+                      />
+                    </label>
+                    <label className="text-[11px] text-stone-500">
+                      {t("Height")}
+                      <input
+                        type="number"
+                        inputMode="decimal"
+                        min="0"
+                        step="any"
+                        value={passportCustomH}
+                        onChange={(event) => applyPassportCustom(passportCustomW, event.target.value, passportCustomUnit)}
+                        className="mt-0.5 w-full rounded-lg border border-[#E3D6B8] bg-white px-2 py-1.5 text-[13px] text-[#3B2F1E] outline-none focus:border-[#DC2626]"
+                      />
+                    </label>
+                  </div>
+                  {passportCustomInvalid && (
+                    <p className="text-[11px] leading-snug text-[#DC2626]">
+                      <AiT>{"Passport size must be between 10 and 150 mm."}</AiT>
                     </p>
                   )}
                 </div>
