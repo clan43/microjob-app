@@ -28,6 +28,7 @@ import {
   PRINT_MEDIA_TEMPLATES,
   type PrintMediaTemplate,
 } from "./templateCatalog";
+import SvgPreviewImage from "./SvgPreviewImage";
 
 // Templates that rotate in the small featured strip at the top of the default (unfiltered) view.
 const SPOTLIGHT_TEMPLATE_IDS = [9, 16, 7, 8, 6, 12, 2, 1];
@@ -535,8 +536,7 @@ export default function PrintMediaPage() {
                         className="absolute inset-0 z-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#DC2626]"
                       />
                       <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-3 sm:p-6 xl:p-4">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <SvgPreviewImage
                           src={template.previewUrl}
                           alt={template.title}
                           loading={template.id > 10 ? "lazy" : "eager"}
@@ -637,8 +637,7 @@ export default function PrintMediaPage() {
                   <ChevronLeft size={22} />
                 </button>
               )}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <SvgPreviewImage
                 key={previewTemplate.id}
                 src={previewTemplate.previewUrl}
                 alt={previewTemplate.title}
