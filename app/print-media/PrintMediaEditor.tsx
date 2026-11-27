@@ -15,6 +15,7 @@ import {
   LoaderCircle,
   Redo2,
   Save,
+  Scissors,
   SlidersHorizontal,
   Trash2,
   Type,
@@ -25,6 +26,7 @@ import {
 import { useRouter } from "next/navigation";
 import { type ChangeEvent, type MouseEvent, type PointerEvent as ReactPointerEvent, type DragEvent as ReactDragEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PRINT_MEDIA_TEMPLATES, type PrintMediaTemplate } from "./templateCatalog";
+import { friendlyCutoutError, removePhotoBackground, type CutoutStage } from "./photoCutout";
 
 type Manifest = {
   id: string;
@@ -260,6 +262,98 @@ function findClipShape(root: ParentNode, element: Element): Element | null {
   return clip?.firstElementChild ?? null;
 }
 
+// ---- Text resize (drag a corner handle to make the text bigger / smaller) ----
+type TextScaleBase = { size: number; stroke: number; spans: { el: Element; size: number }[] };
+
+function readSizeValue(element: Element): number {
+  const inline = /font-size\s*:\s*([\d.]+)/.exec(element.getAttribute("style") || "");
+  const raw = inline ? inline[1] : element.getAttribute("font-size") || "";
+  const value = parseFloat(raw);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function readTextScaleBase(element: Element, computedSize: number): TextScaleBase {
+  const spans: { el: Element; size: number }[] = [];
+  element.querySelectorAll("tspan").forEach((span) => {
+    const size = readSizeValue(span);
+    if (size > 0) spans.push({ el: span, size });
+  });
+  return { size: computedSize, stroke: parseFloat(element.getAttribute("stroke-width") || "") || 0, spans };
+}
+
+function writeFontSize(element: Element, size: number) {
+  const value = String(Math.round(size * 100) / 100);
+  element.setAttribute("font-size", value);
+  const inline = element.getAttribute("style") || "";
+  if (/font-size\s*:/.test(inline)) element.setAttribute("style", inline.replace(/font-size\s*:\s*[^;]+/, `font-size:${value}px`));
+}
+
+function applyTextScale(element: Element, base: TextScaleBase, scale: number) {
+  writeFontSize(element, base.size * scale);
+  base.spans.forEach((item) => writeFontSize(item.el, item.size * scale));
+  if (base.stroke > 0) element.setAttribute("stroke-width", String(Math.round(base.stroke * scale * 100) / 100));
+}
+
+// ---- Photo framing: the photo lives inside a fixed frame (the clip shape). The person can drag it
+// and zoom it so the face is not cut. The view is stored on the image as data-pm-* attributes:
+//   zoom (1 = just covers the frame), cx/cy (0..1 = which part of the photo sits in the frame), nw/nh (natural size).
+const PHOTO_MAX_ZOOM = 4;
+type PhotoView = { zoom: number; cx: number; cy: number; nw: number; nh: number };
+
+function clampNumber(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function isFramedPhoto(element: Element | null): boolean {
+  return !!element && element.localName.toLowerCase() === "image" && (element.getAttribute("data-layer-name") || "").startsWith("Uploaded image for");
+}
+
+function readPhotoFrame(root: ParentNode, image: Element): { x: number; y: number; w: number; h: number } | null {
+  const shape = readShape(findClipShape(root, image));
+  if (!shape) return null;
+  const box = shapeBox(shape);
+  return box.w > 0 && box.h > 0 ? box : null;
+}
+
+function readPhotoView(image: Element): PhotoView {
+  const num = (name: string, fallback: number) => {
+    const value = parseFloat(image.getAttribute(name) || "");
+    return Number.isFinite(value) ? value : fallback;
+  };
+  return {
+    zoom: clampNumber(num("data-pm-zoom", 1), 1, PHOTO_MAX_ZOOM),
+    cx: clampNumber(num("data-pm-cx", 0.5), 0, 1),
+    cy: clampNumber(num("data-pm-cy", 0.5), 0, 1),
+    nw: num("data-pm-nw", 0),
+    nh: num("data-pm-nh", 0),
+  };
+}
+
+// Sets x/y/width/height so the photo covers the frame at the given zoom and position.
+function applyPhotoView(image: Element, frame: { x: number; y: number; w: number; h: number }, view: PhotoView): boolean {
+  if (!(view.nw > 0 && view.nh > 0)) return false;
+  const zoom = clampNumber(view.zoom, 1, PHOTO_MAX_ZOOM);
+  const cx = clampNumber(view.cx, 0, 1);
+  const cy = clampNumber(view.cy, 0, 1);
+  const cover = Math.max(frame.w / view.nw, frame.h / view.nh) * zoom;
+  const w = view.nw * cover;
+  const h = view.nh * cover;
+  const r = (n: number) => String(Math.round(n * 100) / 100);
+  image.setAttribute("preserveAspectRatio", "none");
+  image.setAttribute("x", r(frame.x - (w - frame.w) * cx));
+  image.setAttribute("y", r(frame.y - (h - frame.h) * cy));
+  image.setAttribute("width", r(w));
+  image.setAttribute("height", r(h));
+  image.setAttribute("data-pm-zoom", String(Math.round(zoom * 1000) / 1000));
+  image.setAttribute("data-pm-cx", String(Math.round(cx * 1000) / 1000));
+  image.setAttribute("data-pm-cy", String(Math.round(cy * 1000) / 1000));
+  image.setAttribute("data-pm-nw", String(view.nw));
+  image.setAttribute("data-pm-nh", String(view.nh));
+  return true;
+}
+
+const PHOTO_VIEW_ATTRS = ["preserveAspectRatio", "x", "y", "width", "height", "data-pm-zoom", "data-pm-cx", "data-pm-cy", "data-pm-nw", "data-pm-nh"];
+
 function getMove(element: Element): { dx: number; dy: number } {
   return { dx: parseFloat(element.getAttribute("data-dx") || "0") || 0, dy: parseFloat(element.getAttribute("data-dy") || "0") || 0 };
 }
@@ -319,6 +413,177 @@ function colorToHex(value: string): string | null {
 }
 
 // Number box that lets the person type freely (e.g. "-", "12.") and only commits valid numbers.
+// ---- Simple form mode: every text on the poster becomes a labelled box, every photo frame a photo slot.
+// Templates can name things precisely with data-form-field / data-form-label on the SVG element;
+// otherwise the label is guessed from the text (phone, ward/union) or numbered.
+type FormText = { id: string; label: string; kind: "name" | "ward" | "phone" | "other"; value: string; multiline: boolean; tagged: boolean };
+type FormPhoto = { frameId: string; imageId: string | null; label: string; href: string | null };
+
+const FORM_FIELD_LABELS: Record<string, { label: string; kind: FormText["kind"] }> = {
+  name: { label: "নাম", kind: "name" },
+  candidate: { label: "নাম", kind: "name" },
+  ward: { label: "ওয়ার্ড / ইউনিয়ন", kind: "ward" },
+  union: { label: "ওয়ার্ড / ইউনিয়ন", kind: "ward" },
+  area: { label: "ওয়ার্ড / ইউনিয়ন", kind: "ward" },
+  phone: { label: "ফোন নম্বর", kind: "phone" },
+  mobile: { label: "ফোন নম্বর", kind: "phone" },
+  position: { label: "পদবি", kind: "other" },
+  designation: { label: "পদবি", kind: "other" },
+  slogan: { label: "স্লোগান", kind: "other" },
+  party: { label: "দলের নাম", kind: "other" },
+  symbol: { label: "প্রতীক", kind: "other" },
+  address: { label: "ঠিকানা", kind: "other" },
+};
+const PHONE_RE = /(?:\+?(?:88|৮৮))?[0০][1১][3-9৩-৯][\d০-৯\s-]{7,}/;
+const PHONE_WORD_RE = /মোবাইল|ফোন|হটলাইন|mobile|phone|call/i;
+const WARD_RE = /ওয়ার্ড|ইউনিয়ন|ইউপি|পৌরসভা|উপজেলা|ward|union/i;
+
+const toBanglaDigits = (n: number) => String(n).replace(/\d/g, (d) => "০১২৩৪৫৬৭৮৯"[Number(d)]);
+
+function isHiddenInSvg(element: Element, root: Element): boolean {
+  let node: Element | null = element;
+  while (node && node !== root.parentElement) {
+    if (node.getAttribute("display") === "none" || /display\s*:\s*none/.test(node.getAttribute("style") || "")) return true;
+    node = node.parentElement;
+  }
+  return false;
+}
+
+function readFormFields(markup: string): { texts: FormText[]; photos: FormPhoto[] } {
+  const empty = { texts: [] as FormText[], photos: [] as FormPhoto[] };
+  if (!markup || typeof DOMParser === "undefined") return empty;
+  try {
+    const doc = parseSvg(markup);
+    const root = doc.documentElement;
+    const found: Array<FormText & { order: number; y: number }> = [];
+    let order = 0;
+    root.querySelectorAll('text[data-editable="true"]').forEach((element) => {
+      const id = element.getAttribute("id") || "";
+      if (!id || element.getAttribute("data-form-skip") === "true" || element.getAttribute("data-print") === "false") return;
+      if (isInsideNonRender(element, root) || isHiddenInSvg(element, root)) return;
+      const value = readTextValue(element);
+      if (!value.trim()) return;
+      const tag = (element.getAttribute("data-form-field") || "").trim().toLowerCase();
+      const known = FORM_FIELD_LABELS[tag];
+      const customLabel = element.getAttribute("data-form-label") || "";
+      let kind: FormText["kind"] = known?.kind ?? "other";
+      let label = customLabel || known?.label || "";
+      if (!label) {
+        if (PHONE_RE.test(value) || PHONE_WORD_RE.test(value)) {
+          kind = "phone";
+          label = "ফোন নম্বর";
+        } else if (WARD_RE.test(value)) {
+          kind = "ward";
+          label = "ওয়ার্ড / ইউনিয়ন";
+        }
+      }
+      const y = parseFloat(element.getAttribute("y") || "0") + getMove(element).dy;
+      found.push({ id, label, kind, value, multiline: value.includes("\n"), tagged: !!(tag || customLabel), order: order++, y: Number.isFinite(y) ? y : 0 });
+    });
+    // Named fields first, then everything else from top to bottom of the poster.
+    found.sort((a, b) => (a.tagged === b.tagged ? (a.y === b.y ? a.order - b.order : a.y - b.y) : a.tagged ? -1 : 1));
+    let counter = 0;
+    const texts: FormText[] = found.map((item) => {
+      if (!item.label) counter += 1;
+      return { id: item.id, label: item.label || `লেখা ${toBanglaDigits(counter)}`, kind: item.kind, value: item.value, multiline: item.multiline, tagged: item.tagged };
+    });
+
+    const photos: FormPhoto[] = [];
+    let photoNo = 0;
+    root.querySelectorAll('[data-object-type="image"]').forEach((frame) => {
+      if (frame.localName === "image") return;
+      const frameId = frame.getAttribute("id") || "";
+      if (!frameId || isInsideNonRender(frame, root)) return;
+      const previous = frame.previousElementSibling;
+      const filledImage = previous && previous.localName === "image" && (previous.getAttribute("data-layer-name") || "").startsWith("Uploaded image for") ? previous : null;
+      if (!filledImage && frame.hasAttribute("data-pm-orig-guide")) return;
+      photoNo += 1;
+      photos.push({
+        frameId,
+        imageId: filledImage?.getAttribute("id") || null,
+        label: frame.getAttribute("data-form-label") || `ছবি ${toBanglaDigits(photoNo)}`,
+        href: filledImage ? filledImage.getAttribute("href") || filledImage.getAttribute("xlink:href") : null,
+      });
+    });
+    return { texts, photos };
+  } catch {
+    return empty;
+  }
+}
+
+// A text box that keeps what the person types, waits for a short pause (and for Bangla keyboards to finish
+// composing a letter) before it changes the poster, so typing never jumps or drops letters.
+function FormTextField({ value, label, multiline, onFocusField, onCommit }: { value: string; label: string; multiline: boolean; onFocusField: () => void; onCommit: (value: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  const [focused, setFocused] = useState(false);
+  const composing = useRef(false);
+  const timer = useRef<number | null>(null);
+  const latest = useRef(value);
+  const commitRef = useRef(onCommit);
+  commitRef.current = onCommit;
+  useEffect(() => {
+    if (!focused) {
+      setDraft(value);
+      latest.current = value;
+    }
+  }, [value, focused]);
+  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
+  const flush = (next: string) => {
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = null;
+    if (next !== latest.current) {
+      latest.current = next;
+      commitRef.current(next);
+    }
+  };
+  const schedule = (next: string) => {
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => flush(next), 450);
+  };
+  const common = {
+    value: draft,
+    className: "w-full rounded-lg border border-[#D9C7A5] bg-white px-3 py-2 text-[13px] text-[#332A1D] outline-none focus:border-[#DC2626] focus:ring-2 focus:ring-[#DC2626]/15",
+    onFocus: () => {
+      setFocused(true);
+      onFocusField();
+    },
+    onBlur: () => {
+      setFocused(false);
+      flush(draft);
+    },
+    onCompositionStart: () => { composing.current = true; },
+    onCompositionEnd: (event: { currentTarget: { value: string } }) => {
+      composing.current = false;
+      setDraft(event.currentTarget.value);
+      schedule(event.currentTarget.value);
+    },
+  };
+  return (
+    <label className="block">
+      <span className="mb-1 block text-[11px] font-bold text-[#6F5B3C]">{label}</span>
+      {multiline ? (
+        <textarea
+          {...common}
+          rows={3}
+          onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
+            setDraft(event.target.value);
+            if (!composing.current) schedule(event.target.value);
+          }}
+        />
+      ) : (
+        <input
+          type="text"
+          {...common}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => {
+            setDraft(event.target.value);
+            if (!composing.current) schedule(event.target.value);
+          }}
+        />
+      )}
+    </label>
+  );
+}
+
 function NumberField({ value, onCommit, className }: { value: string; onCommit: (value: string) => void; className?: string }) {
   const [draft, setDraft] = useState(value);
   const [focused, setFocused] = useState(false);
@@ -935,8 +1200,9 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     };
   }, [loading]);
 
-  const openUploadFor = (frameId: string) => {
+  const openUploadFor = (frameId: string, replaceImageId = "") => {
     pendingFrameRef.current = frameId;
+    pendingReplaceRef.current = replaceImageId ? { frameId, imageId: replaceImageId } : null;
     setSelectedId(frameId);
     imageInputRef.current?.click();
   };
@@ -991,12 +1257,31 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     return (found as SVGGraphicsElement | undefined) ?? null;
   };
 
+  // ---- photo framing + background removal state
+  const updateElementByIdRef = useRef<(id: string, attribute: string, value: string) => void>(() => {});
+  const pendingReplaceRef = useRef<{ frameId: string; imageId: string } | null>(null);
+  const [leftTab, setLeftTab] = useState<"form" | "layers">("form");
+  const [showAllTexts, setShowAllTexts] = useState(false);
+  const formFields = useMemo(() => readFormFields(svgMarkup), [svgMarkup]);
+  const photoMetaRef = useRef(new Map<string, { nw: number; nh: number }>());
+  const photoZoomDirtyRef = useRef(false);
+  const commitSvgRef = useRef<(markup: string) => void>(() => {});
+  const [photoUi, setPhotoUi] = useState<{ zoom: number; cutout: boolean; ready: boolean } | null>(null);
+  const [cutoutBusy, setCutoutBusy] = useState<{ id: string; stage: CutoutStage; percent: number | null } | null>(null);
+  const [cutoutError, setCutoutError] = useState("");
+
+  const getPhotoMeta = (element: Element, id: string): { nw: number; nh: number } | null => {
+    const view = readPhotoView(element);
+    if (view.nw > 0 && view.nh > 0) return { nw: view.nw, nh: view.nh };
+    return photoMetaRef.current.get(id) ?? null;
+  };
+
   // Places the four resize handles on the selected image / frame / shape.
   const updateSelBox = (idOverride?: string) => {
     const wrap = printWrapRef.current;
     const svg = svgContainerRef.current?.querySelector("svg");
     const element = findLiveElement(idOverride ?? selectedId);
-    if (!wrap || !svg || !element || !RESIZE_ATTRS[element.localName.toLowerCase()]) {
+    if (!wrap || !svg || !element || !(RESIZE_ATTRS[element.localName.toLowerCase()] || element.localName.toLowerCase() === "text")) {
       setSelBox(null);
       return;
     }
@@ -1011,8 +1296,19 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
       setSelBox(null);
       return;
     }
-    const rect = element.getBoundingClientRect();
     const base = wrap.getBoundingClientRect();
+    if (isFramedPhoto(element)) {
+      // Show the frame, not the (bigger) zoomed photo behind it.
+      const frame = readPhotoFrame(svg, element);
+      const ctm = element.getScreenCTM();
+      if (frame && ctm) {
+        const left = ctm.a * frame.x + ctm.c * frame.y + ctm.e;
+        const top = ctm.b * frame.x + ctm.d * frame.y + ctm.f;
+        setSelBox({ left: left - base.left, top: top - base.top, width: ctm.a * frame.w, height: ctm.d * frame.h });
+        return;
+      }
+    }
+    const rect = element.getBoundingClientRect();
     setSelBox({ left: rect.left - base.left, top: rect.top - base.top, width: rect.width, height: rect.height });
   };
 
@@ -1026,10 +1322,70 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     const matrix = svg?.getScreenCTM();
     if (!svg || !liveElement || !matrix || !matrix.a) return;
     const unitsPerPx = 1 / matrix.a;
+
+    // Text: dragging a corner changes the font size; the opposite corner stays where it is.
+    if (liveElement.localName.toLowerCase() === "text") {
+      const parentMatrix = (liveElement.parentNode as SVGGraphicsElement | null)?.getScreenCTM?.();
+      if (!parentMatrix) return;
+      const inv = parentMatrix.inverse();
+      const startRect = liveElement.getBoundingClientRect();
+      const computed = parseFloat(window.getComputedStyle(liveElement).fontSize) || readSizeValue(liveElement);
+      if (startRect.width <= 0 || startRect.height <= 0 || !(computed > 0)) return;
+      const textBase = readTextScaleBase(liveElement, computed);
+      const isEast = corner.includes("e");
+      const isSouth = corner.includes("s");
+      const anchorX = isEast ? startRect.left : startRect.right;
+      const anchorY = isSouth ? startRect.top : startRect.bottom;
+      const originX = event.clientX;
+      const originY = event.clientY;
+      const startMove = getMove(liveElement);
+      let curDx = startMove.dx;
+      let curDy = startMove.dy;
+      let textScale = 1;
+
+      const onTextMove = (moveEvent: PointerEvent) => {
+        moveEvent.preventDefault();
+        const sx = ((isEast ? 1 : -1) * (moveEvent.clientX - originX) + startRect.width) / startRect.width;
+        const sy = ((isSouth ? 1 : -1) * (moveEvent.clientY - originY) + startRect.height) / startRect.height;
+        textScale = Math.min(12, Math.max(0.1, Math.max(sx, sy)));
+        applyTextScale(liveElement, textBase, textScale);
+        const rect = liveElement.getBoundingClientRect();
+        const shiftX = anchorX - (isEast ? rect.left : rect.right);
+        const shiftY = anchorY - (isSouth ? rect.top : rect.bottom);
+        curDx += inv.a * shiftX + inv.c * shiftY;
+        curDy += inv.b * shiftX + inv.d * shiftY;
+        setMove(liveElement, curDx, curDy);
+        updateSelBox(id);
+      };
+      const onTextUp = () => {
+        window.removeEventListener("pointermove", onTextMove);
+        window.removeEventListener("pointerup", onTextUp);
+        window.removeEventListener("pointercancel", onTextUp);
+        if (Math.abs(textScale - 1) < 0.001) return;
+        try {
+          const doc = parseSvg(svgMarkup);
+          const docElement = findSvgElement(doc, id);
+          if (!docElement) return;
+          // The person chose this size on purpose: stop auto-fitting this text.
+          docElement.removeAttribute("data-pm-maxw");
+          docElement.removeAttribute("data-pm-fs");
+          applyTextScale(docElement, readTextScaleBase(docElement, computed), textScale);
+          setMove(docElement, curDx, curDy);
+          commitSvg(serializeSvg(doc));
+        } catch {
+          setError("Could not resize the text.");
+        }
+      };
+      window.addEventListener("pointermove", onTextMove, { passive: false });
+      window.addEventListener("pointerup", onTextUp);
+      window.addEventListener("pointercancel", onTextUp);
+      return;
+    }
+
     const primary = readShape(liveElement);
     if (!primary) return;
     const liveClip = readShape(findClipShape(svg, liveElement));
-    const box = shapeBox(primary);
+    const box = isFramedPhoto(liveElement) && liveClip ? shapeBox(liveClip) : shapeBox(primary);
     if (box.w <= 0 || box.h <= 0) return;
     const east = corner.includes("e");
     const south = corner.includes("s");
@@ -1072,6 +1428,32 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
   };
+  // Reads the selected photo's zoom for the panel, and learns its natural size when an older design lacks it.
+  useEffect(() => {
+    const element = selectedId ? findLiveElement(selectedId) : null;
+    const root = svgContainerRef.current;
+    if (!element || !root || !isFramedPhoto(element) || !findClipShape(root, element)) {
+      setPhotoUi(null);
+      return;
+    }
+    const view = readPhotoView(element);
+    const known = (view.nw > 0 && view.nh > 0) || photoMetaRef.current.has(selectedId);
+    setPhotoUi({ zoom: view.zoom, cutout: element.getAttribute("data-pm-cutout") === "1", ready: known });
+    if (known) return;
+    let cancelled = false;
+    const probe = new Image();
+    probe.onload = () => {
+      if (cancelled || !(probe.naturalWidth > 0)) return;
+      photoMetaRef.current.set(selectedId, { nw: probe.naturalWidth, nh: probe.naturalHeight });
+      setPhotoUi((current) => (current ? { ...current, ready: true } : current));
+    };
+    probe.src = element.getAttribute("href") || element.getAttribute("xlink:href") || "";
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId, svgMarkup]);
+
   const printDesignRef = useRef<() => Promise<void>>(async () => {});
 
   const templateFromCatalog = useMemo(
@@ -1304,12 +1686,94 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     setHistoryIndex(nextHistory.length - 1);
     setSaved(false);
   };
+  commitSvgRef.current = commitSvg;
 
-  const updateSelected = (attribute: string, value: string) => {
-    if (!selectedId || !svgMarkup) return;
+  // ---- photo framing actions
+  const applyPhotoLive = (id: string, patch: Partial<PhotoView>) => {
+    const element = findLiveElement(id);
+    const root = svgContainerRef.current;
+    if (!element || !root) return false;
+    const frame = readPhotoFrame(root, element);
+    const meta = getPhotoMeta(element, id);
+    if (!frame || !meta) return false;
+    const next: PhotoView = { ...readPhotoView(element), nw: meta.nw, nh: meta.nh, ...patch };
+    if (!applyPhotoView(element, frame, next)) return false;
+    setPhotoUi((current) => (current ? { ...current, zoom: clampNumber(next.zoom, 1, PHOTO_MAX_ZOOM) } : current));
+    updateSelBox(id);
+    return true;
+  };
+
+  // Copies the live photo position/zoom into the saved markup (one undo step).
+  const commitPhotoFromLive = (id: string) => {
+    const element = findLiveElement(id);
+    if (!element || !svgMarkup) return;
     try {
       const doc = parseSvg(svgMarkup);
-      const element = findSvgElement(doc, selectedId);
+      const target = findSvgElement(doc, id);
+      if (!target) return;
+      for (const name of PHOTO_VIEW_ATTRS) {
+        const value = element.getAttribute(name);
+        if (value !== null) target.setAttribute(name, value);
+      }
+      commitSvg(serializeSvg(doc));
+    } catch {
+      setError("Could not update the photo.");
+    }
+  };
+
+  const previewPhotoZoom = (value: number) => {
+    if (!selectedId) return;
+    photoZoomDirtyRef.current = true;
+    applyPhotoLive(selectedId, { zoom: value });
+  };
+
+  const commitPhotoZoom = () => {
+    if (!photoZoomDirtyRef.current || !selectedId) return;
+    photoZoomDirtyRef.current = false;
+    commitPhotoFromLive(selectedId);
+  };
+
+  const resetPhotoView = () => {
+    if (!selectedId) return;
+    if (applyPhotoLive(selectedId, { zoom: 1, cx: 0.5, cy: 0.5 })) commitPhotoFromLive(selectedId);
+  };
+
+  // One click: removes the photo background with the same AI as the Remove Background tool.
+  const removeSelectedBackground = async () => {
+    const id = selectedId;
+    if (!id || cutoutBusy) return;
+    const element = findLiveElement(id);
+    const href = element?.getAttribute("href") || element?.getAttribute("xlink:href") || "";
+    if (!href.startsWith("data:")) {
+      setCutoutError("এই ছবির ব্যাকগ্রাউন্ড মোছা যাচ্ছে না। ছবিটি আবার আপলোড করে চেষ্টা করুন।");
+      return;
+    }
+    setCutoutError("");
+    setCutoutBusy({ id, stage: "download", percent: null });
+    try {
+      const result = await removePhotoBackground(href, (stage, percent) => {
+        setCutoutBusy((current) => (current && current.id === id ? { id, stage, percent } : current));
+      });
+      const doc = parseSvg(latestMarkupRef.current);
+      const target = findSvgElement(doc, id);
+      if (!target) return;
+      target.removeAttribute("xlink:href");
+      target.setAttribute("href", result);
+      target.setAttribute("data-pm-cutout", "1");
+      commitSvgRef.current(serializeSvg(doc));
+    } catch (cutoutFailure) {
+      console.error("[Print Media] Background removal failed:", cutoutFailure);
+      setCutoutError(friendlyCutoutError(cutoutFailure));
+    } finally {
+      setCutoutBusy(null);
+    }
+  };
+
+  const updateElementById = (targetId: string, attribute: string, value: string) => {
+    if (!targetId || !svgMarkup) return;
+    try {
+      const doc = parseSvg(svgMarkup);
+      const element = findSvgElement(doc, targetId);
       if (!element) return;
       if (attribute === "textContent") {
         const text = cleanBanglaText(value);
@@ -1354,13 +1818,16 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
       }
       let nextMarkup = serializeSvg(doc);
       if (attribute === "textContent" || attribute === "font-family" || attribute === "font-weight") {
-        nextMarkup = autoFitText(nextMarkup, "fit", selectedId);
+        nextMarkup = autoFitText(nextMarkup, "fit", targetId);
       }
       commitSvg(nextMarkup);
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : "Could not update this element.");
     }
   };
+
+  const updateSelected = (attribute: string, value: string) => updateElementById(selectedId, attribute, value);
+  updateElementByIdRef.current = updateElementById;
 
   const updateCoordinate = (axis: "x" | "y", value: string) => {
     if (!selectedId || !svgMarkup) return;
@@ -1462,6 +1929,47 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     const id = editable.getAttribute("id") || "";
     if (!id) return;
     setSelectedId(id);
+
+    // A photo inside its frame: dragging pans the photo inside the frame (hold Shift to move the whole photo).
+    if (isFramedPhoto(editable) && !event.shiftKey) {
+      const frame = readPhotoFrame(container, editable);
+      const meta = getPhotoMeta(editable, id);
+      const parentMatrix = (editable.parentNode as SVGGraphicsElement | null)?.getScreenCTM?.();
+      if (frame && meta && parentMatrix && parentMatrix.a && parentMatrix.d) {
+        const startView: PhotoView = { ...readPhotoView(editable), nw: meta.nw, nh: meta.nh };
+        if (!editable.hasAttribute("data-pm-nw")) applyPhotoView(editable, frame, startView);
+        const startX = event.clientX;
+        const startY = event.clientY;
+        const cover = Math.max(frame.w / meta.nw, frame.h / meta.nh) * startView.zoom;
+        const spareX = meta.nw * cover - frame.w;
+        const spareY = meta.nh * cover - frame.h;
+        let panned = false;
+        const onPanMove = (moveEvent: PointerEvent) => {
+          if (!panned && Math.hypot(moveEvent.clientX - startX, moveEvent.clientY - startY) < 3) return;
+          panned = true;
+          moveEvent.preventDefault();
+          const dx = (moveEvent.clientX - startX) / parentMatrix.a;
+          const dy = (moveEvent.clientY - startY) / parentMatrix.d;
+          applyPhotoLive(id, {
+            cx: spareX > 0.5 ? clampNumber(startView.cx - dx / spareX, 0, 1) : startView.cx,
+            cy: spareY > 0.5 ? clampNumber(startView.cy - dy / spareY, 0, 1) : startView.cy,
+          });
+        };
+        const onPanUp = () => {
+          window.removeEventListener("pointermove", onPanMove);
+          window.removeEventListener("pointerup", onPanUp);
+          window.removeEventListener("pointercancel", onPanUp);
+          if (!panned) return;
+          suppressClickRef.current = true;
+          window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+          commitPhotoFromLive(id);
+        };
+        window.addEventListener("pointermove", onPanMove, { passive: false });
+        window.addEventListener("pointerup", onPanUp);
+        window.addEventListener("pointercancel", onPanUp);
+        return;
+      }
+    }
 
     // The big page background is selectable (colour change) but is not dragged around.
     const svg = container.querySelector("svg");
@@ -1584,10 +2092,12 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     event.target.value = "";
     const frameId = pendingFrameRef.current || selectedId;
     pendingFrameRef.current = "";
-    if (file) placeImageFile(file, frameId);
+    const replace = pendingReplaceRef.current && pendingReplaceRef.current.frameId === frameId ? pendingReplaceRef.current.imageId : "";
+    pendingReplaceRef.current = null;
+    if (file) placeImageFile(file, frameId, replace);
   };
 
-  const placeImageFile = (file: File, frameId: string) => {
+  const placeImageFile = (file: File, frameId: string, replaceImageId = "") => {
     if (!file || !frameId || !svgMarkup) return;
     if (!file.type.startsWith("image/")) {
       setError("Please choose an image file.");
@@ -1600,6 +2110,12 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     const reader = new FileReader();
     reader.onload = () => {
       if (typeof reader.result !== "string") return;
+      const dataUrl = reader.result;
+      const probe = new Image();
+      probe.onload = () => build(probe.naturalWidth, probe.naturalHeight);
+      probe.onerror = () => build(0, 0);
+      probe.src = dataUrl;
+      const build = (naturalW: number, naturalH: number) => {
       try {
         const doc = parseSvg(svgMarkup);
         const frame = findSvgElement(doc, frameId);
@@ -1642,6 +2158,15 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
           clipShape.setAttribute("rx", frame.getAttribute("rx") || "0");
         }
 
+        if (replaceImageId) {
+          // Changing a photo: remove the old one (and its clip) so the new photo takes its place.
+          const old = findSvgElement(doc, replaceImageId);
+          if (old && old.localName === "image") {
+            findClipShape(doc, old)?.parentElement?.remove();
+            old.remove();
+          }
+        }
+
         const clipId = `uploaded-photo-clip-${Date.now()}`;
         let defs = doc.documentElement.querySelector("defs");
         if (!defs) {
@@ -1659,13 +2184,15 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
         image.setAttribute("data-layer-name", `Uploaded image for ${frame.getAttribute("data-layer-name") || frameId}`);
         image.setAttribute("data-editable", "true");
         image.setAttribute("data-object-type", "image");
-        image.setAttribute("href", reader.result);
+        image.setAttribute("href", dataUrl);
         image.setAttribute("x", String(x));
         image.setAttribute("y", String(y));
         image.setAttribute("width", String(width));
         image.setAttribute("height", String(height));
         image.setAttribute("preserveAspectRatio", "xMidYMid slice");
         image.setAttribute("clip-path", `url(#${clipId})`);
+        // Cover the frame at zoom 1 with the photo centred; the person can then drag and zoom it.
+        applyPhotoView(image, { x, y, w: width, h: height }, { zoom: 1, cx: 0.5, cy: 0.5, nw: naturalW, nh: naturalH });
         frame.parentNode?.insertBefore(image, frame);
         hideFrameGuide(frame);
 
@@ -1680,6 +2207,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
       } catch (uploadError) {
         setError(uploadError instanceof Error ? uploadError.message : "Could not place this image.");
       }
+      };
     };
     reader.onerror = () => setError("The selected image could not be read.");
     reader.readAsDataURL(file);
@@ -2171,7 +2699,64 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
           </div>
         ) : (
           <div className="grid grid-cols-1 xl:grid-cols-[250px_minmax(0,1fr)_290px] gap-4 items-start">
-            <aside className="bg-[#F8F1E4] border border-[#E2D4B9] rounded-2xl shadow-sm overflow-hidden">
+            <aside className="order-2 xl:order-1 bg-[#F8F1E4] border border-[#E2D4B9] rounded-2xl shadow-sm overflow-hidden">
+              <div data-pm-keep-selection="true" className="grid grid-cols-2 border-b border-[#E2D4B9] bg-[#F3E8D3] p-1 gap-1">
+                <button type="button" onClick={() => setLeftTab("form")} className={`rounded-lg py-2 text-[12px] font-extrabold transition ${leftTab === "form" ? "bg-white text-[#DC2626] shadow-sm" : "text-[#7A6A4C] hover:text-[#DC2626]"}`}><T>সহজ ফর্ম</T></button>
+                <button type="button" onClick={() => setLeftTab("layers")} className={`rounded-lg py-2 text-[12px] font-extrabold transition ${leftTab === "layers" ? "bg-white text-[#DC2626] shadow-sm" : "text-[#7A6A4C] hover:text-[#DC2626]"}`}><T>বিস্তারিত এডিট</T></button>
+              </div>
+              {leftTab === "form" ? (
+                <div data-pm-keep-selection="true" className="p-3 space-y-4 max-h-[70vh] overflow-y-auto">
+                  <p className="text-[11px] leading-4 text-[#7A6A4C]"><T>এখানে লিখলেই পোস্টারে বদলে যাবে। ছবি, রং বা জায়গা বদলাতে চাইলে “বিস্তারিত এডিট” ট্যাবে যান।</T></p>
+                  {formFields.photos.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-extrabold text-[#5D4B31]"><T>ছবি</T></p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {formFields.photos.map((photo) => (
+                          <button
+                            type="button"
+                            key={photo.frameId}
+                            onClick={() => openUploadFor(photo.frameId, photo.imageId || "")}
+                            className="group relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-[#D9B98A] bg-white text-[#A06A32] hover:border-[#DC2626] hover:text-[#DC2626]"
+                          >
+                            {photo.href ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={photo.href} alt={photo.label} className="absolute inset-0 h-full w-full object-cover" />
+                            ) : (
+                              <Upload size={20} />
+                            )}
+                            <span className={`relative mt-1 rounded-md px-2 py-0.5 text-[11px] font-bold ${photo.href ? "bg-black/60 text-white" : ""}`}>
+                              {photo.href ? <T>ছবি বদলান</T> : <>{photo.label} · <T>ছবি দিন</T></>}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {formFields.texts.length > 0 ? (
+                    <div className="space-y-3">
+                      <p className="text-xs font-extrabold text-[#5D4B31]"><T>লেখা</T></p>
+                      {(showAllTexts ? formFields.texts : formFields.texts.slice(0, 8)).map((field) => (
+                        <FormTextField
+                          key={field.id}
+                          label={field.label}
+                          value={field.value}
+                          multiline={field.multiline}
+                          onFocusField={() => setSelectedId(field.id)}
+                          onCommit={(next) => updateElementByIdRef.current(field.id, "textContent", next)}
+                        />
+                      ))}
+                      {formFields.texts.length > 8 && (
+                        <button type="button" onClick={() => setShowAllTexts((value) => !value)} className="w-full rounded-xl border border-[#D9C7A5] bg-white py-2 text-xs font-bold text-[#785B32] hover:border-[#DC2626] hover:text-[#DC2626]">
+                          {showAllTexts ? <T>কম দেখান</T> : <><T>আরও লেখা দেখান</T> ({formFields.texts.length - 8})</>}
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[#927D5B]"><T>এই ডিজাইনে বদলানোর মতো লেখা পাওয়া যায়নি।</T></p>
+                  )}
+                </div>
+              ) : (
+              <>
               <button type="button" onClick={() => setShowLayers((value) => !value)} className="w-full flex items-center justify-between px-4 py-3 border-b border-[#E2D4B9] font-bold text-sm">
                 <span className="flex items-center gap-2"><Layers3 size={16} className="text-[#DC2626]" /><T>Layers</T> <span className="text-xs text-[#907B58]">({layers.length})</span></span>
                 <ChevronDown size={15} className={`transition-transform ${showLayers ? "rotate-180" : ""}`} />
@@ -2198,9 +2783,11 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                 <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={addImage} />
               </div>
               <p className="px-3 pb-3 text-[10px] leading-4 text-[#907B58]"><T>ক্যানভাসে কোনো অবজেক্টে ক্লিক করুন অথবা লেয়ার তালিকা থেকে নির্বাচন করুন।</T></p>
+              </>
+              )}
             </aside>
 
-            <main className="min-w-0 space-y-3">
+            <main className="order-1 xl:order-2 min-w-0 space-y-3">
               {draftOffer && (
                 <div className="rounded-2xl border border-[#F0C98F] bg-[#FFF6E5] px-4 py-3 text-[12px] text-[#5C4B32]">
                   <p className="font-bold text-[#C2410C]"><T>আগের অসম্পূর্ণ কাজ পাওয়া গেছে</T></p>
@@ -2281,7 +2868,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                       data-pm-keep-selection="true"
                       onPointerDown={startResize(corner)}
                       className="pm-resize-handle"
-                      title="Drag to resize"
+                      title="টেনে সাইজ বড়/ছোট করুন"
                       style={{
                         left: selBox.left + (corner.includes("e") ? selBox.width : 0) - 7,
                         top: selBox.top + (corner.includes("s") ? selBox.height : 0) - 7,
@@ -2294,7 +2881,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
               <p className="text-[11px] text-[#8B7656] px-1"><T>ক্যানভাসের ফাঁকা জায়গা বা বাইরে ক্লিক করলে নির্বাচিত অবজেক্টের selection উঠে যাবে। Print / PDF আলাদা print page খুলে সঠিক মাপে প্রিন্ট করবে।</T></p>
             </main>
 
-            <aside className="bg-[#F8F1E4] border border-[#E2D4B9] rounded-2xl shadow-sm overflow-hidden flex flex-col xl:sticky xl:top-[136px] xl:max-h-[calc(100vh-148px)]">
+            <aside className="order-3 bg-[#F8F1E4] border border-[#E2D4B9] rounded-2xl shadow-sm overflow-hidden flex flex-col xl:sticky xl:top-[136px] xl:max-h-[calc(100vh-148px)]">
               <button type="button" onClick={() => setShowProperties((value) => !value)} className="w-full flex items-center justify-between px-4 py-3 border-b border-[#E2D4B9] font-bold text-sm">
                 <span className="inline-flex items-center"><SlidersHorizontal size={16} className="mr-2 text-[#DC2626]" /><T>Properties</T></span>
                 <ChevronDown size={15} className={`transition-transform ${showProperties ? "rotate-180" : ""}`} />
@@ -2439,6 +3026,52 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                             <span className="text-xs font-bold text-[#6F5B3C]"><T>Height</T></span>
                             <input type="number" min="1" value={selectedLayer.height} onChange={(event: ChangeEvent<HTMLInputElement>) => updateSelected("height", event.target.value)} className="pm-property-input" />
                           </label>
+                        </div>
+                      )}
+                      {photoUi && (
+                        <div data-pm-keep-selection="true" className="space-y-3 rounded-xl border border-[#E2D4B9] bg-[#FFFBF2] p-3">
+                          <p className="text-xs font-extrabold text-[#5D4B31]"><T>ছবি ঠিক করুন</T></p>
+                          <p className="text-[11px] leading-4 text-[#7A6A4C]"><T>ছবির ওপর আঙুল বা মাউস দিয়ে টেনে মুখ ঠিক জায়গায় আনুন। নিচের স্লাইডারে ছবি ছোট-বড় করুন।</T></p>
+                          <label className="block">
+                            <span className="text-xs font-bold text-[#6F5B3C]"><T>জুম</T> · {Math.round(photoUi.zoom * 100)}%</span>
+                            <input
+                              type="range"
+                              min="100"
+                              max={PHOTO_MAX_ZOOM * 100}
+                              step="5"
+                              value={Math.round(photoUi.zoom * 100)}
+                              disabled={!photoUi.ready}
+                              onChange={(event: ChangeEvent<HTMLInputElement>) => previewPhotoZoom(Number(event.target.value) / 100)}
+                              onPointerUp={commitPhotoZoom}
+                              onKeyUp={commitPhotoZoom}
+                              onBlur={commitPhotoZoom}
+                              className="w-full accent-[#DC2626] disabled:opacity-50"
+                            />
+                          </label>
+                          <button type="button" onClick={resetPhotoView} disabled={!photoUi.ready} className="w-full rounded-xl border border-[#D9C7A5] bg-white py-2 text-xs font-bold text-[#785B32] hover:border-[#DC2626] hover:text-[#DC2626] disabled:opacity-50">
+                            <T>ছবি আগের অবস্থায় আনুন</T>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void removeSelectedBackground()}
+                            disabled={!!cutoutBusy || photoUi.cutout}
+                            className="w-full flex items-center justify-center gap-2 rounded-xl bg-[#DC2626] py-2.5 text-xs font-extrabold text-white hover:bg-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {cutoutBusy ? <LoaderCircle size={15} className="animate-spin" /> : photoUi.cutout ? <Check size={15} /> : <Scissors size={15} />}
+                            {photoUi.cutout ? <T>ব্যাকগ্রাউন্ড মুছে গেছে</T> : <T>ব্যাকগ্রাউন্ড মুছুন</T>}
+                          </button>
+                          {cutoutBusy ? (
+                            <p className="text-[11px] leading-4 text-[#7A6A4C]">
+                              {cutoutBusy.stage === "download"
+                                ? <T>AI মডেল প্রস্তুত হচ্ছে (শুধু প্রথমবার একটু সময় লাগে)…</T>
+                                : cutoutBusy.stage === "process"
+                                  ? <T>ব্যাকগ্রাউন্ড মোছা হচ্ছে, একটু অপেক্ষা করুন…</T>
+                                  : <T>ছবির কিনারা পরিষ্কার করা হচ্ছে…</T>}
+                              {cutoutBusy.stage === "download" && cutoutBusy.percent !== null ? ` ${cutoutBusy.percent}%` : ""}
+                            </p>
+                          ) : null}
+                          {photoUi.cutout && !cutoutBusy ? <p className="text-[11px] leading-4 text-[#7A6A4C]"><T>ভুল হলে ওপরের Undo চাপলে আগের ছবি ফিরে আসবে।</T></p> : null}
+                          {cutoutError ? <p className="text-[11px] leading-4 font-semibold text-red-600">{cutoutError}</p> : null}
                         </div>
                       )}
                       {selectedLayer.objectType === "image" && (
