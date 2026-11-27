@@ -1,4 +1,5 @@
 import Subscription from "@/models/Subscription";
+import { computeStackedPeriod } from "@/app/api/_lib/subscriptionStacking";
 
 const PAYMENTLY_BASE_URL = (
   process.env.PAYMENTLY_BASE_URL || "https://test-app.paymently.io/api"
@@ -250,16 +251,8 @@ export async function verifyAndActivateSubscription(
     };
   }
 
-  const now = new Date();
-  const currentExpiry = subscription.expiresAt
-    ? new Date(subscription.expiresAt)
-    : null;
-  const startsAt =
-    currentExpiry && currentExpiry.getTime() > now.getTime()
-      ? currentExpiry
-      : now;
-  const expiresAt = new Date(startsAt);
-  expiresAt.setDate(expiresAt.getDate() + days);
+  // Stack on top of any paid access the customer already has (not only this record's own expiry).
+  const { startedAt: startsAt, expiresAt } = await computeStackedPeriod(subscription.userId, days, subscription._id);
 
   subscription.invoiceId = normalizedInvoiceId;
   subscription.paymentStatus = "COMPLETED";

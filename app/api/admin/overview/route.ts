@@ -7,6 +7,33 @@ import { PRESENCE_STALE_AFTER_MS } from "@/lib/presenceConstants";
 import { getAdminCredentials } from "@/lib/adminCredentials";
 import { requireAdmin } from "../_lib/adminAuth";
 import { buildInsights } from "./_insights";
+import { getUserAccessEnds } from "@/app/api/_lib/subscriptionStacking";
+
+/**
+ * Customers whose TOTAL paid access (all stacked plans + manual access) ends soon.
+ * Counted per customer, so someone who already bought a longer plan after this one is not "ending".
+ */
+async function countExpiringCustomers(now: Date) {
+  const day = 86_400_000;
+  const weekEnd = new Date(now.getTime() + 7 * day);
+  const rows = await Subscription.aggregate([
+    { $match: { paymentStatus: "COMPLETED", accessStatus: "ACTIVE", expiresAt: { $gt: now } } },
+    { $group: { _id: "$userId", end: { $max: "$expiresAt" } } },
+    { $match: { end: { $lte: weekEnd } } },
+  ]);
+  const ends = await getUserAccessEnds(rows.map((row: any) => row._id), now);
+  let week = 0;
+  let three = 0;
+  let oneDay = 0;
+  for (const end of ends.values()) {
+    const left = end.getTime() - now.getTime();
+    if (left <= 0 || left > 7 * day) continue;
+    week += 1;
+    if (left <= 3 * day) three += 1;
+    if (left <= day) oneDay += 1;
+  }
+  return { week, three, day: oneDay };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +80,6 @@ export async function GET(request: Request) {
     const sevenDaysAgo = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000);
     const startOfMonth = new Date(`${dayKey(now).slice(0, 7)}-01T00:00:00+06:00`);
     const previousWeekStart = new Date(now.getTime() - 13 * 24 * 60 * 60 * 1000);
-    const nextSevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
     const realPaymentMatch = {
       paymentStatus: "COMPLETED",
       invoiceId: { $not: /^MOCK-/i },
@@ -77,9 +103,7 @@ export async function GET(request: Request) {
       bannedUsers,
       districtRows,
       revenueThisMonthRows,
-      expiringSoon,
-      expiringLastDay,
-      expiringThreeDays,
+      expiringCounts,
     ] = await Promise.all([
       User.countDocuments(databaseUserFilter),
       User.countDocuments({ ...databaseUserFilter, lastSeenAt: { $gte: activeCutoff } }),
@@ -128,21 +152,7 @@ export async function GET(request: Request) {
         { $match: { ...realPaymentMatch, createdAt: { $gte: startOfMonth } } },
         { $group: { _id: null, total: { $sum: "$amount" } } },
       ]),
-      Subscription.countDocuments({
-        paymentStatus: "COMPLETED",
-        accessStatus: "ACTIVE",
-        expiresAt: { $gt: now, $lte: nextSevenDays },
-      }),
-      Subscription.countDocuments({
-        paymentStatus: "COMPLETED",
-        accessStatus: "ACTIVE",
-        expiresAt: { $gt: now, $lte: new Date(now.getTime() + 24 * 60 * 60 * 1000) },
-      }),
-      Subscription.countDocuments({
-        paymentStatus: "COMPLETED",
-        accessStatus: "ACTIVE",
-        expiresAt: { $gt: now, $lte: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000) },
-      }),
+      countExpiringCustomers(now),
     ]);
 
     // Manual withdrawals recorded by the admin are subtracted from revenue.
@@ -210,9 +220,9 @@ export async function GET(request: Request) {
           bannedUsers,
           paidConversionPercent,
           revenueThisMonth: Number(revenueThisMonthRows[0]?.total || 0),
-          expiringSoon,
-          expiringLastDay,
-          expiringThreeDays,
+          expiringSoon: expiringCounts.week,
+          expiringLastDay: expiringCounts.day,
+          expiringThreeDays: expiringCounts.three,
           topDistrict,
         },
         weeklyRegistrations,

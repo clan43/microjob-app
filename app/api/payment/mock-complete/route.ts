@@ -6,6 +6,7 @@ import User from "@/models/User";
 import Subscription from "@/models/Subscription";
 import { getSubscriptionPlan } from "@/app/api/_lib/subscriptionPlans";
 
+import { computeStackedPeriod } from "@/app/api/_lib/subscriptionStacking";
 export const dynamic = "force-dynamic";
 
 const JWT_SECRET = getJwtSecret();
@@ -90,13 +91,12 @@ export async function POST(request: Request) {
       invoiceId: `MOCK-${Date.now()}`,
     });
 
-    const expiresAt = new Date(now);
-    expiresAt.setDate(expiresAt.getDate() + plan.days);
+    const { startedAt, expiresAt } = await computeStackedPeriod(user._id, plan.days, subscription._id, now);
 
     subscription.set({
       transactionId: `MOCK-TRX-${Date.now()}`,
       paymentMethod: "Nagad Personal (MOCK)",
-      startedAt: now,
+      startedAt,
       expiresAt,
     });
 
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
         planName: plan.name,
         paymentStatus: subscription.paymentStatus,
         accessStatus: subscription.accessStatus,
-        startedAt: now,
+        startedAt,
         expiresAt,
       },
     });

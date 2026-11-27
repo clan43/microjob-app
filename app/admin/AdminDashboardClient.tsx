@@ -146,6 +146,16 @@ type SubscriptionRow = {
   paymentStatus: string;
   accessStatus: string;
   startedAt?: string | null;
+  /** When the customer actually bought it (startedAt may be later when the plan is stacked). */
+  purchasedAt?: string | null;
+  /** Bought already, but starts later because an earlier plan is still running. */
+  isQueued?: boolean;
+  /** Days of the earlier plan that were added in front of this one. */
+  carriedOverDays?: number;
+  /** This plan ends, but the customer's access continues on a later plan. */
+  isRenewed?: boolean;
+  /** When the customer's TOTAL paid access ends (all stacked plans). */
+  accessEndsAt?: string | null;
   expiresAt?: string | null;
   createdAt?: string | null;
   imagesGenerated?: number | null;
@@ -372,6 +382,26 @@ function boughtAgoLabel(startedAt?: string | null) {
   const days = Math.floor((Date.now() - time) / 86_400_000);
   if (days <= 0) return "Today";
   return days === 1 ? "Yesterday" : `${days} days ago`;
+}
+
+/** Extra lines that explain stacked plans: when it really starts, and where total access ends. */
+function stackedNotes(item: SubscriptionRow) {
+  const notes: { key: string; text: string; tone: "info" | "muted" }[] = [];
+  if (item.isQueued && item.startedAt) {
+    const carried = item.carriedOverDays && item.carriedOverDays > 0
+      ? ` · ${item.carriedOverDays} day${item.carriedOverDays === 1 ? "" : "s"} carried over from the current plan`
+      : "";
+    notes.push({ key: "queued", text: `Starts ${formatDate(item.startedAt)} (after current plan)${carried}`, tone: "info" });
+  }
+  if (item.isRenewed && item.accessEndsAt) {
+    const total = expiryInfo(item.accessEndsAt);
+    notes.push({
+      key: "renewed",
+      text: `Renewed · total access until ${formatDate(item.accessEndsAt)}${total.text ? ` (${total.text})` : ""}`,
+      tone: "info",
+    });
+  }
+  return notes;
 }
 
 const EXPIRY_TEXT: Record<"ok" | "soon" | "gone" | "none", string> = {
@@ -1906,8 +1936,8 @@ export default function AdminDashboardClient() {
                           {formatDate(item.expiresAt)}
                         </div>
                         {exp.text && (
-                          <div className={`mt-0.5 text-xs font-semibold ${EXPIRY_TEXT[exp.tone]}`}>
-                            {exp.text}
+                          <div className={`mt-0.5 text-xs font-semibold ${item.isRenewed ? "text-[#7A6A50]" : EXPIRY_TEXT[exp.tone]}`}>
+                            {item.isRenewed ? `This plan: ${exp.text}` : exp.text}
                           </div>
                         )}
                       </>
@@ -1916,9 +1946,14 @@ export default function AdminDashboardClient() {
                     )}
                     <div className="mt-1 text-xs text-[#7A6A50]">
                       {item.startedAt
-                        ? `Bought ${boughtAgoLabel(item.startedAt)} · ${formatDate(item.startedAt)}`
+                        ? `Bought ${boughtAgoLabel(item.purchasedAt || item.startedAt)} · ${formatDate(item.purchasedAt || item.startedAt)}`
                         : "Not activated"}
                     </div>
+                    {stackedNotes(item).map((note) => (
+                      <div key={note.key} className="mt-0.5 max-w-[260px] text-xs font-semibold leading-4 text-[#4338CA]">
+                        {note.text}
+                      </div>
+                    ))}
                     {item.imagesGenerated != null && (
                       <div className="mt-0.5 text-xs font-medium text-[#5A4A32]">
                         {item.imagesGenerated.toLocaleString("en-BD")} images generated
@@ -1982,10 +2017,15 @@ export default function AdminDashboardClient() {
                 ) : (
                   "No access period"
                 )}
-                {item.startedAt ? ` · Bought ${boughtAgoLabel(item.startedAt)}` : ""}
+                {item.startedAt ? ` · Bought ${boughtAgoLabel(item.purchasedAt || item.startedAt)}` : ""}
                 {item.imagesGenerated != null
                   ? ` · ${item.imagesGenerated.toLocaleString("en-BD")} images`
                   : ""}
+                {stackedNotes(item).map((note) => (
+                  <div key={note.key} className="mt-0.5 font-semibold text-[#4338CA]">
+                    {note.text}
+                  </div>
+                ))}
               </div>
               {paymentMeta(item)}
               {item.reviewNote && (
@@ -2071,8 +2111,8 @@ export default function AdminDashboardClient() {
           <div className="flex items-center justify-between gap-3">
             <dt className="shrink-0 text-[#7A6A50]">Bought</dt>
             <dd className="text-right font-medium text-[#3B2F1E]">
-              {boughtAgoLabel(item.startedAt)}
-              <span className="font-normal text-[#7A6A50]"> · {formatDate(item.startedAt)}</span>
+              {boughtAgoLabel(item.purchasedAt || item.startedAt)}
+              <span className="font-normal text-[#7A6A50]"> · {formatDate(item.purchasedAt || item.startedAt)}</span>
             </dd>
           </div>
           <div className="flex items-center justify-between gap-3">
