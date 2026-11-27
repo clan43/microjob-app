@@ -417,7 +417,7 @@ function colorToHex(value: string): string | null {
 // Templates can name things precisely with data-form-field / data-form-label on the SVG element;
 // otherwise the label is guessed from the text (phone, ward/union) or numbered.
 type FormText = { id: string; label: string; kind: "name" | "ward" | "phone" | "other"; value: string; multiline: boolean; tagged: boolean };
-type FormPhoto = { frameId: string; imageId: string | null; label: string; href: string | null };
+type FormPhoto = { frameId: string; imageId: string | null; label: string; href: string | null; cutout: boolean };
 
 const FORM_FIELD_LABELS: Record<string, { label: string; kind: FormText["kind"] }> = {
   name: { label: "নাম", kind: "name" },
@@ -503,6 +503,7 @@ function readFormFields(markup: string): { texts: FormText[]; photos: FormPhoto[
         imageId: filledImage?.getAttribute("id") || null,
         label: frame.getAttribute("data-form-label") || `ছবি ${toBanglaDigits(photoNo)}`,
         href: filledImage ? filledImage.getAttribute("href") || filledImage.getAttribute("xlink:href") : null,
+        cutout: filledImage?.getAttribute("data-pm-cutout") === "1",
       });
     });
     return { texts, photos };
@@ -1147,10 +1148,28 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     try { window.localStorage.removeItem(draftKeyRef.current); } catch { /* ignore */ }
     setDraftOffer(null);
   };
+  const [leaveDialog, setLeaveDialog] = useState(false);
   const goBackToTemplates = () => {
-    if (hasUnsavedChanges() && !window.confirm("আপনার পরিবর্তনগুলো এখনো সেভ হয়নি। সেভ না করেই বের হবেন?")) return;
+    if (hasUnsavedChanges()) {
+      setLeaveDialog(true);
+      return;
+    }
     router.push("/print-media");
   };
+  const saveAndLeave = async () => {
+    await saveDesign();
+    // saveDesign marks everything as saved only when it worked; otherwise stay and show its error message.
+    if (!hasUnsavedChanges()) router.push("/print-media");
+    else setLeaveDialog(false);
+  };
+  useEffect(() => {
+    if (!leaveDialog) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !savingRef.current) setLeaveDialog(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [leaveDialog]);
 
   const printWrapRef = useRef<HTMLDivElement>(null);
   const [selBox, setSelBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
@@ -1739,8 +1758,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
   };
 
   // One click: removes the photo background with the same AI as the Remove Background tool.
-  const removeSelectedBackground = async () => {
-    const id = selectedId;
+  const removeBackgroundFor = async (id: string) => {
     if (!id || cutoutBusy) return;
     const element = findLiveElement(id);
     const href = element?.getAttribute("href") || element?.getAttribute("xlink:href") || "";
@@ -1826,6 +1844,7 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
     }
   };
 
+  const removeSelectedBackground = () => removeBackgroundFor(selectedId);
   const updateSelected = (attribute: string, value: string) => updateElementById(selectedId, attribute, value);
   updateElementByIdRef.current = updateElementById;
 
@@ -2710,25 +2729,68 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
                   {formFields.photos.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-xs font-extrabold text-[#5D4B31]"><T>ছবি</T></p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {formFields.photos.map((photo) => (
-                          <button
-                            type="button"
-                            key={photo.frameId}
-                            onClick={() => openUploadFor(photo.frameId, photo.imageId || "")}
-                            className="group relative flex aspect-square flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-[#D9B98A] bg-white text-[#A06A32] hover:border-[#DC2626] hover:text-[#DC2626]"
-                          >
-                            {photo.href ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={photo.href} alt={photo.label} className="absolute inset-0 h-full w-full object-cover" />
-                            ) : (
-                              <Upload size={20} />
-                            )}
-                            <span className={`relative mt-1 rounded-md px-2 py-0.5 text-[11px] font-bold ${photo.href ? "bg-black/60 text-white" : ""}`}>
-                              {photo.href ? <T>ছবি বদলান</T> : <>{photo.label} · <T>ছবি দিন</T></>}
-                            </span>
-                          </button>
-                        ))}
+                      <div className="space-y-3">
+                        {formFields.photos.map((photo) => {
+                          const busy = !!photo.imageId && cutoutBusy?.id === photo.imageId;
+                          return photo.imageId && photo.href ? (
+                            <div key={photo.frameId} className="rounded-xl border border-[#E2D4B9] bg-white p-2.5">
+                              <div className="flex gap-3">
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedId(photo.imageId || "")}
+                                  className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-[#E2D4B9]"
+                                  style={{ backgroundImage: "linear-gradient(45deg,#e5e7eb 25%,transparent 25%),linear-gradient(-45deg,#e5e7eb 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#e5e7eb 75%),linear-gradient(-45deg,transparent 75%,#e5e7eb 75%)", backgroundSize: "12px 12px", backgroundPosition: "0 0,0 6px,6px -6px,-6px 0", backgroundColor: "#fff" }}
+                                  aria-label={photo.label}
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={photo.href} alt={photo.label} className="h-full w-full object-contain" />
+                                </button>
+                                <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => void removeBackgroundFor(photo.imageId || "")}
+                                    disabled={!!cutoutBusy || photo.cutout}
+                                    className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#DC2626] px-2 py-2 text-[12px] font-extrabold text-white shadow-sm transition hover:bg-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {busy ? <LoaderCircle size={14} className="animate-spin" /> : photo.cutout ? <Check size={14} /> : <Scissors size={14} />}
+                                    {photo.cutout ? <T>ব্যাকগ্রাউন্ড মুছে গেছে</T> : <T>ব্যাকগ্রাউন্ড মুছুন</T>}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openUploadFor(photo.frameId, photo.imageId || "")}
+                                    disabled={!!cutoutBusy}
+                                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#D9C7A5] bg-[#FFFAF0] px-2 py-1.5 text-[11px] font-bold text-[#785B32] transition hover:border-[#DC2626] hover:text-[#DC2626] disabled:opacity-50"
+                                  >
+                                    <Upload size={13} /> <T>ছবি বদলান</T>
+                                  </button>
+                                </div>
+                              </div>
+                              {busy && cutoutBusy ? (
+                                <p className="mt-2 text-[11px] leading-4 text-[#7A6A4C]">
+                                  {cutoutBusy.stage === "download"
+                                    ? <T>AI মডেল প্রস্তুত হচ্ছে (শুধু প্রথমবার একটু সময় লাগে)…</T>
+                                    : cutoutBusy.stage === "process"
+                                      ? <T>ব্যাকগ্রাউন্ড মোছা হচ্ছে, একটু অপেক্ষা করুন…</T>
+                                      : <T>ছবির কিনারা পরিষ্কার করা হচ্ছে…</T>}
+                                  {cutoutBusy.stage === "download" && cutoutBusy.percent !== null ? ` ${cutoutBusy.percent}%` : ""}
+                                </p>
+                              ) : null}
+                              {photo.cutout && !busy ? <p className="mt-2 text-[11px] leading-4 text-[#7A6A4C]"><T>ভুল হলে ওপরের Undo চাপুন। ছবি ছোট-বড় বা সরাতে পোস্টারের ছবির ওপর টানুন।</T></p> : null}
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              key={photo.frameId}
+                              onClick={() => openUploadFor(photo.frameId)}
+                              className="flex w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-[#D9B98A] bg-white py-5 text-[#A06A32] transition hover:border-[#DC2626] hover:text-[#DC2626]"
+                            >
+                              <Upload size={22} />
+                              <span className="text-[12px] font-bold">{photo.label} · <T>ছবি দিন</T></span>
+                              <span className="text-[10px] text-[#927D5B]"><T>অথবা ছবি টেনে এনে পোস্টারে ছেড়ে দিন</T></span>
+                            </button>
+                          );
+                        })}
+                        {cutoutError ? <p className="text-[11px] leading-4 font-semibold text-red-600">{cutoutError}</p> : null}
                       </div>
                     </div>
                   )}
@@ -2780,7 +2842,6 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
               <div className="p-3 border-t border-[#E2D4B9] grid grid-cols-2 gap-2">
                 <button type="button" onClick={addText} className="editor-tool"><Type size={15} /><T>Add text</T></button>
                 <button type="button" onClick={() => imageInputRef.current?.click()} disabled={!selectedLayer || !selectedLayer.width || !selectedLayer.height} className="editor-tool"><ImagePlus size={15} /><T>Add image</T></button>
-                <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={addImage} />
               </div>
               <p className="px-3 pb-3 text-[10px] leading-4 text-[#907B58]"><T>ক্যানভাসে কোনো অবজেক্টে ক্লিক করুন অথবা লেয়ার তালিকা থেকে নির্বাচন করুন।</T></p>
               </>
@@ -3108,6 +3169,40 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
           </div>
         )}
       </div>
+      {leaveDialog && (
+        <div
+          data-pm-keep-selection="true"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pm-leave-title"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-[#2B2113]/55 p-4 backdrop-blur-sm"
+          onClick={() => { if (!saving) setLeaveDialog(false); }}
+        >
+          <div onClick={(event) => event.stopPropagation()} className="w-full max-w-[420px] overflow-hidden rounded-3xl border border-[#E2D4B9] bg-[#FFFAF0] shadow-[0_24px_70px_rgba(60,40,10,.35)]">
+            <div className="h-1.5 bg-gradient-to-r from-[#DC2626] via-[#F59E0B] to-[#DC2626]" />
+            <div className="p-6">
+              <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#FDE8E8] text-[#DC2626]">
+                <Save size={26} />
+              </div>
+              <h2 id="pm-leave-title" className="text-center text-[18px] font-extrabold text-[#332A1D]"><T>আপনার কাজ এখনো সেভ হয়নি</T></h2>
+              <p className="mt-2 text-center text-[13px] leading-5 text-[#7A6A4C]"><T>এখন বের হয়ে গেলে শেষ পরিবর্তনগুলো হারিয়ে যেতে পারে। আগে সেভ করে নিন, তাহলে “আমার ফাইল” থেকে যেকোনো সময় আবার খুলতে পারবেন।</T></p>
+              <div className="mt-5 space-y-2.5">
+                <button type="button" onClick={() => void saveAndLeave()} disabled={saving} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#DC2626] py-3 text-[13px] font-extrabold text-white shadow-sm transition hover:bg-[#B91C1C] disabled:cursor-wait disabled:opacity-70">
+                  {saving ? <LoaderCircle size={16} className="animate-spin" /> : <Save size={16} />}
+                  {saving ? <T>সেভ হচ্ছে…</T> : <T>সেভ করে বের হই</T>}
+                </button>
+                <button type="button" onClick={() => setLeaveDialog(false)} disabled={saving} className="w-full rounded-xl border border-[#D9C7A5] bg-white py-3 text-[13px] font-bold text-[#5B4A31] transition hover:border-[#DC2626] hover:text-[#DC2626] disabled:opacity-50">
+                  <T>কাজ চালিয়ে যাই</T>
+                </button>
+                <button type="button" onClick={() => router.push("/print-media")} disabled={saving} className="w-full rounded-xl py-2 text-[12px] font-bold text-[#A0522D] transition hover:text-[#DC2626] disabled:opacity-50">
+                  <T>সেভ ছাড়াই বের হই</T>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={addImage} />
     </div>
   );
 }
