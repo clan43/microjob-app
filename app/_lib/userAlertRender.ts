@@ -72,10 +72,10 @@ export const ALERT_KINDS: Record<AlertKind, KindStyle> = {
   },
   maintenance: {
     label: "Maintenance",
-    accent: "#57534E",
-    accent2: "#D6D3D1",
-    soft: "#E7E5E4",
-    icon: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94z"/>',
+    accent: "#EA580C",
+    accent2: "#FBBF24",
+    soft: "#FFEDD5",
+    icon: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/>',
   },
 };
 
@@ -133,7 +133,17 @@ export function buildAlertHtml(template: AlertTemplate, vars?: AlertVars): strin
   };
 
   const title = safe(template.title.trim());
-  const message = safe(template.message.trim()).replace(/\r?\n/g, "<br>");
+  const isMaint = template.kind === "maintenance";
+  const isOffer = template.kind === "offer";
+  const loud = isMaint || isOffer;
+  const rawMessage = safe(template.message.trim());
+  // Maintenance: the first paragraph becomes a highlighted callout so it cannot be skimmed past.
+  const paras = rawMessage.split(/\r?\n\s*\r?\n/);
+  const message = loud
+    ? paras
+        .map((para, i) => `<div class="${i === 0 ? "key" : "rest"}">${para.replace(/\r?\n/g, "<br>")}</div>`)
+        .join("")
+    : rawMessage.replace(/\r?\n/g, "<br>");
   const ctaUrl = safeAlertUrl(template.ctaUrl);
   const ctaText = escapeHtml(template.ctaText.trim());
   const closeText = escapeHtml(template.closeText.trim() || "বন্ধ করুন");
@@ -163,12 +173,33 @@ box-shadow:0 10px 22px ${style.accent}47,inset 0 1px 0 rgba(255,255,255,.2)}
 .later{height:40px;border:0;background:transparent;cursor:pointer;font:inherit;font-size:14px;font-weight:600;color:#8A7753;border-radius:10px}
 .later:hover{color:#2B2113;background:rgba(43,33,19,.06)}
 @keyframes up{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+.hz{position:absolute;inset:0 0 auto 0;height:12px;background:repeating-linear-gradient(-45deg,#FBBF24 0 14px,#1F1A12 14px 28px)}
+.pill{display:inline-flex;align-items:center;gap:8px;margin-bottom:18px;padding:6px 14px;border-radius:999px;background:#1F1A12;color:#FDE68A;font-size:12.5px;font-weight:800;letter-spacing:.04em}
+.pill i{width:9px;height:9px;border-radius:999px;background:#FBBF24;animation:pulse 1.2s ease-in-out infinite}
+.loud{padding-top:46px;border:2px solid #F5C77E;background:linear-gradient(180deg,#FFFBEF 0%,#FFF1CF 100%)}
+.loud .emblem{animation:ring 1.8s ease-out infinite}
+.loud h2{font-size:26px;color:#7C2D12}
+.loud .msg{margin:14px auto 0;max-width:380px;text-align:center}
+.o-card{border-color:#F2B8B8;background:linear-gradient(180deg,#FFFDF7 0%,#FFEFD2 100%)}
+.o-card .hz{height:10px;background:linear-gradient(90deg,#B91C1C,#F2CB7A 50%,#B91C1C)}
+.o-card .pill{background:#B91C1C;color:#FFF3D6}
+.o-card .pill i{background:#FDE68A}
+.o-card h2{color:#991B1B}
+.o-card .key{background:#FDE8D8;border-color:#C21B1B;color:#7F1D1D}
+.o-card .cta{height:54px;font-size:17px;animation:nudge 2.2s ease-in-out infinite}
+.key{padding:13px 15px;border-radius:14px;background:#FFE9B8;border:1.5px solid #F59E0B;color:#2B2113;font-size:16px;font-weight:800;line-height:1.7}
+.rest{margin-top:12px;font-size:14px;line-height:1.8;color:#6B5A3E}
+.m-card .later{height:48px;margin-top:4px;border-radius:12px;background:#1F1A12;color:#FDE68A;font-size:15.5px;font-weight:800}
+.m-card .later:hover{background:#2B2113;color:#fff}
+@keyframes nudge{0%,100%{transform:scale(1)}50%{transform:scale(1.025)}}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+@keyframes ring{0%{box-shadow:0 0 0 0 ${isOffer ? "rgba(194,27,27,.4)" : "rgba(234,88,12,.45)"},0 12px 26px rgba(43,33,19,.2)}100%{box-shadow:0 0 0 16px ${isOffer ? "rgba(194,27,27,0)" : "rgba(234,88,12,0)"},0 12px 26px rgba(43,33,19,.2)}}
 @media(max-width:420px){.card{padding:34px 20px 18px}}
-@media(prefers-reduced-motion:reduce){.card{animation:none}}
+@media(prefers-reduced-motion:reduce){.card,.pill i,.loud .emblem,.o-card .cta{animation:none}}
 </style>
-<div class="card"><div class="bar"></div><div class="glow"></div><div class="in">
-<div class="emblem"><svg viewBox="0 0 24 24" aria-hidden="true">${style.icon}</svg></div>
-${title ? `<h2>${title}</h2>` : ""}${message ? `<p>${message}</p>` : ""}
+<div class="card${loud ? " loud" : ""}${isMaint ? " m-card" : ""}${isOffer ? " o-card" : ""}">${loud ? '<div class="hz"></div>' : '<div class="bar"></div>'}<div class="glow"></div><div class="in">
+${loud ? `<div class="pill"><i></i>${isOffer ? "সীমিত সময়ের অফার" : "গুরুত্বপূর্ণ নোটিশ"}</div><br>` : ""}<div class="emblem"><svg viewBox="0 0 24 24" aria-hidden="true">${style.icon}</svg></div>
+${title ? `<h2>${title}</h2>` : ""}${message ? (loud ? `<div class="msg">${message}</div>` : `<p>${message}</p>`) : ""}
 <div class="actions">${cta}<button type="button" class="later" data-alert-close>${closeText}</button></div>
 </div></div>`;
 }
@@ -238,14 +269,15 @@ export const ALERT_PRESETS: AlertPreset[] = [
   },
   {
     id: "offer",
-    label: "বিশেষ অফার",
+    label: "৯৯ টাকার অফার",
     audience: "not_subscribed",
     repeat: "daily",
     template: {
       kind: "offer",
-      title: "আজই পান বিশেষ ছাড়!",
-      message: "{{firstName}}, সীমিত সময়ের জন্য সাবস্ক্রিপশনে বিশেষ ছাড় চলছে। সব পেইড টুল ব্যবহার করুন কম খরচে।",
-      ctaText: "অফারটি নিন",
+      title: "৯৯ টাকার প্যাকেজ, শুধু সীমিত সময়ের জন্য",
+      message:
+        "প্রিয় {{firstName}}, মাত্র ৯৯ টাকায় ১ মাসের সব পেইড টুল ব্যবহার করুন! সাধারণ দাম ৩৫০ টাকা।\n\nএটি সীমিত সময়ের অফার। এখন প্যাকেজটি নিলে এই বিশেষ দামেই পাবেন, কিন্তু অফার শেষ হয়ে গেলে আর এই দামে পাওয়া যাবে না।\n\nএআই এডিটর, এআই টেমপ্লেট ও বাল্ক ফটো এডিটসহ সব পেইড টুল একই অ্যাকাউন্টে চালান। দেরি না করে আজই নিয়ে নিন।",
+      ctaText: "৯৯ টাকায় প্যাকেজ নিন",
       ctaUrl: "/subscription",
       closeText: "পরে দেখব",
     },
@@ -271,11 +303,12 @@ export const ALERT_PRESETS: AlertPreset[] = [
     repeat: "once",
     template: {
       kind: "maintenance",
-      title: "সাময়িক রক্ষণাবেক্ষণ",
-      message: "আজ রাত ১২টা থেকে ২টা পর্যন্ত সাইটের কিছু সেবা বন্ধ থাকতে পারে। অসুবিধার জন্য আমরা দুঃখিত।",
+      title: "সার্ভারে কাজ চলছে, ইমেজ জেনারেশন বন্ধ",
+      message:
+        "প্রিয় {{firstName}}, সার্ভারে কাজ চলার কারণে এখন ইমেজ জেনারেশন বন্ধ আছে। ছবি তৈরি করা যাচ্ছে না।\n\nআপনার ফাইল ও অ্যাকাউন্ট সম্পূর্ণ নিরাপদ আছে। কাজ শেষ হলেই সব আবার স্বাভাবিক হয়ে যাবে। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।\n\nঅসুবিধার জন্য আমরা আন্তরিকভাবে দুঃখিত, ধৈর্য ধরার জন্য ধন্যবাদ।",
       ctaText: "",
       ctaUrl: "",
-      closeText: "বুঝেছি",
+      closeText: "বুঝেছি, পরে চেষ্টা করব",
     },
   },
   {

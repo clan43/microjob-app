@@ -1,7 +1,7 @@
 /**
- * Bridge between the chat UI and ActivityTracker. Opening / using the chat counts as
- * activity, so the user is reported online. Closing the chat does NOT mark them offline
- * (they are still on the site); online simply expires after a few idle minutes.
+ * Bridge between the chat UI and ActivityTracker. Opening / using the chat sends an immediate
+ * presence update. Closing the chat does NOT mark the user offline (they are still on the site):
+ * ActivityTracker keeps them online for as long as the tab is open and marks them offline when it closes.
  */
 export function announceChatOpen() {
   if (typeof window === "undefined") return;

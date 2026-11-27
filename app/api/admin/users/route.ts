@@ -8,6 +8,9 @@ import { requireAdmin } from "../_lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
+// Order of the "All users" list: true = offline users first, false = online users first.
+const OFFLINE_FIRST_IN_ALL_USERS = true;
+
 export async function GET(request: Request) {
   const authorization = await requireAdmin(request);
   if (authorization.response) return authorization.response;
@@ -54,15 +57,78 @@ export async function GET(request: Request) {
       filter._id = { $in: activeIds };
     }
 
-    const [total, usersRaw] = await Promise.all([
-      User.countDocuments(filter),
-      User.find(filter)
-        .select("fullName email phoneNumber country district role isBanned bannedAt bannedBy banReason createdAt lastLoginAt lastSeenAt loginCount manualAccessEnabled manualAccessExpiresAt manualAccessGrantedAt manualAccessGrantedBy isPrimaryAdmin")
-        .sort({ lastLoginAt: -1, createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean(),
-    ]);
+    let total = 0;
+    let usersRaw: any[] = [];
+    const userSelect =
+      "fullName email phoneNumber country district role isBanned bannedAt bannedBy banReason createdAt lastLoginAt lastSeenAt loginCount manualAccessEnabled manualAccessExpiresAt manualAccessGrantedAt manualAccessGrantedBy isPrimaryAdmin";
+
+    if (status === "all") {
+      // "All users" ordering:
+      //   1) offline users first (online users are already visible in their own "Online now" column;
+      //      flip OFFLINE_FIRST_IN_ALL_USERS to put online users on top instead),
+      //   2) inside each group: the most recent subscription purchase first (bought today = top,
+      //      bought longest ago = bottom), users who never purchased come after buyers,
+      //   3) ties / non-buyers: latest login, then newest account.
+      const onlineCutoff = now.getTime() - PRESENCE_STALE_AFTER_MS;
+      const slim: any[] = await User.find(filter)
+        .select("_id lastSeenAt lastLoginAt createdAt")
+        .lean();
+      const purchases: any[] = await Subscription.aggregate([
+        {
+          $match: {
+            paymentStatus: "COMPLETED",
+            userId: { $in: slim.map((user) => user._id) },
+          },
+        },
+        {
+          $group: {
+            _id: "$userId",
+            lastPurchaseAt: { $max: { $ifNull: ["$startedAt", "$createdAt"] } },
+          },
+        },
+      ]);
+      const purchaseByUser = new Map<string, number>();
+      for (const row of purchases) {
+        const time = row.lastPurchaseAt ? new Date(row.lastPurchaseAt).getTime() : 0;
+        if (time) purchaseByUser.set(String(row._id), time);
+      }
+      const time = (value: unknown) => (value ? new Date(value as any).getTime() || 0 : 0);
+      const ranked = slim
+        .map((user) => ({
+          id: user._id,
+          online: time(user.lastSeenAt) >= onlineCutoff ? 1 : 0,
+          purchase: purchaseByUser.get(String(user._id)) || 0,
+          login: time(user.lastLoginAt),
+          created: time(user.createdAt),
+        }))
+        .sort((a, b) => {
+          if (a.online !== b.online) {
+            return OFFLINE_FIRST_IN_ALL_USERS ? a.online - b.online : b.online - a.online;
+          }
+          if (a.purchase !== b.purchase) return b.purchase - a.purchase;
+          if (a.login !== b.login) return b.login - a.login;
+          return b.created - a.created;
+        });
+      total = ranked.length;
+      const pageIds = ranked.slice((page - 1) * limit, page * limit).map((row) => row.id);
+      const pageDocs: any[] = await User.find({ _id: { $in: pageIds } })
+        .select(userSelect)
+        .lean();
+      const docById = new Map(pageDocs.map((doc) => [String(doc._id), doc]));
+      usersRaw = pageIds.map((id) => docById.get(String(id))).filter(Boolean);
+    } else {
+      const [count, docs] = await Promise.all([
+        User.countDocuments(filter),
+        User.find(filter)
+          .select(userSelect)
+          .sort({ lastLoginAt: -1, createdAt: -1 })
+          .skip((page - 1) * limit)
+          .limit(limit)
+          .lean(),
+      ]);
+      total = count;
+      usersRaw = docs as any[];
+    }
 
     const activeCutoff = now.getTime() - PRESENCE_STALE_AFTER_MS;
     const activeUserIds = usersRaw.map((user: any) => user._id);

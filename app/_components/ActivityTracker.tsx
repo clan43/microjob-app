@@ -1,13 +1,20 @@
 "use client";
 
 import { useEffect } from "react";
-import { PRESENCE_ACTIVITY_REFRESH_MS } from "@/lib/presenceConstants";
+import { PRESENCE_HEARTBEAT_MS } from "@/lib/presenceConstants";
 
 /**
- * Reports "online" when the user actually interacts with the site (click, touch, key,
- * scroll), at most once per PRESENCE_ACTIVITY_REFRESH_MS. There is no background
- * heartbeat, so an idle user generates no requests. It does not report page paths,
- * click targets, or any screen/input content - only "this user is active".
+ * Live presence: a signed-in user counts as ONLINE for as long as the site is open in a browser
+ * tab, and goes OFFLINE as soon as the tab/browser is closed.
+ *
+ * - A small heartbeat is sent every PRESENCE_HEARTBEAT_MS while the tab is open. It does not matter whether
+ *   the user is clicking, reading or idle - an open tab is an online user.
+ * - When the tab is closed, reloaded away or the browser quits, a "leave" request is sent
+ *   immediately, so the admin sees the user offline within seconds instead of waiting for a timeout.
+ * - If the leave request never arrives (power cut, crash, network loss) the server-side
+ *   PRESENCE_STALE_AFTER_MS window expires the session shortly after the last heartbeat.
+ *
+ * It does not report page paths, click targets, or any screen/input content - only "this user is here".
  */
 const SESSION_KEY = "sohojhub:presence-session-id";
 const SESSION_ID_PATTERN = /^[a-zA-Z0-9._:-]{16,120}$/;
@@ -52,67 +59,84 @@ export default function ActivityTracker() {
   useEffect(() => {
     let disposed = false;
     let busy = false;
+    let left = false; // true between "leave" and the page coming back (bfcache / tab restore)
     let sessionId = getOrCreateSessionId();
 
     const sendPresence = async (leave = false) => {
-      if (disposed || busy) return;
+      if (disposed) return;
+      // a heartbeat may be skipped while another one is in flight, but "leave" must always go out
+      if (busy && !leave) return;
       const credentials = getClientCredentials();
       if (!credentials) return;
       if (!SESSION_ID_PATTERN.test(sessionId)) {
         sessionId = createSessionId();
         setSessionId(sessionId);
       }
-      busy = true;
+      busy = !leave;
       try {
         await fetch("/api/auth/presence/update", {
           method: "POST",
           credentials: "include",
           cache: "no-store",
-          keepalive: leave,
+          keepalive: leave, // lets the request finish even while the page is being torn down
           headers: { "Content-Type": "application/json", ...credentials },
           body: JSON.stringify({ sessionId, leave }),
         });
       } catch {
         // Presence is best-effort; the short server-side expiry cleans stale sessions.
       } finally {
-        busy = false;
+        if (!leave) busy = false;
       }
     };
 
-    let lastSentAt = 0;
-    const reportActivity = () => {
-      const now = Date.now();
-      if (now - lastSentAt < PRESENCE_ACTIVITY_REFRESH_MS) return;
-      lastSentAt = now;
+    const heartbeat = () => {
+      if (left) return;
       void sendPresence();
     };
-    const onChatOpen = () => {
-      lastSentAt = Date.now();
+    const comeBack = () => {
+      left = false;
       void sendPresence();
     };
-    const onLeave = () => {
-      lastSentAt = 0;
+    const goOffline = () => {
+      if (left) return;
+      left = true;
       void sendPresence(true);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") comeBack();
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) comeBack();
     };
     const onAuthChanged = () => {
       sessionId = createSessionId();
       setSessionId(sessionId);
-      lastSentAt = 0;
+      comeBack();
     };
 
-    const activityEvents = ["pointerdown", "keydown", "touchstart"] as const;
-    for (const name of activityEvents) window.addEventListener(name, reportActivity, { passive: true });
-    window.addEventListener("scroll", reportActivity, { passive: true, capture: true });
-    window.addEventListener("sohojhub:chat-presence", onChatOpen);
-    window.addEventListener("sohojhub:presence-stop", onLeave);
+    // online right away, then keep the lease fresh while the tab stays open
+    void sendPresence();
+    const timer = window.setInterval(heartbeat, PRESENCE_HEARTBEAT_MS);
+
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", heartbeat);
+    window.addEventListener("online", comeBack);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("pagehide", goOffline);
+    window.addEventListener("sohojhub:chat-presence", heartbeat);
+    window.addEventListener("sohojhub:presence-stop", goOffline);
     window.addEventListener("sohojhub:auth-changed", onAuthChanged);
 
     return () => {
       disposed = true;
-      for (const name of activityEvents) window.removeEventListener(name, reportActivity);
-      window.removeEventListener("scroll", reportActivity, true);
-      window.removeEventListener("sohojhub:chat-presence", onChatOpen);
-      window.removeEventListener("sohojhub:presence-stop", onLeave);
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", heartbeat);
+      window.removeEventListener("online", comeBack);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("pagehide", goOffline);
+      window.removeEventListener("sohojhub:chat-presence", heartbeat);
+      window.removeEventListener("sohojhub:presence-stop", goOffline);
       window.removeEventListener("sohojhub:auth-changed", onAuthChanged);
     };
   }, []);

@@ -63,7 +63,7 @@ import WithdrawalCard from "./_components/WithdrawalCard";
 import SubscriptionPlansPanel from "./_components/SubscriptionPlansPanel";
 import SubscriptionActivityPanel from "./_components/SubscriptionActivityPanel";
 import BotStatusPanel from "./_components/BotStatusPanel";
-import UserAlertsPanel from "./_components/UserAlertsPanel";
+import UserAlertsPanel, { type AlertPrefill } from "./_components/UserAlertsPanel";
 import { useSiteSettings } from "@/app/_components/SiteSettingsProvider";
 import "./admin-theme.css";
 import { visibleInterval } from "@/app/_lib/visiblePolling";
@@ -148,6 +148,8 @@ type SubscriptionRow = {
   startedAt?: string | null;
   expiresAt?: string | null;
   createdAt?: string | null;
+  imagesGenerated?: number | null;
+  reminderSentAt?: string | null;
   user: null | {
     id: string;
     fullName: string;
@@ -193,6 +195,54 @@ type ApiPagination = {
   pages: number;
 };
 type Tone = "green" | "amber" | "red" | "indigo" | "slate";
+
+type UserSectionKey = "all" | "online" | "subscribed";
+const USER_SECTIONS: {
+  key: UserSectionKey;
+  title: string;
+  description: string;
+  tone: Tone;
+  empty: string;
+}[] = [
+  {
+    key: "all",
+    title: "All users",
+    description: "Every registered account.",
+    tone: "indigo",
+    empty: "No users found",
+  },
+  {
+    key: "online",
+    title: "Online now",
+    description: "Active on the site right now.",
+    tone: "green",
+    empty: "Nobody is online right now",
+  },
+  {
+    key: "subscribed",
+    title: "Active subscribers",
+    description: "Paid plan currently active.",
+    tone: "amber",
+    empty: "No active subscribers",
+  },
+];
+type UserSectionState = {
+  users: UserRow[];
+  loading: boolean;
+  error: string;
+  pagination: ApiPagination;
+};
+const EMPTY_USER_SECTION: UserSectionState = {
+  users: [],
+  loading: false,
+  error: "",
+  pagination: { page: 1, limit: 20, total: 0, pages: 1 },
+};
+const INITIAL_USER_SECTIONS: Record<UserSectionKey, UserSectionState> = {
+  all: EMPTY_USER_SECTION,
+  online: EMPTY_USER_SECTION,
+  subscribed: EMPTY_USER_SECTION,
+};
 
 function formatDate(value?: string | Date | null, withTime = false) {
   if (!value) return "—";
@@ -300,6 +350,28 @@ function expiryInfo(expiresAt?: string | null): {
     text: days < 1 ? "Expired today" : `Expired ${days} day${days === 1 ? "" : "s"} ago`,
     tone: "gone",
   };
+}
+
+function timeLeftLabel(expiresAt?: string | null) {
+  if (!expiresAt) return "";
+  const diff = new Date(expiresAt).getTime() - Date.now();
+  if (Number.isNaN(diff)) return "";
+  if (diff <= 0) return "Expired";
+  const hours = Math.floor(diff / 3_600_000);
+  if (hours < 1) return `${Math.max(1, Math.ceil(diff / 60_000))} min left`;
+  if (hours < 48) return `${hours}h left`;
+  const days = Math.floor(hours / 24);
+  const rest = hours % 24;
+  return rest ? `${days}d ${rest}h left` : `${days}d left`;
+}
+
+function boughtAgoLabel(startedAt?: string | null) {
+  if (!startedAt) return "—";
+  const time = new Date(startedAt).getTime();
+  if (Number.isNaN(time)) return "—";
+  const days = Math.floor((Date.now() - time) / 86_400_000);
+  if (days <= 0) return "Today";
+  return days === 1 ? "Yesterday" : `${days} days ago`;
 }
 
 const EXPIRY_TEXT: Record<"ok" | "soon" | "gone" | "none", string> = {
@@ -520,6 +592,7 @@ export default function AdminDashboardClient() {
   const router = useRouter();
   const { settings: siteSettings } = useSiteSettings();
   const [tab, setTab] = useState<TabKey>("overview");
+  const [alertPrefill, setAlertPrefill] = useState<AlertPrefill | null>(null);
   const [admin, setAdmin] = useState<AdminProfile | null>(null);
   // app/admin/page.tsx has ALREADY verified the admin token on the server before this component is
   // rendered (it redirects otherwise), so the dashboard is rendered immediately. The old
@@ -539,10 +612,13 @@ export default function AdminDashboardClient() {
 
   const [userSearch, setUserSearch] = useState("");
   const [appliedUserSearch, setAppliedUserSearch] = useState("");
-  const [userStatus, setUserStatus] = useState("all");
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [usersLoading, setUsersLoading] = useState(false);
-  const [usersError, setUsersError] = useState("");
+  const [userSections, setUserSections] =
+    useState<Record<UserSectionKey, UserSectionState>>(INITIAL_USER_SECTIONS);
+  const userPagesRef = useRef<Record<UserSectionKey, number>>({
+    all: 1,
+    online: 1,
+    subscribed: 1,
+  });
   const [usersNotice, setUsersNotice] = useState("");
   const [accessModalUser, setAccessModalUser] = useState<UserRow | null>(null);
   const [accessDurationMonths, setAccessDurationMonths] = useState("6");
@@ -556,17 +632,17 @@ export default function AdminDashboardClient() {
   const [deleteUserConfirmationText, setDeleteUserConfirmationText] = useState("");
   const [deleteUserError, setDeleteUserError] = useState("");
   const [userDeleting, setUserDeleting] = useState(false);
-  const [userPagination, setUserPagination] = useState<ApiPagination>({
-    page: 1,
-    limit: 20,
-    total: 0,
-    pages: 1,
-  });
 
   const [subscriptionSearch, setSubscriptionSearch] = useState("");
   const [appliedSubscriptionSearch, setAppliedSubscriptionSearch] =
     useState("");
   const [subscriptionStatus, setSubscriptionStatus] = useState("all");
+  const [expiring, setExpiring] = useState<{
+    items: SubscriptionRow[];
+    total: number;
+    loading: boolean;
+    error: string;
+  }>({ items: [], total: 0, loading: false, error: "" });
   const [subscriptions, setSubscriptions] = useState<SubscriptionRow[]>([]);
   const [subscriptionsLoading, setSubscriptionsLoading] = useState(false);
   const [subscriptionsError, setSubscriptionsError] = useState("");
@@ -633,15 +709,26 @@ export default function AdminDashboardClient() {
     [authHeaders],
   );
 
+  const patchUserSection = useCallback(
+    (key: UserSectionKey, patch: Partial<UserSectionState>) => {
+      setUserSections((current) => ({
+        ...current,
+        [key]: { ...current[key], ...patch },
+      }));
+    },
+    [],
+  );
+
+  // Loads ONE section (all / online / offline / subscribed) with its own page.
   const loadUsers = useCallback(
     async (
+      status: UserSectionKey,
       page = 1,
       search = appliedUserSearch,
-      status = userStatus,
       quiet = false,
-    ) => {
-      if (!quiet) setUsersLoading(true);
-      setUsersError("");
+    ): Promise<void> => {
+      if (!quiet) patchUserSection(status, { loading: true });
+      patchUserSection(status, { error: "" });
       try {
         const params = new URLSearchParams({
           page: String(page),
@@ -657,19 +744,52 @@ export default function AdminDashboardClient() {
         const data = await response.json().catch(() => ({}));
         if (!response.ok)
           throw new Error(data?.message || "Could not load users.");
-        setUsers(data.users || []);
-        setUserPagination(
-          data.pagination || { page, limit: 20, total: 0, pages: 1 },
-        );
+        const pagination: ApiPagination = data.pagination || {
+          page,
+          limit: 20,
+          total: 0,
+          pages: 1,
+        };
+        // The list shrank (e.g. a user went offline / was deleted): fall back to the last page.
+        if (page > 1 && page > pagination.pages) {
+          return loadUsers(status, pagination.pages, search, quiet);
+        }
+        userPagesRef.current[status] = pagination.page || page;
+        patchUserSection(status, {
+          users: data.users || [],
+          pagination,
+        });
       } catch (error) {
-        setUsersError(
-          error instanceof Error ? error.message : "Could not load users.",
-        );
+        patchUserSection(status, {
+          error:
+            error instanceof Error ? error.message : "Could not load users.",
+        });
       } finally {
-        if (!quiet) setUsersLoading(false);
+        if (!quiet) patchUserSection(status, { loading: false });
       }
     },
-    [authHeaders, appliedUserSearch, userStatus],
+    [authHeaders, appliedUserSearch, patchUserSection],
+  );
+
+  // Loads all four sections together, each staying on the page it is currently showing.
+  const loadAllUsers = useCallback(
+    async (
+      options: { quiet?: boolean; resetPages?: boolean; search?: string } = {},
+    ) => {
+      const { quiet = false, resetPages = false, search = appliedUserSearch } =
+        options;
+      await Promise.all(
+        USER_SECTIONS.map((section) =>
+          loadUsers(
+            section.key,
+            resetPages ? 1 : userPagesRef.current[section.key] || 1,
+            search,
+            quiet,
+          ),
+        ),
+      );
+    },
+    [appliedUserSearch, loadUsers],
   );
 
   const updateManualAccess = async (action: "grant" | "revoke") => {
@@ -702,7 +822,7 @@ export default function AdminDashboardClient() {
 
       setUsersNotice(data.message || "Manual access updated.");
       setAccessModalUser(null);
-      await loadUsers(userPagination.page);
+      await loadAllUsers({ quiet: true });
     } catch (error) {
       setAccessError(
         error instanceof Error
@@ -760,7 +880,7 @@ export default function AdminDashboardClient() {
           : current);
       }
       setUsersNotice(data.message || "Account updated successfully.");
-      await Promise.all([loadUsers(userPagination.page), loadOverview(true)]);
+      await Promise.all([loadAllUsers({ quiet: true }), loadOverview(true)]);
     } catch (error) {
       setUserActionError(error instanceof Error ? error.message : "Could not update this account.");
     } finally {
@@ -827,8 +947,7 @@ export default function AdminDashboardClient() {
       setConfirmingUserDelete(false);
       setDeleteUserConfirmationText("");
       setUsersNotice(data.message || "The user account and associated database records were permanently deleted.");
-      const nextPage = Math.min(userPagination.page, Math.max(1, Math.ceil((userPagination.total - 1) / 20)));
-      await Promise.all([loadUsers(nextPage), loadOverview(true)]);
+      await Promise.all([loadAllUsers({ quiet: true }), loadOverview(true)]);
     } catch (error) {
       setDeleteUserError(error instanceof Error ? error.message : "Could not permanently delete this account.");
     } finally {
@@ -877,6 +996,39 @@ export default function AdminDashboardClient() {
       }
     },
     [authHeaders, appliedSubscriptionSearch, subscriptionStatus],
+  );
+
+  // Paid subscribers whose plan ends within 7 days: loaded automatically (no filter click needed).
+  const loadExpiring = useCallback(
+    async (quiet = false) => {
+      if (!quiet) setExpiring((current) => ({ ...current, loading: true }));
+      try {
+        const response = await fetch(
+          "/api/admin/subscriptions?status=expiring&page=1&limit=50",
+          { credentials: "include", cache: "no-store", headers: authHeaders() },
+        );
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok)
+          throw new Error(data?.message || "Could not load expiring subscriptions.");
+        const items: SubscriptionRow[] = data.subscriptions || [];
+        setExpiring({
+          items,
+          total: data.pagination?.total ?? items.length,
+          loading: false,
+          error: "",
+        });
+      } catch (error) {
+        setExpiring((current) => ({
+          ...current,
+          loading: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Could not load expiring subscriptions.",
+        }));
+      }
+    },
+    [authHeaders],
   );
 
   const reviewSubscription = useCallback(
@@ -935,14 +1087,15 @@ export default function AdminDashboardClient() {
       await Promise.all([
         loadSubscriptions(subscriptionPagination.page),
         loadOverview(true),
-        loadUsers(userPagination.page),
+        loadAllUsers({ quiet: true }),
+        loadExpiring(true),
       ]);
     } catch (error) {
       setReviewActionError(error instanceof Error ? error.message : "Could not deactivate this subscription.");
     } finally {
       setSubscriptionActionBusyId("");
     }
-  }, [authHeaders, loadOverview, loadSubscriptions, loadUsers, reviewingSubscriptionId, subscriptionActionBusyId, subscriptionDeleteBusyId, subscriptionPagination.page, userPagination.page]);
+  }, [authHeaders, loadOverview, loadSubscriptions, loadAllUsers, loadExpiring, reviewingSubscriptionId, subscriptionActionBusyId, subscriptionDeleteBusyId, subscriptionPagination.page]);
 
   const deleteSubscriptionRecord = useCallback(async (item: SubscriptionRow) => {
     if (subscriptionDeleteBusyId || subscriptionActionBusyId || reviewingSubscriptionId) return;
@@ -971,14 +1124,15 @@ export default function AdminDashboardClient() {
       await Promise.all([
         loadSubscriptions(nextPage),
         loadOverview(true),
-        loadUsers(userPagination.page),
+        loadAllUsers({ quiet: true }),
+        loadExpiring(true),
       ]);
     } catch (error) {
       setReviewActionError(error instanceof Error ? error.message : "Could not delete this subscription record.");
     } finally {
       setSubscriptionDeleteBusyId("");
     }
-  }, [authHeaders, loadOverview, loadSubscriptions, loadUsers, reviewingSubscriptionId, subscriptionActionBusyId, subscriptionDeleteBusyId, subscriptionPagination.page, subscriptions.length, userPagination.page]);
+  }, [authHeaders, loadOverview, loadSubscriptions, loadAllUsers, loadExpiring, reviewingSubscriptionId, subscriptionActionBusyId, subscriptionDeleteBusyId, subscriptionPagination.page, subscriptions.length]);
 
   const subscriptionReviewActions = (item: SubscriptionRow) => {
     const canReview = item.paymentStatus === "PENDING" && item.accessStatus === "PENDING" && Boolean(item.transactionId);
@@ -1065,8 +1219,13 @@ export default function AdminDashboardClient() {
   }, [authorized, loadOverview]);
 
   useEffect(() => {
-    if (authorized && tab === "users") void loadUsers(1);
-  }, [authorized, tab, appliedUserSearch, userStatus, loadUsers]);
+    if (authorized && tab === "users") void loadAllUsers({ resetPages: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authorized, tab, appliedUserSearch]);
+
+  useEffect(() => {
+    if (authorized && tab === "subscriptions") void loadExpiring();
+  }, [authorized, tab, loadExpiring]);
 
   useEffect(() => {
     if (authorized && tab === "subscriptions") void loadSubscriptions(1);
@@ -1084,24 +1243,20 @@ export default function AdminDashboardClient() {
   // Expired heartbeats disappear after the short lease window.
   useEffect(() => {
     if (!authorized) return;
-    // Single visibility-aware poll (was 5s + 60s setInterval running in hidden tabs too).
-    // The server caches the overview briefly, so this stays cheap on Active CPU.
+    // Single visibility-aware poll. Users are shown online the moment their tab is open and offline
+    // right after they leave, so the admin view refreshes every 10s to stay close to real time.
+    // (Runs on our own server now, so there is no serverless CPU limit to protect.)
     const stopPolling = visibleInterval(() => {
       void loadOverview(true, true);
       if (tab === "users") {
-        void loadUsers(userPagination.page, appliedUserSearch, userStatus, true);
+        void loadAllUsers({ quiet: true });
       }
-    }, 180_000);
+      if (tab === "subscriptions") {
+        void loadExpiring(true);
+      }
+    }, 10_000);
     return stopPolling;
-  }, [
-    appliedUserSearch,
-    authorized,
-    loadOverview,
-    loadUsers,
-    tab,
-    userPagination.page,
-    userStatus,
-  ]);
+  }, [authorized, loadOverview, loadAllUsers, loadExpiring, tab]);
 
   const displayName = admin?.fullName?.trim() || "Administrator";
   const activeCount = overview?.stats.activeNow || 0;
@@ -1197,6 +1352,15 @@ export default function AdminDashboardClient() {
                         ? "User alerts & popups"
                         : "Website settings";
 
+  // Users -> "Send popup": jump to User Alerts with this user already selected
+  const sendPopupTo = (user: { email?: string; fullName?: string }) => {
+    if (!user.email) return;
+    setAlertPrefill({ email: user.email, name: user.fullName, nonce: Date.now() });
+    setTab("user-alerts");
+    setMobileNavOpen(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   const selectTab = (next: TabKey) => {
     setTab(next);
     setMobileNavOpen(false);
@@ -1204,9 +1368,12 @@ export default function AdminDashboardClient() {
 
   const refreshCurrent = async () => {
     setRefreshing(true);
-    if (tab === "users") await loadUsers(userPagination.page);
+    if (tab === "users") await loadAllUsers();
     else if (tab === "subscriptions")
-      await loadSubscriptions(subscriptionPagination.page);
+      await Promise.all([
+        loadSubscriptions(subscriptionPagination.page),
+        loadExpiring(),
+      ]);
     else if (tab === "chats") setChatRefreshKey((current) => current + 1);
     else if (tab === "settings") router.refresh();
     else if (tab === "subscription-plans") setSubscriptionPlansRefreshKey((current) => current + 1);
@@ -1400,13 +1567,23 @@ export default function AdminDashboardClient() {
                   </td>
                   {tab === "users" && (
                     <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        onClick={() => openManage(user)}
-                        className={manageButtonClass}
-                      >
-                        <UserCog size={14} /> Manage access
-                      </button>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => openManage(user)}
+                          className={manageButtonClass}
+                        >
+                          <UserCog size={14} /> Manage access
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => sendPopupTo(user)}
+                          className={manageButtonClass}
+                          title="এই ইউজারকে সরাসরি একটি পপআপ বার্তা পাঠান"
+                        >
+                          <Bell size={14} /> Send popup
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>
@@ -1458,13 +1635,22 @@ export default function AdminDashboardClient() {
                   </div>
                 )}
                 {tab === "users" && (
-                  <button
-                    type="button"
-                    onClick={() => openManage(user)}
-                    className={`mt-3 ${manageButtonClass}`}
-                  >
-                    <UserCog size={14} /> Manage access
-                  </button>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openManage(user)}
+                      className={manageButtonClass}
+                    >
+                      <UserCog size={14} /> Manage access
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => sendPopupTo(user)}
+                      className={manageButtonClass}
+                    >
+                      <Bell size={14} /> Send popup
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -1473,6 +1659,152 @@ export default function AdminDashboardClient() {
       </ul>
     </>
   );
+
+  // Compact vertical cards used inside the four side-by-side user columns.
+  const userColumnButton =
+    `inline-flex h-9 min-w-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3B2F1E] px-2 text-[13px] font-semibold text-[#FBF6E8] shadow-sm transition hover:bg-[#5A4A32] ${FOCUS}`;
+  const userColumnCards = (rows: UserRow[]) => (
+    <ul className="space-y-3 border-t border-[#E3D6B8] p-3">
+      {rows.map((user) => {
+        const accent = user.isBanned
+          ? "border-l-[#DC2626]"
+          : user.isOnline
+            ? "border-l-[#16A34A]"
+            : "border-l-[#D8C9A6]";
+        const validUntil = user.subscription?.expiresAt
+          ? user.subscription.expiresAt
+          : user.manualAccess?.isActive
+            ? user.manualAccess.expiresAt
+            : null;
+        return (
+          <li
+            key={user.id}
+            className={`min-w-0 rounded-xl border border-[#E3D6B8] border-l-4 ${accent} bg-[#FFFDF6] p-3.5 shadow-sm transition hover:border-[#D8C9A6] hover:shadow-md`}
+          >
+            {/* Identity */}
+            <div className="flex items-center gap-3">
+              <Avatar name={user.fullName} />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="min-w-0 truncate text-[15px] font-semibold leading-5 text-[#3B2F1E]">
+                    {user.fullName || "Unnamed user"}
+                  </span>
+                  {user.isOnline && (
+                    <span className="shrink-0">
+                      <StatusPill label="Online" tone="green" />
+                    </span>
+                  )}
+                </div>
+                <div className="mt-0.5 truncate text-[13px] leading-5 text-[#5A4A32]">
+                  {user.email || "—"}
+                </div>
+                <div className="text-[13px] leading-5 text-[#7A6A50] tabular-nums">
+                  {user.phoneNumber || "No phone"}
+                </div>
+              </div>
+            </div>
+
+            {(user.role === "admin" || user.isBanned) && (
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {user.role === "admin" && (
+                  <StatusPill label="Administrator" tone="amber" />
+                )}
+                {user.isBanned && <StatusPill label="Tools blocked" tone="red" />}
+              </div>
+            )}
+
+            {/* Details */}
+            <dl className="mt-3 space-y-2 rounded-lg bg-[#F6EEDB] px-3 py-2.5 text-[13px]">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="shrink-0 text-[#7A6A50]">Plan</dt>
+                <dd className="min-w-0 text-right font-medium text-[#3B2F1E]">
+                  {user.subscription ? (
+                    <StatusPill
+                      label={`Paid · ${user.subscription.planName}`}
+                      tone="green"
+                    />
+                  ) : user.manualAccess?.isActive ? (
+                    <StatusPill label="Admin access" tone="indigo" />
+                  ) : (
+                    <span className="text-[#7A6A50]">No active plan</span>
+                  )}
+                </dd>
+              </div>
+              {validUntil && (
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="shrink-0 text-[#7A6A50]">Valid until</dt>
+                  <dd className="text-right font-medium text-[#3B2F1E]">
+                    {formatDate(validUntil)}
+                  </dd>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3">
+                <dt className="shrink-0 text-[#7A6A50]">Last login</dt>
+                <dd className="text-right font-medium text-[#3B2F1E]">
+                  {formatDate(user.lastLoginAt, true)}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="shrink-0 text-[#7A6A50]">Logins</dt>
+                <dd className="text-right font-medium text-[#3B2F1E] tabular-nums">
+                  {user.loginCount.toLocaleString("en-BD")}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="shrink-0 text-[#7A6A50]">Joined</dt>
+                <dd className="text-right font-medium text-[#3B2F1E]">
+                  {formatDate(user.createdAt)}
+                </dd>
+              </div>
+            </dl>
+
+            {/* Actions: always one equal-width row */}
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => openManage(user)}
+                className={userColumnButton}
+              >
+                <UserCog size={14} className="shrink-0" /> Manage access
+              </button>
+              <button
+                type="button"
+                onClick={() => sendPopupTo(user)}
+                className={userColumnButton}
+                title="এই ইউজারকে সরাসরি একটি পপআপ বার্তা পাঠান"
+              >
+                <Bell size={14} className="shrink-0" /> Send popup
+              </button>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  // Compact payment details: gateway / method on one line, TrxID with copy, sender only while pending.
+  const paymentMeta = (item: SubscriptionRow) => {
+    const method =
+      item.paymentMethod &&
+      item.paymentMethod.toLowerCase() !== (item.paymentProvider || "").toLowerCase()
+        ? item.paymentMethod
+        : "";
+    const via = [item.paymentProvider, method].filter(Boolean).join(" · ");
+    const showSender = item.paymentStatus !== "COMPLETED" && Boolean(item.senderNumber);
+    if (!via && !item.transactionId && !showSender) return null;
+    return (
+      <div className="mt-2 space-y-1 text-xs text-[#7A6A50]">
+        {via && <div className="font-medium text-[#5A4A32]">{via}</div>}
+        {item.transactionId && (
+          <div className="flex items-center gap-1">
+            <span className="adm-trx break-all">{item.transactionId}</span>
+            <CopyButton value={item.transactionId} label="transaction ID" />
+          </div>
+        )}
+        {showSender && <div className="tabular-nums">Sender {item.senderNumber}</div>}
+      </div>
+    );
+  };
 
   const subscriptionRows = (rows: SubscriptionRow[]) => (
     <>
@@ -1499,10 +1831,6 @@ export default function AdminDashboardClient() {
                 (item.planName || "").toLowerCase().replace(/\s/g, "");
               const exp = expiryInfo(item.expiresAt);
               const invoice = item.invoiceId || "";
-              const methodDiffers =
-                item.paymentMethod &&
-                item.paymentMethod.toLowerCase() !==
-                  (item.paymentProvider || "").toLowerCase();
               return (
                 <tr
                   key={item.id}
@@ -1550,9 +1878,7 @@ export default function AdminDashboardClient() {
                           </span>
                           <CopyButton value={invoice} label="invoice ID" />
                         </>
-                      ) : (
-                        "No invoice"
-                      )}
+                      ) : null}
                     </div>
                   </td>
                   <td className="px-5 py-4">
@@ -1560,27 +1886,7 @@ export default function AdminDashboardClient() {
                       label={titleCase(item.paymentStatus)}
                       tone={paymentTone}
                     />
-                    {(item.paymentProvider || methodDiffers || item.transactionId || item.senderNumber) && (
-                      <dl className="mt-2.5 w-[240px] space-y-1.5 rounded-lg border border-[#E3D6B8] bg-[#F6EEDB] px-3 py-2.5">
-                        {item.paymentProvider && (
-                          <DetailRow label="Gateway">{item.paymentProvider}</DetailRow>
-                        )}
-                        {methodDiffers && (
-                          <DetailRow label="Method">{item.paymentMethod}</DetailRow>
-                        )}
-                        {item.transactionId && (
-                          <DetailRow label="TrxID">
-                            <span className="adm-trx break-all">{item.transactionId}</span>
-                            <CopyButton value={item.transactionId} label="transaction ID" />
-                          </DetailRow>
-                        )}
-                        {item.senderNumber && (
-                          <DetailRow label="Sender">
-                            <span className="tabular-nums">{item.senderNumber}</span>
-                          </DetailRow>
-                        )}
-                      </dl>
-                    )}
+                    {paymentMeta(item)}
                     {item.reviewNote && (
                       <div className="mt-2 w-[240px] rounded-lg border border-[#F3C6C6] bg-[#FEE9E9] px-3 py-2 text-xs leading-5 text-[#B91C1C]">
                         {item.reviewNote}
@@ -1610,9 +1916,14 @@ export default function AdminDashboardClient() {
                     )}
                     <div className="mt-1 text-xs text-[#7A6A50]">
                       {item.startedAt
-                        ? `Started ${formatDate(item.startedAt)}`
+                        ? `Bought ${boughtAgoLabel(item.startedAt)} · ${formatDate(item.startedAt)}`
                         : "Not activated"}
                     </div>
+                    {item.imagesGenerated != null && (
+                      <div className="mt-0.5 text-xs font-medium text-[#5A4A32]">
+                        {item.imagesGenerated.toLocaleString("en-BD")} images generated
+                      </div>
+                    )}
                   </td>
                   <td className="px-4 py-4">{subscriptionReviewActions(item)}</td>
                 </tr>
@@ -1671,21 +1982,12 @@ export default function AdminDashboardClient() {
                 ) : (
                   "No access period"
                 )}
-                {item.startedAt ? ` · Started ${formatDate(item.startedAt)}` : ""}
+                {item.startedAt ? ` · Bought ${boughtAgoLabel(item.startedAt)}` : ""}
+                {item.imagesGenerated != null
+                  ? ` · ${item.imagesGenerated.toLocaleString("en-BD")} images`
+                  : ""}
               </div>
-              {(item.paymentProvider || item.paymentMethod || item.transactionId || item.senderNumber) && (
-                <dl className="mt-2.5 space-y-1.5 rounded-lg border border-[#E3D6B8] bg-[#F6EEDB] px-3 py-2.5">
-                  {item.paymentProvider && <DetailRow label="Gateway">{item.paymentProvider}</DetailRow>}
-                  {item.paymentMethod && <DetailRow label="Method">{item.paymentMethod}</DetailRow>}
-                  {item.transactionId && (
-                    <DetailRow label="TrxID">
-                      <span className="adm-trx break-all">{item.transactionId}</span>
-                      <CopyButton value={item.transactionId} label="transaction ID" />
-                    </DetailRow>
-                  )}
-                  {item.senderNumber && <DetailRow label="Sender">{item.senderNumber}</DetailRow>}
-                </dl>
-              )}
+              {paymentMeta(item)}
               {item.reviewNote && (
                 <div className="mt-2 rounded-lg border border-[#F3C6C6] bg-[#FEE9E9] px-3 py-2 text-xs text-[#B91C1C]">
                   {item.reviewNote}
@@ -1706,6 +2008,155 @@ export default function AdminDashboardClient() {
   const top = step * 4;
   const ticks = [4, 3, 2, 1, 0].map((i) => i * step);
   const weeklyTotal = weekly.reduce((sum, d) => sum + d.count, 0);
+
+  // ---- Renewal watch: paid plans ending within 7 days, grouped automatically ----
+  const expiringBuckets = (() => {
+    const day = 86_400_000;
+    const now = Date.now();
+    const groups: {
+      key: string;
+      title: string;
+      description: string;
+      tone: Tone;
+      items: SubscriptionRow[];
+    }[] = [
+      { key: "d1", title: "Within 24 hours", description: "Ends in a day or less", tone: "red", items: [] },
+      { key: "d3", title: "Within 3 days", description: "1–3 days left", tone: "amber", items: [] },
+      { key: "d7", title: "Within 7 days", description: "3–7 days left", tone: "indigo", items: [] },
+    ];
+    for (const item of expiring.items) {
+      const left = item.expiresAt ? new Date(item.expiresAt).getTime() - now : NaN;
+      if (Number.isNaN(left) || left <= 0) continue;
+      if (left <= day) groups[0].items.push(item);
+      else if (left <= 3 * day) groups[1].items.push(item);
+      else groups[2].items.push(item);
+    }
+    return groups;
+  })();
+
+  const expiringCard = (item: SubscriptionRow) => {
+    const left = item.expiresAt ? new Date(item.expiresAt).getTime() - Date.now() : 0;
+    const tone: Tone = left <= 86_400_000 ? "red" : left <= 3 * 86_400_000 ? "amber" : "indigo";
+    const accent =
+      tone === "red" ? "border-l-[#DC2626]" : tone === "amber" ? "border-l-[#F2B93B]" : "border-l-[#A5B4FC]";
+    const email = item.user?.email || "";
+    return (
+      <li
+        key={item.id}
+        className={`min-w-0 rounded-xl border border-[#E3D6B8] border-l-4 ${accent} bg-[#FFFDF6] p-3.5 shadow-sm`}
+      >
+        <div className="flex items-center gap-3">
+          <Avatar name={item.user?.fullName} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-[15px] font-semibold leading-5 text-[#3B2F1E]">
+                {item.user?.fullName || "Unknown user"}
+              </span>
+              <span className="shrink-0 whitespace-nowrap">
+                <StatusPill label={timeLeftLabel(item.expiresAt)} tone={tone} />
+              </span>
+            </div>
+            <div className="mt-0.5 truncate text-[13px] leading-5 text-[#5A4A32]">{email || "—"}</div>
+            <div className="text-[13px] leading-5 text-[#7A6A50] tabular-nums">
+              {item.user?.phoneNumber || "No phone"}
+            </div>
+          </div>
+        </div>
+
+        <dl className="mt-3 space-y-2 rounded-lg bg-[#F6EEDB] px-3 py-2.5 text-[13px]">
+          <div className="flex items-center justify-between gap-3">
+            <dt className="shrink-0 text-[#7A6A50]">Plan</dt>
+            <dd className="text-right font-medium text-[#3B2F1E]">{item.planName || item.planId}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="shrink-0 text-[#7A6A50]">Bought</dt>
+            <dd className="text-right font-medium text-[#3B2F1E]">
+              {boughtAgoLabel(item.startedAt)}
+              <span className="font-normal text-[#7A6A50]"> · {formatDate(item.startedAt)}</span>
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="shrink-0 text-[#7A6A50]">Images generated</dt>
+            <dd className="text-right font-semibold text-[#3B2F1E] tabular-nums">
+              {item.imagesGenerated == null ? "—" : item.imagesGenerated.toLocaleString("en-BD")}
+            </dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="shrink-0 text-[#7A6A50]">Ends</dt>
+            <dd className="text-right font-medium text-[#3B2F1E]">{formatDate(item.expiresAt, true)}</dd>
+          </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="shrink-0 text-[#7A6A50]">Renewal email</dt>
+            <dd className="text-right font-medium">
+              {item.reminderSentAt ? (
+                <span className="text-emerald-700">Sent · {formatDate(item.reminderSentAt, true)}</span>
+              ) : left <= 3 * 86_400_000 ? (
+                <StatusPill label="Not sent yet" tone="amber" />
+              ) : (
+                <span className="font-normal text-[#7A6A50]">Sends at 3 days left</span>
+              )}
+            </dd>
+          </div>
+        </dl>
+
+        {email && (
+          <button
+            type="button"
+            onClick={() => sendPopupTo({ email, fullName: item.user?.fullName })}
+            className={`mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-[#3B2F1E] px-2 text-[13px] font-semibold text-[#FBF6E8] shadow-sm transition hover:bg-[#5A4A32] ${FOCUS}`}
+          >
+            <Bell size={14} className="shrink-0" /> Send renewal popup
+          </button>
+        )}
+      </li>
+    );
+  };
+
+  const renewalWatch = (
+    <section className="space-y-4">
+      <div className={`${CARD} px-5 py-4 sm:px-6`}>
+        <PanelHeading
+          title="Renewal watch"
+          description="Paid plans ending within 7 days. This list updates automatically, no filter click needed."
+          action={<StatusPill label={`${expiring.total.toLocaleString("en-BD")} ending soon`} tone="amber" />}
+        />
+        {expiring.error && (
+          <div role="alert" className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            {expiring.error}
+          </div>
+        )}
+      </div>
+      <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {expiringBuckets.map((group) => (
+          <section key={group.key} className={`${CARD} min-w-0 overflow-hidden`}>
+            <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
+              <div className="flex min-w-0 items-start gap-3">
+                <span aria-hidden="true" className="mt-0.5 h-9 w-1 shrink-0 rounded-full bg-[#DC2626]" />
+                <div className="min-w-0">
+                  <h2 className="truncate text-[17px] font-semibold tracking-tight text-[#3B2F1E]">{group.title}</h2>
+                  <p className="mt-0.5 text-[13px] leading-5 text-[#7A6A50]">{group.description}</p>
+                </div>
+              </div>
+              <span className="shrink-0 whitespace-nowrap">
+                <StatusPill label={group.items.length.toLocaleString("en-BD")} tone={group.tone} />
+              </span>
+            </div>
+            <div className="max-h-[78vh] overflow-y-auto overscroll-contain">
+              {expiring.loading && !expiring.items.length ? (
+                <LoadingRows />
+              ) : group.items.length ? (
+                <ul className="space-y-3 border-t border-[#E3D6B8] p-3">
+                  {group.items.map((item) => expiringCard(item))}
+                </ul>
+              ) : (
+                <EmptyState icon={CreditCard} title="Nobody here right now" />
+              )}
+            </div>
+          </section>
+        ))}
+      </div>
+    </section>
+  );
 
   const filterForm = (opts: {
     value: string;
@@ -1745,6 +2196,7 @@ export default function AdminDashboardClient() {
           {opts.label}
         </button>
       </form>
+      {opts.options.length > 0 && (
       <div
         role="group"
         aria-label="Filter by status"
@@ -1765,6 +2217,7 @@ export default function AdminDashboardClient() {
           );
         })}
       </div>
+      )}
     </div>
   );
 
@@ -2145,7 +2598,7 @@ export default function AdminDashboardClient() {
                 loading={overviewLoading}
                 onNavigate={(target) => {
                   if (target === "pending") { setSubscriptionStatus("pending"); selectTab("subscriptions"); }
-                  else if (target === "expiring" || target === "expiring-1" || target === "expiring-3") { setSubscriptionStatus(target); selectTab("subscriptions"); }
+                  else if (target === "expiring" || target === "expiring-1" || target === "expiring-3") { setSubscriptionStatus("all"); selectTab("subscriptions"); }
                   else if (target === "failed") { setSubscriptionStatus("all"); selectTab("subscriptions"); }
                   else if (target === "chats") selectTab("chats");
                   else selectTab("generations");
@@ -2273,70 +2726,101 @@ export default function AdminDashboardClient() {
           )}
 
           {tab === "users" && (
-            <section className={`${CARD} overflow-hidden`}>
-              <div className="p-5 pb-0 sm:px-6 sm:pt-6">
-                <PanelHeading
-                  title="All users"
-                  description="A user shows as online while active on the site (click, touch, typing or scrolling). They go offline after about 3 minutes without any activity."
-                  action={
-                    <StatusPill
-                      label={`${userPagination.total.toLocaleString("en-BD")} accounts`}
-                      tone="indigo"
-                    />
-                  }
-                />
+            <div className="space-y-6">
+              <section className={`${CARD} overflow-hidden`}>
+                {filterForm({
+                  value: userSearch,
+                  setValue: setUserSearch,
+                  apply: () => setAppliedUserSearch(userSearch),
+                  placeholder: "Search name, email or phone",
+                  status: "",
+                  setStatus: () => {},
+                  options: [],
+                  label: "Search",
+                })}
+                <p className="px-5 pb-4 text-xs text-[#7A6A50] sm:px-6">
+                  A user shows as online while active on the site (click, touch, typing or scrolling) and goes offline after about 3 minutes without any activity.
+                </p>
+                {usersNotice && (
+                  <div
+                    role="status"
+                    className="mx-5 mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+                  >
+                    {usersNotice}
+                  </div>
+                )}
+              </section>
+
+              <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {USER_SECTIONS.map((section) => {
+                  const state = userSections[section.key];
+                  return (
+                    <section
+                      key={section.key}
+                      className={`${CARD} min-w-0 overflow-hidden`}
+                    >
+                      <div className="flex items-start justify-between gap-3 px-4 pb-3 pt-4">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <span
+                            aria-hidden="true"
+                            className="mt-0.5 h-9 w-1 shrink-0 rounded-full bg-[#DC2626]"
+                          />
+                          <div className="min-w-0">
+                            <h2 className="truncate text-[17px] font-semibold tracking-tight text-[#3B2F1E]">
+                              {section.title}
+                            </h2>
+                            <p className="mt-0.5 text-[13px] leading-5 text-[#7A6A50]">
+                              {section.description}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="shrink-0 whitespace-nowrap">
+                          <StatusPill
+                            label={state.pagination.total.toLocaleString("en-BD")}
+                            tone={section.tone}
+                          />
+                        </span>
+                      </div>
+                      {state.error && (
+                        <div
+                          role="alert"
+                          className="mx-4 mb-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700"
+                        >
+                          {state.error}
+                        </div>
+                      )}
+                      <div className="max-h-[78vh] overflow-y-auto overscroll-contain">
+                        {state.loading ? (
+                          <LoadingRows />
+                        ) : state.users.length ? (
+                          userColumnCards(state.users)
+                        ) : (
+                          <EmptyState
+                            icon={Users}
+                            title={section.empty}
+                            hint={
+                              appliedUserSearch.trim()
+                                ? "Try a different name, email or phone number."
+                                : undefined
+                            }
+                          />
+                        )}
+                      </div>
+                      <Pager
+                        p={state.pagination}
+                        loading={state.loading}
+                        onGo={(page) => void loadUsers(section.key, page)}
+                      />
+                    </section>
+                  );
+                })}
               </div>
-              {filterForm({
-                value: userSearch,
-                setValue: setUserSearch,
-                apply: () => setAppliedUserSearch(userSearch),
-                placeholder: "Search name, email or phone",
-                status: userStatus,
-                setStatus: setUserStatus,
-                options: [
-                  ["all", "All users"],
-                  ["online", "Online now"],
-                  ["offline", "Offline"],
-                  ["subscribed", "Active subscribers"],
-                ],
-                label: "Search",
-              })}
-              {usersError && (
-                <div
-                  role="alert"
-                  className="mx-5 mb-3 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700"
-                >
-                  {usersError}
-                </div>
-              )}
-              {usersNotice && (
-                <div
-                  role="status"
-                  className="mx-5 mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
-                >
-                  {usersNotice}
-                </div>
-              )}
-              {usersLoading ? (
-                <LoadingRows />
-              ) : users.length ? (
-                userRows(users)
-              ) : (
-                <EmptyState
-                  icon={Users}
-                  title="No users match this search"
-                  hint="Try a different name, email, phone number or filter."
-                />
-              )}
-              <Pager
-                p={userPagination}
-                loading={usersLoading}
-                onGo={(page) => void loadUsers(page)}
-              />
-            </section>
+            </div>
           )}
 
           {tab === "subscriptions" && (
+            <div className="space-y-6">
+            {renewalWatch}
             <section className={`${CARD} overflow-hidden`}>
               <div className="p-5 pb-0 sm:px-6 sm:pt-6">
                 <PanelHeading
@@ -2360,9 +2844,6 @@ export default function AdminDashboardClient() {
                 options: [
                   ["all", "All statuses"],
                   ["active", "Active"],
-                  ["expiring-1", "Last day"],
-                  ["expiring-3", "Within 3 days"],
-                  ["expiring", "Within 7 days"],
                   ["expired", "Expired"],
                   ["pending", "Pending payment"],
                   ["cancelled", "Cancelled"],
@@ -2396,6 +2877,7 @@ export default function AdminDashboardClient() {
                 onGo={(page) => void loadSubscriptions(page)}
               />
             </section>
+            </div>
           )}
 
           {tab === "chats" && <AdminChatsPanel refreshKey={chatRefreshKey} />}
@@ -2406,7 +2888,7 @@ export default function AdminDashboardClient() {
           {tab === "subscription-plans" && <SubscriptionPlansPanel key={subscriptionPlansRefreshKey} />}
           {tab === "subscription-activity" && <SubscriptionActivityPanel />}
           {tab === "bot-status" && <BotStatusPanel />}
-          {tab === "user-alerts" && <UserAlertsPanel />}
+          {tab === "user-alerts" && <UserAlertsPanel prefill={alertPrefill} onPrefillUsed={() => setAlertPrefill(null)} />}
 
           {accessModalUser && (
             <div

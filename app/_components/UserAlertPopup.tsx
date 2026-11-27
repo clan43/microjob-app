@@ -13,8 +13,10 @@ import AlertHtmlView from "./AlertHtmlView";
  * a message once (or once a day for "daily" alerts) on any page and any device.
  */
 
-const CHECK_THROTTLE_MS = 45_000;
-const RECHECK_EVERY_MS = 5 * 60_000;
+// Our own server has no serverless CPU limit, so users pick up a new popup within ~30 seconds
+// (a user the admin just messaged from the Users tab sees it almost right away).
+const CHECK_THROTTLE_MS = 15_000;
+const RECHECK_EVERY_MS = 30_000;
 const UNAUTH_PAUSE_MS = 5 * 60_000;
 
 type ActiveAlert = { id: string; html: string; width: number };
