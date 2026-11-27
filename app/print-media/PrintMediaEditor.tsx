@@ -304,19 +304,16 @@ function clampNumber(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-// Premium "AI scan" overlay shown on a photo while its background is being removed.
-function ScanOverlay({ compact = false, label = "", percent = null }: { compact?: boolean; label?: string; percent?: number | null }) {
+// Scan overlay shown on a photo while its background is being removed.
+// Same animation as the Remove Background tool: transform-only, so it keeps moving on the
+// compositor thread even while the AI model blocks the main thread.
+function ScanOverlay({ label = "", percent = null }: { compact?: boolean; label?: string; percent?: number | null }) {
   return (
-    <div className={`pm-scan${compact ? " pm-scan-compact" : ""}`} aria-hidden="true">
-      <div className="pm-scan-grid" />
-      <div className="pm-scan-beam" />
-      <span className="pm-scan-corner pm-scan-tl" />
-      <span className="pm-scan-corner pm-scan-tr" />
-      <span className="pm-scan-corner pm-scan-bl" />
-      <span className="pm-scan-corner pm-scan-br" />
-      {!compact && label ? (
+    <div className="pm-scan" aria-hidden="true">
+      <div className="pm-scan-tint" />
+      <div className="pm-scan-line" />
+      {label ? (
         <div className="pm-scan-pill">
-          <span className="pm-scan-dot" />
           <span>{label}{percent !== null ? ` ${percent}%` : ""}</span>
         </div>
       ) : null}
@@ -2707,22 +2704,11 @@ export default function PrintMediaEditor({ templateId }: { templateId: number })
         .editor-tool:disabled { opacity:.45; cursor:not-allowed; }
         .editor-zoom { width:28px; height:28px; border-radius:8px; border:1px solid #d7c7a7; background:#fffaf0; color:#6a5332; font-weight:800; }
         .pm-editor-font, .pm-editor-font *:not(svg):not(svg *) { font-family: "Plus Jakarta Sans", "Hind Siliguri", "Noto Sans Bengali", sans-serif; -webkit-font-smoothing: antialiased; }
-        .pm-scan { position:absolute; inset:0; overflow:hidden; pointer-events:none; border-radius:inherit; background:linear-gradient(180deg,rgba(8,14,30,.30),rgba(8,14,30,.46)); --pm-corner:16px; animation:pm-scan-in .35s ease-out both; }
-        .pm-scan-compact { --pm-corner:9px; }
-        .pm-scan-grid { position:absolute; inset:0; background-image:linear-gradient(rgba(125,211,252,.18) 1px,transparent 1px),linear-gradient(90deg,rgba(125,211,252,.18) 1px,transparent 1px); background-size:16px 16px; -webkit-mask-image:radial-gradient(ellipse at center,#000 35%,transparent 100%); mask-image:radial-gradient(ellipse at center,#000 35%,transparent 100%); animation:pm-scan-grid 2.6s linear infinite; }
-        .pm-scan-beam { position:absolute; left:0; right:0; top:0; height:36%; transform:translateY(-100%); background:linear-gradient(180deg,rgba(34,211,238,0) 0%,rgba(34,211,238,.12) 55%,rgba(103,232,249,.42) 92%,rgba(255,255,255,.95) 100%); border-bottom:2px solid #fff; box-shadow:0 8px 26px 5px rgba(34,211,238,.55); animation:pm-scan-sweep 2.3s cubic-bezier(.45,0,.25,1) infinite; }
-        .pm-scan-corner { position:absolute; width:var(--pm-corner); height:var(--pm-corner); border:0 solid #fff; filter:drop-shadow(0 0 4px rgba(34,211,238,.9)); animation:pm-scan-pulse 1.4s ease-in-out infinite; }
-        .pm-scan-tl { top:5px; left:5px; border-top-width:2px; border-left-width:2px; border-top-left-radius:4px; }
-        .pm-scan-tr { top:5px; right:5px; border-top-width:2px; border-right-width:2px; border-top-right-radius:4px; }
-        .pm-scan-bl { bottom:5px; left:5px; border-bottom-width:2px; border-left-width:2px; border-bottom-left-radius:4px; }
-        .pm-scan-br { bottom:5px; right:5px; border-bottom-width:2px; border-right-width:2px; border-bottom-right-radius:4px; }
-        .pm-scan-pill { position:absolute; left:50%; bottom:12px; transform:translateX(-50%); display:inline-flex; align-items:center; gap:6px; max-width:92%; white-space:nowrap; border-radius:999px; padding:5px 11px; font-size:11px; font-weight:700; color:#fff; background:rgba(10,16,32,.72); border:1px solid rgba(165,243,252,.35); box-shadow:0 4px 18px rgba(0,0,0,.35); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
-        .pm-scan-dot { width:7px; height:7px; border-radius:999px; background:#22d3ee; box-shadow:0 0 8px 2px rgba(34,211,238,.8); animation:pm-scan-pulse 1s ease-in-out infinite; }
-        @keyframes pm-scan-in { from { opacity:0; } to { opacity:1; } }
-        @keyframes pm-scan-sweep { 0% { transform:translateY(-100%); opacity:0; } 10% { opacity:1; } 82% { opacity:1; } 100% { transform:translateY(270%); opacity:0; } }
-        @keyframes pm-scan-grid { from { background-position:0 0; } to { background-position:0 16px; } }
-        @keyframes pm-scan-pulse { 0%,100% { opacity:.55; } 50% { opacity:1; } }
-        @media (prefers-reduced-motion: reduce) { .pm-scan-beam, .pm-scan-grid, .pm-scan-corner, .pm-scan-dot { animation:none; } .pm-scan-beam { top:45%; transform:none; } }
+        .pm-scan { position:absolute; inset:0; overflow:hidden; pointer-events:none; border-radius:inherit; }
+        .pm-scan-tint { position:absolute; inset:0; background:rgba(220,38,38,.10); }
+        @keyframes pm-scan-move { 0% { transform:translate3d(0,-100%,0); } 100% { transform:translate3d(0,400%,0); } }
+        .pm-scan-line { position:absolute; left:0; right:0; top:0; height:25%; will-change:transform; animation:pm-scan-move 1.6s ease-in-out infinite alternate; background:linear-gradient(to bottom,rgba(220,38,38,0),rgba(220,38,38,.28)); border-bottom:2px solid #DC2626; box-shadow:0 4px 16px rgba(220,38,38,.32); }
+        .pm-scan-pill { position:absolute; left:50%; bottom:10px; transform:translateX(-50%); max-width:92%; white-space:nowrap; border-radius:999px; padding:4px 11px; font-size:11px; font-weight:700; color:#fff; background:rgba(185,28,28,.88); box-shadow:0 2px 10px rgba(0,0,0,.25); }
         .pm-canvas svg { width: 100%; height: auto; max-height: 100%; display: block; }
         .pm-canvas svg text, .pm-canvas svg tspan { text-rendering: geometricPrecision; font-kerning: normal; font-variant-ligatures: normal; }
         .pm-canvas svg [data-editor-selected="true"]:not(#bg_page):not(#background):not([data-layer-name="Page Background"]) { filter: drop-shadow(0 0 1px rgba(220,38,38,.95)) drop-shadow(0 0 1px rgba(220,38,38,.65)); }
