@@ -483,10 +483,8 @@ export default function PhotoEditorPage() {
             throw new Error("Source image has invalid dimensions.");
         }
         const scale = Math.min(target.widthPx / sourceWidth, target.heightPx / sourceHeight);
-        const drawWidth = Math.max(1, Math.round(sourceWidth * scale));
-        const drawHeight = Math.max(1, Math.round(sourceHeight * scale));
-        const drawX = Math.round((target.widthPx - drawWidth) / 2);
-        const drawY = Math.max(0, target.heightPx - drawHeight);
+        // Log what the AI really returned, so wrong-ratio results can be spotted in the console.
+        console.info(`[ai-editor size] AI returned ${sourceWidth}x${sourceHeight} (ratio ${(sourceWidth / sourceHeight).toFixed(3)}), target ${target.widthPx}x${target.heightPx} (ratio ${(target.widthPx / target.heightPx).toFixed(3)})`);
         const canvas = document.createElement("canvas");
         canvas.width = target.widthPx;
         canvas.height = target.heightPx;
@@ -503,8 +501,8 @@ export default function PhotoEditorPage() {
             context.fillStyle = getSelectedBgColorValue();
             context.fillRect(0, 0, target.widthPx, target.heightPx);
         }
-        if (dualGroupPhoto) {
-            // Dual group photo: the AI image must fill the whole frame, so there is never
+        {
+            // Single and dual photos: the AI image must fill the whole frame, so there is never
             // a white strip. Close ratios are cover-cropped (a little from the sides or
             // from the bottom, keeping headroom). Very different ratios are fitted whole,
             // and the empty area takes the backdrop colour sampled from the image corner.
@@ -539,11 +537,9 @@ export default function PhotoEditorPage() {
                 const fitScale = Math.min(target.widthPx / sourceWidth, target.heightPx / sourceHeight);
                 const fitW = Math.max(1, Math.round(sourceWidth * fitScale));
                 const fitH = Math.max(1, Math.round(sourceHeight * fitScale));
-                context.drawImage(image, 0, 0, sourceWidth, sourceHeight, Math.round((target.widthPx - fitW) / 2), Math.round((target.heightPx - fitH) / 2), fitW, fitH);
+                // Dual is centred; a single passport photo keeps the old bottom alignment.
+                context.drawImage(image, 0, 0, sourceWidth, sourceHeight, Math.round((target.widthPx - fitW) / 2), dualGroupPhoto ? Math.round((target.heightPx - fitH) / 2) : Math.max(0, target.heightPx - fitH), fitW, fitH);
             }
-        }
-        else {
-            context.drawImage(image, 0, 0, sourceWidth, sourceHeight, drawX, drawY, drawWidth, drawHeight);
         }
         // The AI image is often smaller than the 600 DPI master size: restore fine detail after upscaling.
         if (scale > 1.05 || dualGroupPhoto) {
@@ -915,6 +911,41 @@ export default function PhotoEditorPage() {
         }
     };
     const resolveUploadedUrl = (url: string) => uploadedUrlMapRef.current.get(url) || url;
+    // Rotates the real pixels of the photo being cropped by 90 degrees (not just a CSS tilt), so the crop box,
+    // the aspect ratio and the saved crop always match what the user sees on screen.
+    const rotateCropSource = async () => {
+        if (!tempImageForCrop || isCropping)
+            return;
+        try {
+            const source = await loadImageForCanvas(tempImageForCrop);
+            const sw = source.naturalWidth || source.width;
+            const sh = source.naturalHeight || source.height;
+            if (!sw || !sh)
+                return;
+            const canvas = document.createElement("canvas");
+            canvas.width = sh;
+            canvas.height = sw;
+            const ctx = canvas.getContext("2d");
+            if (!ctx)
+                throw new Error("Could not create rotation canvas.");
+            ctx.translate(canvas.width / 2, canvas.height / 2);
+            ctx.rotate(Math.PI / 2);
+            ctx.drawImage(source, -sw / 2, -sh / 2);
+            const rotatedUrl = canvas.toDataURL("image/jpeg", 0.95);
+            canvas.width = 0;
+            canvas.height = 0;
+            const previous = tempImageForCrop;
+            setRotate(0);
+            setZoom(100);
+            setCompletedCrop(null);
+            setTempImageForCrop(rotatedUrl);
+            if (previous.startsWith("blob:"))
+                URL.revokeObjectURL(previous);
+        }
+        catch (error) {
+            setErrorMessage(error instanceof Error ? error.message : "Could not rotate the photo.");
+        }
+    };
     const handleConfirmCrop = async (imageEl: HTMLImageElement | null) => {
         if (!tempImageForCrop) {
             setShowCropModal(false);
@@ -1580,7 +1611,11 @@ export default function PhotoEditorPage() {
         }
         if (hasSelectedPhotoSize) {
             const size = typeof payload.size === "string" ? payload.size : getCurrentSizeLabel();
-            sections.push(`Prepare the composition to suit the selected final document/photo size (${size}). The application will handle the exact pixel dimensions after generation, so do not add any text or size labels.`);
+            const ratioTarget = getExactExportDimensions(size);
+            const ratioW = ratioTarget.widthPx;
+            const ratioH = ratioTarget.heightPx;
+            const ratioShape = Math.abs(ratioW / ratioH - 1) < 0.03 ? "square" : ratioW > ratioH ? "landscape" : "portrait";
+            sections.push(`Prepare the composition to suit the selected final document/photo size (${size}). CANVAS: ${ratioShape}, aspect ratio exactly ${ratioW}:${ratioH} (width divided by height is about ${(ratioW / ratioH).toFixed(3)}). Return the image in exactly this aspect ratio, never square unless the ratio is 1:1. The backdrop must fill the ENTIRE canvas edge to edge, with no white, black or colored bars, margins or strips at the top, bottom or sides. The application will handle the exact pixel dimensions after generation, so do not add any text or size labels.`);
         }
         if (studioPose) {
             sections.push("FINAL POSE CHECK (do this silently before answering): if the head is still tilted, turned or leaning, if the eye line is not horizontal, if one shoulder is higher than the other, if the neck is slanted, or if the person is not looking straight into the lens, the pose is WRONG. Fix it and check again until the pose is perfectly straight and frontal, while the face stays the same real person.");
@@ -2465,7 +2500,7 @@ export default function PhotoEditorPage() {
                     <Plus size={16}/>
                   </button>
                 </div>
-                <button onClick={() => setRotate((prev) => (prev + 90) % 360)} disabled={isCropping} className="flex h-11 items-center gap-2 rounded-xl border border-[#E3D6B8] bg-[#F3E9D2] px-4 text-sm font-semibold text-[#3B2F1E] transition hover:border-[#DC2626] hover:text-[#DC2626] cursor-pointer disabled:opacity-50">
+                <button onClick={() => { void rotateCropSource(); }} disabled={isCropping} className="flex h-11 items-center gap-2 rounded-xl border border-[#E3D6B8] bg-[#F3E9D2] px-4 text-sm font-semibold text-[#3B2F1E] transition hover:border-[#DC2626] hover:text-[#DC2626] cursor-pointer disabled:opacity-50">
                   <RotateCw size={15}/><AiT>{"Rotate"}</AiT>
                 </button>
               </div>
